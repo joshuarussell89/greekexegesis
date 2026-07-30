@@ -1,0 +1,2794 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Kolon">
+<meta name="theme-color" content="#fffefb">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" href="./icon-180.png">
+<link rel="icon" href="./icon-192.png">
+<title>Kolon — Greek NT Flow Diagrams</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cardo:wght@400;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#eeeae1; --paper:#fffefb; --ink:#211d18; --muted:#857d70;
+    --rule:#e6e1d6; --rule2:#f0ece3; --accent:#8a5a2b; --accent2:#a9713b;
+    --sel:#c2410c; --chip:#f4f1e9;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);
+    font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink);
+    -webkit-font-smoothing:antialiased;}
+  #app{display:flex;flex-direction:column;height:100%;}
+
+  /* ---------- header ---------- */
+  header{flex:0 0 auto;background:var(--paper);border-bottom:1px solid var(--rule);
+    box-shadow:0 1px 0 rgba(0,0,0,.02),0 2px 8px rgba(0,0,0,.035);z-index:50;}
+  .tier{display:flex;gap:9px;align-items:center;padding:0 14px;min-height:46px;}
+  .tier+.tier{border-top:1px solid var(--rule2);min-height:44px;}
+  .brand{font-size:13.5px;font-weight:600;letter-spacing:-.01em;margin-right:2px;}
+  .brand span{font-family:Cardo,serif;font-weight:400;color:var(--accent);font-size:16px;}
+  .spacer{flex:1 1 auto;}
+
+  button{font:inherit;font-size:13px;border:none;background:transparent;color:var(--ink);
+    padding:7px 11px;border-radius:8px;cursor:pointer;white-space:nowrap;line-height:1;
+    display:inline-flex;align-items:center;gap:6px;transition:background .12s,color .12s;}
+  button:hover{background:rgba(0,0,0,.045);}
+  button:disabled{opacity:.32;cursor:default;}
+  button:disabled:hover{background:transparent;}
+  button svg{width:16px;height:16px;flex:0 0 16px;}
+
+  .grp{display:flex;gap:2px;align-items:center;padding:3px;background:var(--chip);
+    border-radius:10px;border:1px solid rgba(0,0,0,.035);}
+  .grp button{padding:6px 10px;}
+  .grp button.on{background:var(--paper);color:var(--accent);font-weight:600;
+    box-shadow:0 1px 2px rgba(0,0,0,.10),0 0 0 1px rgba(0,0,0,.05);}
+  .glbl{font-size:9.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);
+    padding:0 7px 0 5px;font-weight:600;}
+
+  button.act{background:var(--accent);color:#fff;font-weight:500;}
+  button.act:hover{background:#774c24;}
+  button.ghost{border:1px solid var(--rule);}
+  button.ghost:hover{background:var(--chip);}
+
+  select{font:inherit;font-size:13px;padding:7px 26px 7px 10px;border:1px solid var(--rule);
+    border-radius:8px;background:var(--paper);color:var(--ink);appearance:none;cursor:pointer;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23857d70' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;background-position:right 9px center;}
+  select:hover{border-color:#d5cec0;}
+  #passage{font-weight:500;min-width:210px;}
+
+  .sw{width:24px;height:24px;border-radius:50%;cursor:pointer;border:2px solid transparent;
+    box-shadow:0 0 0 1px rgba(0,0,0,.10) inset;}
+  .sw.on{border-color:var(--ink);}
+  .toggle{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--muted);
+    cursor:pointer;white-space:nowrap;}
+  .toggle input{accent-color:var(--accent);width:15px;height:15px;}
+
+  /* ---------- dropdown panels ---------- */
+  .pop{position:fixed;top:96px;right:14px;width:340px;max-width:calc(100vw - 28px);
+    background:var(--paper);border:1px solid var(--rule);border-radius:14px;
+    box-shadow:0 14px 44px rgba(0,0,0,.18);padding:6px;z-index:140;display:none;
+    max-height:calc(100vh - 120px);overflow:auto;}
+  .pop.show{display:block;}
+  .pop h4{margin:0;padding:10px 12px 6px;font-size:9.5px;font-weight:700;color:var(--muted);
+    text-transform:uppercase;letter-spacing:.11em;}
+  .pop .item{display:flex;gap:10px;padding:7px 12px;font-size:12.5px;line-height:1.5;
+    color:var(--muted);}
+  .pop .item b{color:var(--ink);font-weight:600;}
+  .pop .item .kbd{flex:0 0 96px;color:var(--ink);font-weight:600;font-size:12px;}
+  .pop hr{border:none;border-top:1px solid var(--rule2);margin:6px 0;}
+  .pop .fld{display:flex;align-items:center;gap:8px;padding:5px 12px 9px;}
+  .pop .fld label{flex:0 0 96px;font-size:11.5px;color:var(--muted);}
+  .pop .fld select,.pop .fld input[type=text]{flex:1 1 auto;min-width:0;}
+  .pop .fld input[type=text]{font:inherit;font-size:13px;padding:7px 10px;
+    border:1px solid var(--rule);border-radius:8px;background:var(--paper);color:var(--ink);}
+  .pop .fld input[type=file]{flex:1 1 auto;min-width:0;font-size:11.5px;color:var(--muted);}
+  .pop .rowbtn{display:block;width:100%;text-align:left;padding:9px 12px;border-radius:9px;
+    font-size:13px;}
+  .pop .foot{padding:8px 12px 10px;font-size:11px;color:var(--muted);line-height:1.5;}
+
+  /* ---------- board ---------- */
+  #scroll{flex:1 1 auto;overflow:auto;-webkit-overflow-scrolling:touch;padding:20px;}
+  #board{position:relative;width:1120px;height:1750px;background:var(--paper);
+    border:1px solid var(--rule);border-radius:4px;
+    box-shadow:0 1px 2px rgba(0,0,0,.05),0 10px 30px rgba(0,0,0,.07);}
+  /* faint ruled margin, like a printed text block */
+  /* sits between the verse gutter (ends at 64px) and the text block (starts at 78px) */
+  #board:before{content:"";position:absolute;left:70px;top:0;bottom:0;width:1px;
+    background:linear-gradient(to bottom,transparent,rgba(138,90,43,.13) 4%,
+      rgba(138,90,43,.13) 96%,transparent);pointer-events:none;z-index:0;}
+  #svg,#ink,#hit{position:absolute;inset:0;width:100%;height:100%;}
+  #svg{pointer-events:none;z-index:2;}
+  #ink{z-index:3;pointer-events:none;}
+  #hit{z-index:10;touch-action:none;}
+  .w{position:absolute;font-family:Cardo,Georgia,serif;font-size:27px;line-height:1.15;
+    padding:2px 4px;border-radius:4px;white-space:nowrap;z-index:1;
+    transition:box-shadow .12s;}
+  .w.sel{background:rgba(194,65,12,.12);box-shadow:0 0 0 1.5px var(--sel);}
+  .w.lem{box-shadow:inset 0 -2px 0 rgba(0,0,0,.10);}
+  .lemsw{display:flex;gap:5px;align-items:center;margin-top:10px;padding-top:10px;
+    border-top:1px solid var(--rule);flex-wrap:wrap;}
+  .lemsw .k{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);
+    flex:0 0 100%;margin-bottom:2px;}
+  .lemsw .sw{width:19px;height:19px;border-width:2px;}
+  .lemsw .clr{flex:0 0 100%;margin-top:4px;font-size:11.5px;color:var(--muted);cursor:pointer;
+    background:none;padding:4px 0;text-align:left;}
+  .lemsw .clr:hover{color:var(--ink);background:none;}
+
+  /* ---------- floating colour wheel ---------- */
+  #wheel{position:fixed;z-index:120;touch-action:none;user-select:none;
+    filter:drop-shadow(0 6px 18px rgba(0,0,0,.20));}
+  #wheel svg{display:block;overflow:visible;}
+  #wheel .sec{cursor:pointer;}
+  #wheel .sec:hover{opacity:.82;}
+  #wheel .hub{cursor:grab;}
+  #wheel .hublbl{font:600 9px Inter,sans-serif;fill:var(--muted);
+    text-anchor:middle;pointer-events:none;letter-spacing:.06em;}
+  #wheel .hubname{font:600 11px Inter,sans-serif;fill:var(--ink);
+    text-anchor:middle;pointer-events:none;}
+  .w.float{box-shadow:0 2px 8px rgba(0,0,0,.14);background:#fff;}
+  .vn{position:absolute;font-family:Inter,sans-serif;font-size:10px;font-weight:700;
+    color:var(--accent);opacity:.7;z-index:1;width:34px;text-align:right;
+    letter-spacing:.02em;}
+  .lh{position:absolute;width:14px;border-radius:7px;background:#e8e3d8;z-index:1;
+    transition:background .12s;}
+  .lh:hover{background:#d8d0c0;}
+  .gap{position:absolute;width:3px;background:rgba(194,65,12,.35);border-radius:2px;z-index:4;}
+
+  /* ---------- section breaks ---------- */
+  /* NB: named .secbreak, not .sec — the colour wheel's SVG sectors use .sec,
+     and an unscoped .sec rule here silently killed pointer events on them. */
+  #board .secbreak{position:absolute;z-index:4;pointer-events:none;}
+  #board .secbreak .rule{position:absolute;left:0;right:0;top:11px;height:5px;border-radius:3px;}
+  #board .secbreak .chip{position:absolute;left:34px;top:0;display:inline-flex;
+    align-items:center;gap:2px;background:var(--paper);border-radius:8px;
+    padding:1px 3px 1px 8px;pointer-events:auto;
+    box-shadow:0 0 0 1px rgba(0,0,0,.07);max-width:calc(100% - 60px);}
+  /* a real <input>, not contenteditable: iOS raises the keyboard reliably for
+     form fields, and only when focus happens inside the user's gesture */
+  #board .secbreak .ttl{font:600 12px Inter,sans-serif;letter-spacing:.02em;outline:none;
+    border:none;background:transparent;padding:4px 2px;width:150px;min-width:0;
+    -webkit-appearance:none;}
+  #board .secbreak .ttl::placeholder{color:#b3aa9a;font-weight:500;}
+  #board .secbreak .ttl:focus{box-shadow:inset 0 -2px 0 currentColor;}
+  #board .secbreak .del{font:400 15px Inter,sans-serif;color:#bdb4a4;cursor:pointer;
+    line-height:1;padding:2px 5px 3px;border-radius:6px;}
+  #board .secbreak .del:hover{color:var(--sel);background:var(--chip);}
+  /* ---------- line-style menu, anchored under the Line button ---------- */
+  button svg.car{width:9px;height:6px;flex:0 0 9px;opacity:.5;margin-left:-1px;}
+  .pop.anchored{right:auto;width:264px;padding:5px;}
+  .styleopt{display:flex;align-items:center;gap:11px;width:100%;text-align:left;
+    padding:8px 10px;border-radius:9px;}
+  .styleopt .prev{flex:0 0 62px;height:16px;}
+  .styleopt .nm{font-size:13px;font-weight:500;}
+  .styleopt .sub{font-size:10.5px;color:var(--muted);line-height:1.35;margin-top:1px;
+    white-space:normal;}
+  .styleopt .tick{margin-left:auto;color:var(--accent);font-size:13px;opacity:0;flex:0 0 12px;}
+  .styleopt.on{background:var(--chip);}
+  .styleopt.on .tick{opacity:1;}
+  .styleopt .txt{display:flex;flex-direction:column;min-width:0;}
+  .mh{position:absolute;display:none;border:2px dashed var(--accent);border-radius:8px;
+    background:rgba(138,90,43,.08);z-index:0;pointer-events:none;}
+
+  /* ---------- inspector ---------- */
+  #insp{position:fixed;right:18px;bottom:18px;width:334px;max-width:calc(100vw - 36px);
+    background:var(--paper);border:1px solid var(--rule);border-radius:15px;
+    box-shadow:0 16px 46px rgba(0,0,0,.19);padding:16px 18px 15px;z-index:80;display:none;}
+  #insp.show{display:block;}
+  #insp .hd{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;
+    padding-bottom:11px;}
+  #insp .grk{font-family:Cardo,serif;font-size:33px;line-height:1.05;letter-spacing:-.01em;}
+  #insp .ref{font-size:10px;color:var(--muted);letter-spacing:.11em;margin-top:5px;
+    font-weight:600;}
+  #insp .x{font-size:17px;color:var(--muted);cursor:pointer;line-height:1;padding:3px 6px;
+    border-radius:7px;}
+  #insp .x:hover{background:var(--chip);color:var(--ink);}
+  .row{display:flex;gap:10px;padding:7px 0;border-top:1px solid var(--rule2);font-size:12.5px;
+    line-height:1.45;}
+  .row .k{flex:0 0 62px;color:var(--muted);font-size:9.5px;text-transform:uppercase;
+    letter-spacing:.09em;padding-top:3px;font-weight:600;}
+  .row .v{flex:1;min-width:0;}
+  .row .v .gk{font-family:Cardo,serif;font-size:19px;}
+  .acts{display:flex;gap:6px;margin-top:13px;flex-wrap:wrap;}
+  .acts a,.acts button{font-size:12px;padding:8px 11px;border-radius:9px;font-weight:500;
+    background:var(--accent);color:#fff;text-decoration:none;display:inline-flex;cursor:pointer;
+    line-height:1;align-items:center;}
+  .acts a:hover{background:#774c24;}
+  .acts .alt{background:var(--chip);color:var(--ink);border:1px solid var(--rule);}
+  .acts .alt:hover{background:#e9e4d9;}
+  .note{font-size:10.5px;color:var(--muted);margin-top:11px;line-height:1.5;
+    padding-top:10px;border-top:1px solid var(--rule2);}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="tier">
+      <div class="brand"><span>κ</span> Kolon</div>
+      <select id="passage">
+        <optgroup label="2 Corinthians">
+          <option value="c2_112">2 Corinthians 1:12 – 2:11</option>
+        </optgroup>
+        <optgroup label="Other passages">
+          <option value="john1">John 1:1–5</option>
+          <option value="eph1">Ephesians 1:3–6</option>
+        </optgroup>
+      </select>
+      <select id="chapter" title="Which part of the loaded book to lay out"
+              style="display:none"></select>
+      <span class="glbl" id="wcount"></span>
+      <button id="auto" class="act" title="Break the passage into propositions">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"
+             stroke-linecap="round"><path d="M3 5h14M6 10h11M9 15h8"/></svg>Auto-split</button>
+      <div class="grp">
+        <button id="undoBtn" disabled title="Undo (⌘Z)">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"
+               stroke-linecap="round" stroke-linejoin="round"><path
+               d="M4 9h8.5a3.5 3.5 0 010 7H8M4 9l3-3M4 9l3 3"/></svg>Undo</button>
+        <button id="redoBtn" disabled title="Redo (⇧⌘Z)">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"
+               stroke-linecap="round" stroke-linejoin="round"><path
+               d="M16 9H7.5a3.5 3.5 0 000 7H12M16 9l-3-3M16 9l-3 3"/></svg></button>
+      </div>
+      <button id="joinUp" class="ghost" disabled title="Merge the current line into the one above">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"
+             stroke-linecap="round" stroke-linejoin="round"><path d="M10 16V6M6.5 9.5L10 6l3.5 3.5"/>
+        </svg>Join ↑</button>
+
+      <div class="spacer"></div>
+      <label class="toggle"><input type="checkbox" id="pmode" checked>
+        Pencil draws, finger moves</label>
+      <button id="helpBtn" class="ghost" title="Show the key">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"
+             stroke-linecap="round"><circle cx="10" cy="10" r="7.2"/>
+        <path d="M8 7.6a2 2 0 113.1 1.7c-.7.5-1.1.9-1.1 1.7"/><circle cx="10" cy="14.2" r=".9"
+             fill="currentColor" stroke="none"/></svg>Key</button>
+      <button id="setBtn" class="ghost" title="Accordance links and page actions">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"
+             stroke-linecap="round"><circle cx="10" cy="4.5" r="1.4"/><circle cx="10" cy="10" r="1.4"/>
+        <circle cx="10" cy="15.5" r="1.4"/></svg></button>
+    </div>
+
+    <div class="tier">
+      <span class="glbl">Structure</span>
+      <div class="grp">
+        <button data-tool="move" class="on" title="Move words and lines">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"
+               stroke-linecap="round" stroke-linejoin="round"><path
+               d="M10 3v14M3 10h14M10 3L7.6 5.4M10 3l2.4 2.4M10 17l-2.4-2.4M10 17l2.4-2.4M3 10l2.4-2.4M3 10l2.4 2.4M17 10l-2.4-2.4M17 10l-2.4 2.4"/>
+          </svg>Move</button>
+        <button data-tool="split" title="Tap a word to break the line there">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"
+               stroke-linecap="round"><path d="M3 10h5M12 10h5M10 3v3.5M10 13.5V17"/></svg>Split</button>
+        <button data-tool="join" id="joinTool" title="Tap a word to rejoin its line">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"
+               stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h14M3 14h14M10 9.2L8 11.2M10 9.2l2 2"/>
+          </svg>Join</button>
+        <button data-tool="connect" title="Tap two words to draw a relation arrow">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"
+               stroke-linecap="round" stroke-linejoin="round"><path
+               d="M4 6c0 6 4 9 12 9M16 15l-2.6-2.2M16 15l-2.6 2.2"/></svg>Connect</button>
+      </div>
+
+      <span class="glbl">Ink</span>
+      <div class="grp">
+        <button data-tool="pen" title="Freehand pen, pressure sensitive">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"
+               stroke-linecap="round" stroke-linejoin="round"><path
+               d="M14.6 3.4l2 2-9 9-3 1 1-3 9-9z"/></svg>Pen</button>
+        <button data-tool="highlight" title="Broad translucent highlighter">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"
+               stroke-linecap="round" stroke-linejoin="round"><path
+               d="M6 13l6.5-6.5 3 3L9 16H6v-3z"/><path d="M4 18h12"/></svg>Highlight</button>
+        <button data-tool="line" id="lineBtn" title="Straight line — tap for weights and patterns">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"
+               stroke-linecap="round"><path d="M4 15L16 5"/></svg>Line<svg class="car"
+               viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"
+               stroke-linecap="round"><path d="M1 1l4 4 4-4"/></svg></button>
+        <button data-tool="rect" title="Rectangle, drag corner to corner">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"
+               stroke-linejoin="round"><rect x="3.5" y="5.5" width="13" height="9" rx="1.2"/></svg>Box</button>
+        <button data-tool="erase" title="Erase whole strokes">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"
+               stroke-linecap="round" stroke-linejoin="round"><path
+               d="M8 16H5l-1.6-1.6a1.4 1.4 0 010-2L10 4l4.6 4.6-7.4 7.4"/><path d="M8 16h8"/></svg>Erase</button>
+      </div>
+
+      <div class="spacer"></div>
+    </div>
+  </header>
+
+  <div id="scroll">
+    <div id="board">
+      <svg id="svg"></svg>
+      <canvas id="ink"></canvas>
+      <div id="hit"></div>
+    </div>
+  </div>
+</div>
+
+<div id="insp">
+  <div class="hd">
+    <div><div class="grk" id="i-surf"></div><div class="ref" id="i-ref"></div></div>
+    <div class="x" id="i-close">×</div>
+  </div>
+  <div id="i-rows"></div>
+  <div class="acts">
+    <a id="i-bdag" href="#">BDAG in Accordance</a>
+    <a id="i-text" href="#" class="alt">Open text</a>
+    <button id="i-lem" class="alt">Highlight lemma</button>
+  </div>
+  <div class="lemsw" id="i-sw"></div>
+  <div class="note">Gloss shown is from a public-domain lexicon. BDAG text is licensed
+    and is never bundled — the button deep-links into your own Accordance copy.</div>
+</div>
+
+<div id="wheel"></div>
+
+<div class="pop anchored" id="linePop"></div>
+
+<div class="pop" id="help">
+  <h4>Building the diagram</h4>
+  <div class="item"><div class="kbd">Split</div><div>Tap a word to break the line there; the
+    new line is indented one level.</div></div>
+  <div class="item"><div class="kbd">Rejoin</div><div>Tap a word in Join mode, press
+    <b>Join ↑</b>, or drag a line's grip up onto the line above.</div></div>
+  <div class="item"><div class="kbd">Indent</div><div>Drag a line's grip sideways; it snaps
+    to a 36&nbsp;pt grid.</div></div>
+  <div class="item"><div class="kbd">Float a word</div><div>Drag any single word out of the
+    flow for fine placement.</div></div>
+  <div class="item"><div class="kbd">Auto-split</div><div>Breaks at conjunctions, participles,
+    infinitives and relatives — a first draft in one tap.</div></div>
+  <hr>
+  <h4>Annotating</h4>
+  <div class="item"><div class="kbd">Anchoring</div><div>Every mark attaches to its nearest
+    word, so ink follows the text when you move it.</div></div>
+  <div class="item"><div class="kbd">Line</div><div>Snaps to true horizontal or vertical
+    within 8°.</div></div>
+  <div class="item"><div class="kbd">Box</div><div>Drag corner to corner. Erasing its empty
+    interior is ignored.</div></div>
+  <div class="item"><div class="kbd">Line styles</div><div>Tapping <b>Line</b> opens a menu of
+    weights. Thin, regular, dotted and double are ordinary strokes. <b>Extra thick</b> is
+    different: it lays a section break across the page, opens a gap in the flow, and gives you a
+    title to fill in. Tap the same boundary again to remove it.</div></div>
+  <div class="item"><div class="kbd">Colour</div><div>Tap the floating puck to open the wheel;
+    drag the hub to move it. 18 colours, shown as tints while the highlighter is active.</div></div>
+  <hr>
+  <h4>Lexical</h4>
+  <div class="item"><div class="kbd">Tap a word</div><div>Lemma, full parsing, gloss, and a
+    link into Accordance.</div></div>
+  <div class="item"><div class="kbd">Highlight lemma</div><div>Colours every occurrence in the
+    passage at once.</div></div>
+  <hr>
+  <h4>Undo</h4>
+  <div class="item"><div class="kbd">Undo</div><div>One history for everything — splits, joins,
+    indents, word moves, ink, boxes, arrows, section breaks and titles.
+    <b>⌘Z</b>, or the button in the header. <b>⇧⌘Z</b> redoes.</div></div>
+  <div class="item"><div class="kbd">Scope</div><div>Each passage has its own history, and it
+    starts fresh when you switch book or chapter.</div></div>
+  <hr>
+  <h4>Gestures</h4>
+  <div class="item"><div class="kbd">Two fingers</div><div>Pan the page.</div></div>
+  <div class="item"><div class="kbd">Apple Pencil</div><div>With the header toggle on, the
+    pencil always inks and a finger always moves.</div></div>
+</div>
+
+<div class="pop" id="settings">
+  <h4>Load a full book</h4>
+  <div class="foot" style="padding-top:0">Drop GitHub's
+    <b>sblgnt-master.zip</b> here for the whole New Testament — no need to unzip it.
+    Individual <b>-morphgnt.txt</b> files work too, as many at once as you like.
+    Loaded books are remembered; you only do this once.</div>
+  <div class="fld"><label for="mgFile">Files</label>
+    <input type="file" id="mgFile" multiple
+           accept=".txt,.zip,.json,text/plain,application/zip,application/json"></div>
+  <div class="fld"><label for="mgAbbr">Ref override</label>
+    <input type="text" id="mgAbbr" value="" placeholder="usually not needed"
+           spellcheck="false"></div>
+  <div class="foot" id="mgStatus">Nothing loaded — the built-in passage is hand-parsed.</div>
+  <hr>
+  <h4>Accordance links</h4>
+  <div class="fld"><label for="mText">Greek text</label>
+    <select id="mText">
+      <option value="NA28-T">NA28-T — NA28 with apparatus</option>
+      <option value="GNT28-T" selected>GNT28-T — tagged NA28</option>
+      <option value="GNT-T">GNT-T — tagged Greek NT</option>
+      <option value="SBLGNT">SBLGNT</option>
+      <option value="TR">TR — Textus Receptus</option>
+      <option value="BYZ">BYZ — Byzantine text</option>
+    </select></div>
+  <div class="fld"><label for="mLex">Lexicon</label>
+    <select id="mLex">
+      <option value="BDAG" selected>BDAG</option>
+      <option value="CBDAG">Concise BDAG</option>
+      <option value="BrillDAG">Brill (BrillDAG)</option>
+      <option value="LSJ">LSJ</option>
+      <option value="Thayers">Thayer's</option>
+    </select></div>
+  <div class="foot">Module names must match your own Accordance library. NA28-T includes the
+    critical apparatus; GNT28-T is the same text without it.</div>
+  <hr>
+  <h4>Your work</h4>
+  <div class="foot" id="saveState" style="padding-top:0">Not saved yet.</div>
+  <button class="rowbtn" id="saveFile">Save a copy as a file…</button>
+  <button class="rowbtn" id="forget">Forget saved work</button>
+  <hr>
+  <h4>Page</h4>
+  <button class="rowbtn" id="reset">Reset layout — keep ink and sections</button>
+  <button class="rowbtn" id="clear">Clear all ink and arrows</button>
+  <button class="rowbtn" id="clearSec">Remove all section breaks</button>
+</div>
+
+<script>
+"use strict";
+
+/* ============================================================
+   CORPUS  — SBLGNT text; parsing modelled on MorphGNT (CC BY-SA).
+   Token: [surface, lemma, pos, parse, strongs, gloss]
+   ============================================================ */
+const PASSAGES = {
+  john1: { title:"John", abbr:"John", ch:1, module:"GNT28-T", verses:[
+    [1,[
+      ["Ἐν","ἐν","Preposition","+ dative","G1722","in, on, among"],
+      ["ἀρχῇ","ἀρχή","Noun","dative singular feminine","G746","beginning, origin, first cause"],
+      ["ἦν","εἰμί","Verb","imperfect active indicative, 3rd singular","G1510","to be, exist"],
+      ["ὁ","ὁ","Article","nominative singular masculine","G3588","the"],
+      ["λόγος,","λόγος","Noun","nominative singular masculine","G3056","word, message, account, reason"],
+      ["καὶ","καί","Conjunction","coordinating","G2532","and, also, even"],
+      ["ὁ","ὁ","Article","nominative singular masculine","G3588","the"],
+      ["λόγος","λόγος","Noun","nominative singular masculine","G3056","word, message, account, reason"],
+      ["ἦν","εἰμί","Verb","imperfect active indicative, 3rd singular","G1510","to be, exist"],
+      ["πρὸς","πρός","Preposition","+ accusative","G4314","toward, with, in relation to"],
+      ["τὸν","ὁ","Article","accusative singular masculine","G3588","the"],
+      ["θεόν,","θεός","Noun","accusative singular masculine","G2316","God, a god"],
+      ["καὶ","καί","Conjunction","coordinating","G2532","and, also, even"],
+      ["θεὸς","θεός","Noun","nominative singular masculine","G2316","God, a god"],
+      ["ἦν","εἰμί","Verb","imperfect active indicative, 3rd singular","G1510","to be, exist"],
+      ["ὁ","ὁ","Article","nominative singular masculine","G3588","the"],
+      ["λόγος.","λόγος","Noun","nominative singular masculine","G3056","word, message, account, reason"]
+    ]],
+    [2,[
+      ["οὗτος","οὗτος","Demonstrative pronoun","nominative singular masculine","G3778","this one, he"],
+      ["ἦν","εἰμί","Verb","imperfect active indicative, 3rd singular","G1510","to be, exist"],
+      ["ἐν","ἐν","Preposition","+ dative","G1722","in, on, among"],
+      ["ἀρχῇ","ἀρχή","Noun","dative singular feminine","G746","beginning, origin, first cause"],
+      ["πρὸς","πρός","Preposition","+ accusative","G4314","toward, with, in relation to"],
+      ["τὸν","ὁ","Article","accusative singular masculine","G3588","the"],
+      ["θεόν.","θεός","Noun","accusative singular masculine","G2316","God, a god"]
+    ]],
+    [3,[
+      ["πάντα","πᾶς","Adjective","nominative plural neuter","G3956","all, every, the whole"],
+      ["δι’","διά","Preposition","+ genitive","G1223","through, by means of"],
+      ["αὐτοῦ","αὐτός","Personal pronoun","genitive singular masculine","G846","he, him, it; self"],
+      ["ἐγένετο,","γίνομαι","Verb","aorist middle indicative, 3rd singular","G1096","to become, come into being, happen"],
+      ["καὶ","καί","Conjunction","coordinating","G2532","and, also, even"],
+      ["χωρὶς","χωρίς","Preposition","+ genitive","G5565","apart from, without"],
+      ["αὐτοῦ","αὐτός","Personal pronoun","genitive singular masculine","G846","he, him, it; self"],
+      ["ἐγένετο","γίνομαι","Verb","aorist middle indicative, 3rd singular","G1096","to become, come into being, happen"],
+      ["οὐδὲ","οὐδέ","Conjunction","negative coordinating","G3761","and not, neither, not even"],
+      ["ἕν.","εἷς","Adjective","nominative singular neuter","G1520","one, a single"],
+      ["ὃ","ὅς","Relative pronoun","nominative singular neuter","G3739","who, which, that"],
+      ["γέγονεν","γίνομαι","Verb","perfect active indicative, 3rd singular","G1096","to become, come into being, happen"]
+    ]],
+    [4,[
+      ["ἐν","ἐν","Preposition","+ dative","G1722","in, on, among"],
+      ["αὐτῷ","αὐτός","Personal pronoun","dative singular masculine","G846","he, him, it; self"],
+      ["ζωὴ","ζωή","Noun","nominative singular feminine","G2222","life"],
+      ["ἦν,","εἰμί","Verb","imperfect active indicative, 3rd singular","G1510","to be, exist"],
+      ["καὶ","καί","Conjunction","coordinating","G2532","and, also, even"],
+      ["ἡ","ὁ","Article","nominative singular feminine","G3588","the"],
+      ["ζωὴ","ζωή","Noun","nominative singular feminine","G2222","life"],
+      ["ἦν","εἰμί","Verb","imperfect active indicative, 3rd singular","G1510","to be, exist"],
+      ["τὸ","ὁ","Article","nominative singular neuter","G3588","the"],
+      ["φῶς","φῶς","Noun","nominative singular neuter","G5457","light"],
+      ["τῶν","ὁ","Article","genitive plural masculine","G3588","the"],
+      ["ἀνθρώπων·","ἄνθρωπος","Noun","genitive plural masculine","G444","human being, person, humankind"]
+    ]],
+    [5,[
+      ["καὶ","καί","Conjunction","coordinating","G2532","and, also, even"],
+      ["τὸ","ὁ","Article","nominative singular neuter","G3588","the"],
+      ["φῶς","φῶς","Noun","nominative singular neuter","G5457","light"],
+      ["ἐν","ἐν","Preposition","+ dative","G1722","in, on, among"],
+      ["τῇ","ὁ","Article","dative singular feminine","G3588","the"],
+      ["σκοτίᾳ","σκοτία","Noun","dative singular feminine","G4653","darkness"],
+      ["φαίνει,","φαίνω","Verb","present active indicative, 3rd singular","G5316","to shine, give light, appear"],
+      ["καὶ","καί","Conjunction","coordinating","G2532","and, also, even"],
+      ["ἡ","ὁ","Article","nominative singular feminine","G3588","the"],
+      ["σκοτία","σκοτία","Noun","nominative singular feminine","G4653","darkness"],
+      ["αὐτὸ","αὐτός","Personal pronoun","accusative singular neuter","G846","he, him, it; self"],
+      ["οὐ","οὐ","Particle","negative","G3756","not"],
+      ["κατέλαβεν.","καταλαμβάνω","Verb","aorist active indicative, 3rd singular","G2638","to seize, grasp, overtake, comprehend"]
+    ]]
+  ]},
+
+  eph1: { title:"Ephesians", abbr:"Eph.", ch:1, module:"GNT28-T", verses:[
+    [3,[
+      ["Εὐλογητὸς","εὐλογητός","Adjective","nominative singular masculine","G2128","blessed, praised"],
+      ["ὁ","ὁ","Article","nominative singular masculine","G3588","the"],
+      ["θεὸς","θεός","Noun","nominative singular masculine","G2316","God, a god"],
+      ["καὶ","καί","Conjunction","coordinating","G2532","and, also, even"],
+      ["πατὴρ","πατήρ","Noun","nominative singular masculine","G3962","father"],
+      ["τοῦ","ὁ","Article","genitive singular masculine","G3588","the"],
+      ["κυρίου","κύριος","Noun","genitive singular masculine","G2962","lord, master, owner"],
+      ["ἡμῶν","ἐγώ","Personal pronoun","genitive plural, 1st person","G1473","I, we"],
+      ["Ἰησοῦ","Ἰησοῦς","Noun","genitive singular masculine","G2424","Jesus"],
+      ["Χριστοῦ,","Χριστός","Noun","genitive singular masculine","G5547","Christ, Anointed One, Messiah"],
+      ["ὁ","ὁ","Article","nominative singular masculine","G3588","the"],
+      ["εὐλογήσας","εὐλογέω","Verb","aorist active participle, nominative singular masculine","G2127","to bless, speak well of"],
+      ["ἡμᾶς","ἐγώ","Personal pronoun","accusative plural, 1st person","G1473","I, we"],
+      ["ἐν","ἐν","Preposition","+ dative","G1722","in, on, among"],
+      ["πάσῃ","πᾶς","Adjective","dative singular feminine","G3956","all, every, the whole"],
+      ["εὐλογίᾳ","εὐλογία","Noun","dative singular feminine","G2129","blessing, praise, bounty"],
+      ["πνευματικῇ","πνευματικός","Adjective","dative singular feminine","G4152","spiritual, pertaining to the Spirit"],
+      ["ἐν","ἐν","Preposition","+ dative","G1722","in, on, among"],
+      ["τοῖς","ὁ","Article","dative plural neuter","G3588","the"],
+      ["ἐπουρανίοις","ἐπουράνιος","Adjective","dative plural neuter","G2032","heavenly; the heavenly realms"],
+      ["ἐν","ἐν","Preposition","+ dative","G1722","in, on, among"],
+      ["Χριστῷ,","Χριστός","Noun","dative singular masculine","G5547","Christ, Anointed One, Messiah"]
+    ]],
+    [4,[
+      ["καθὼς","καθώς","Conjunction","subordinating, comparative","G2531","just as, according as"],
+      ["ἐξελέξατο","ἐκλέγομαι","Verb","aorist middle indicative, 3rd singular","G1586","to choose out, select for oneself"],
+      ["ἡμᾶς","ἐγώ","Personal pronoun","accusative plural, 1st person","G1473","I, we"],
+      ["ἐν","ἐν","Preposition","+ dative","G1722","in, on, among"],
+      ["αὐτῷ","αὐτός","Personal pronoun","dative singular masculine","G846","he, him, it; self"],
+      ["πρὸ","πρό","Preposition","+ genitive","G4253","before, in front of"],
+      ["καταβολῆς","καταβολή","Noun","genitive singular feminine","G2602","foundation, laying down"],
+      ["κόσμου,","κόσμος","Noun","genitive singular masculine","G2889","world, universe, humankind"],
+      ["εἶναι","εἰμί","Verb","present active infinitive","G1510","to be, exist"],
+      ["ἡμᾶς","ἐγώ","Personal pronoun","accusative plural, 1st person","G1473","I, we"],
+      ["ἁγίους","ἅγιος","Adjective","accusative plural masculine","G40","holy, set apart, consecrated"],
+      ["καὶ","καί","Conjunction","coordinating","G2532","and, also, even"],
+      ["ἀμώμους","ἄμωμος","Adjective","accusative plural masculine","G299","blameless, without defect"],
+      ["κατενώπιον","κατενώπιον","Preposition","+ genitive","G2714","before, in the presence of"],
+      ["αὐτοῦ","αὐτός","Personal pronoun","genitive singular masculine","G846","he, him, it; self"],
+      ["ἐν","ἐν","Preposition","+ dative","G1722","in, on, among"],
+      ["ἀγάπῃ,","ἀγάπη","Noun","dative singular feminine","G26","love"]
+    ]],
+    [5,[
+      ["προορίσας","προορίζω","Verb","aorist active participle, nominative singular masculine","G4309","to determine beforehand, predestine"],
+      ["ἡμᾶς","ἐγώ","Personal pronoun","accusative plural, 1st person","G1473","I, we"],
+      ["εἰς","εἰς","Preposition","+ accusative","G1519","into, toward, for"],
+      ["υἱοθεσίαν","υἱοθεσία","Noun","accusative singular feminine","G5206","adoption as sons"],
+      ["διὰ","διά","Preposition","+ genitive","G1223","through, by means of"],
+      ["Ἰησοῦ","Ἰησοῦς","Noun","genitive singular masculine","G2424","Jesus"],
+      ["Χριστοῦ","Χριστός","Noun","genitive singular masculine","G5547","Christ, Anointed One, Messiah"],
+      ["εἰς","εἰς","Preposition","+ accusative","G1519","into, toward, for"],
+      ["αὐτόν,","αὐτός","Personal pronoun","accusative singular masculine","G846","he, him, it; self"],
+      ["κατὰ","κατά","Preposition","+ accusative","G2596","according to, in keeping with"],
+      ["τὴν","ὁ","Article","accusative singular feminine","G3588","the"],
+      ["εὐδοκίαν","εὐδοκία","Noun","accusative singular feminine","G2107","good pleasure, favour, choice"],
+      ["τοῦ","ὁ","Article","genitive singular neuter","G3588","the"],
+      ["θελήματος","θέλημα","Noun","genitive singular neuter","G2307","will, desire, purpose"],
+      ["αὐτοῦ,","αὐτός","Personal pronoun","genitive singular masculine","G846","he, him, it; self"]
+    ]],
+    [6,[
+      ["εἰς","εἰς","Preposition","+ accusative","G1519","into, toward, for"],
+      ["ἔπαινον","ἔπαινος","Noun","accusative singular masculine","G1868","praise, approval, commendation"],
+      ["δόξης","δόξα","Noun","genitive singular feminine","G1391","glory, splendour, honour"],
+      ["τῆς","ὁ","Article","genitive singular feminine","G3588","the"],
+      ["χάριτος","χάρις","Noun","genitive singular feminine","G5485","grace, favour, kindness"],
+      ["αὐτοῦ","αὐτός","Personal pronoun","genitive singular masculine","G846","he, him, it; self"],
+      ["ἧς","ὅς","Relative pronoun","genitive singular feminine","G3739","who, which, that"],
+      ["ἐχαρίτωσεν","χαριτόω","Verb","aorist active indicative, 3rd singular","G5487","to bestow favour on, freely bestow"],
+      ["ἡμᾶς","ἐγώ","Personal pronoun","accusative plural, 1st person","G1473","I, we"],
+      ["ἐν","ἐν","Preposition","+ dative","G1722","in, on, among"],
+      ["τῷ","ὁ","Article","dative singular masculine","G3588","the"],
+      ["ἠγαπημένῳ,","ἀγαπάω","Verb","perfect passive participle, dative singular masculine","G25","to love"]
+    ]]
+  ]},
+
+  /* -------- 2 CORINTHIANS 1:12 – 2:11 --------
+     SBLGNT text; parsing modelled on MorphGNT (CC BY-SA).
+     Verse keys are "chapter:verse" because the passage crosses a chapter break. */
+
+  c2_112: { title:"2 Corinthians", abbr:"2_Cor.", range:"1:12–2:11", module:"GNT28-T", verses:[
+    ["1:12",[
+      ["Ἡ","ὁ","Article","nominative singular feminine","G3588","the"],
+      ["γὰρ","γάρ","Conjunction","coordinating, causal","G1063","for, because, indeed"],
+      ["καύχησις","καύχησις","Noun","nominative singular feminine","G2746","boasting, act of boasting, pride"],
+      ["ἡμῶν","ἐγώ","Personal pronoun","genitive plural, 1st person","G1473","I, we"],
+      ["αὕτη","οὗτος","Demonstrative pronoun","nominative singular feminine","G3778","this, this one"],
+      ["ἐστίν,","εἰμί","Verb","present active indicative, 3rd singular","G1510","to be, exist"],
+      ["τὸ","ὁ","Article","nominative singular neuter","G3588","the"],
+      ["μαρτύριον","μαρτύριον","Noun","nominative singular neuter","G3142","testimony, witness, proof"],
+      ["τῆς","ὁ","Article","genitive singular feminine","G3588","the"],
+      ["συνειδήσεως","συνείδησις","Noun","genitive singular feminine","G4893","conscience, moral awareness"],
+      ["ἡμῶν,","ἐγώ","Personal pronoun","genitive plural, 1st person","G1473","I, we"],
+      ["ὅτι","ὅτι","Conjunction","subordinating, content","G3754","that, because, since"],
+      ["ἐν","ἐν","Preposition","+ dative","G1722","in, on, among"],
+      ["ἁπλότητι","ἁπλότης","Noun","dative singular feminine","G572","sincerity, simplicity, generosity"],
+      ["καὶ","καί","Conjunction","coordinating","G2532","and, also, even"],
+      ["εἰλικρινείᾳ","εἰλικρίνεια","Noun","dative singular feminine","G1505","sincerity, purity of motive"],
+      ["τοῦ","ὁ","Article","genitive singular masculine","G3588","the"],
+      ["θεοῦ,","θεός","Noun","genitive singular masculine","G2316","God, a god"],
+      ["οὐκ","οὐ","Particle","negative","G3756","not"],
+      ["ἐν","ἐν","Preposition","+ dative","G1722","in, on, among"],
+      ["σοφίᾳ","σοφία","Noun","dative singular feminine","G4678","wisdom"],
+      ["σαρκικῇ","σαρκικός","Adjective","dative singular feminine","G4559","fleshly, worldly, belonging to the flesh"],
+      ["ἀλλ’","ἀλλά","Conjunction","coordinating, adversative","G235","but, rather, yet"],
+      ["ἐν","ἐν","Preposition","+ dative","G1722","in, on, among"],
+      ["χάριτι","χάρις","Noun","dative singular feminine","G5485","grace, favour, kindness"],
+      ["θεοῦ,","θεός","Noun","genitive singular masculine","G2316","God, a god"],
+      ["ἀνεστράφημεν","ἀναστρέφω","Verb","aorist passive indicative, 1st plural","G390","to conduct oneself, behave, live"],
+      ["ἐν","ἐν","Preposition","+ dative","G1722","in, on, among"],
+      ["τῷ","ὁ","Article","dative singular masculine","G3588","the"],
+      ["κόσμῳ,","κόσμος","Noun","dative singular masculine","G2889","world, universe, humankind"],
+      ["περισσοτέρως","περισσοτέρως","Adverb","comparative","G4056","all the more, especially"],
+      ["δὲ","δέ","Conjunction","coordinating, developmental","G1161","but, and, now"],
+      ["πρὸς","πρός","Preposition","+ accusative","G4314","toward, with, in relation to"],
+      ["ὑμᾶς·","σύ","Personal pronoun","accusative plural, 2nd person","G4771","you"]
+    ]],
+    ["1:13",[
+      ["οὐ","οὐ","Particle","negative","G3756","not"],
+      ["γὰρ","γάρ","Conjunction","coordinating, causal","G1063","for, because, indeed"],
+      ["ἄλλα","ἄλλος","Adjective","accusative plural neuter","G243","other, another"],
+      ["γράφομεν","γράφω","Verb","present active indicative, 1st plural","G1125","to write"],
+      ["ὑμῖν","σύ","Personal pronoun","dative plural, 2nd person","G4771","you"],
+      ["ἀλλ’","ἀλλά","Conjunction","coordinating, adversative","G235","but, rather, yet"],
+      ["ἢ","ἤ","Conjunction","disjunctive","G2228","or, than"],
+      ["ἃ","ὅς","Relative pronoun","accusative plural neuter","G3739","who, which, that"],
+      ["ἀναγινώσκετε","ἀναγινώσκω","Verb","present active indicative, 2nd plural","G314","to read, read aloud"],
+      ["ἢ","ἤ","Conjunction","disjunctive","G2228","or, than"],
+      ["καὶ","καί","Conjunction","adverbial (also, even)","G2532","and, also, even"],
+      ["ἐπιγινώσκετε,","ἐπιγινώσκω","Verb","present active indicative, 2nd plural","G1921","to recognise, understand fully"],
+      ["ἐλπίζω","ἐλπίζω","Verb","present active indicative, 1st singular","G1679","to hope, expect"],
+      ["δὲ","δέ","Conjunction","coordinating, developmental","G1161","but, and, now"],
+      ["ὅτι","ὅτι","Conjunction","subordinating, content","G3754","that, because, since"],
+      ["ἕως","ἕως","Preposition","+ genitive","G2193","until, as far as"],
+      ["τέλους","τέλος","Noun","genitive singular neuter","G5056","end, goal, completion"],
+      ["ἐπιγνώσεσθε,","ἐπιγινώσκω","Verb","future middle indicative, 2nd plural","G1921","to recognise, understand fully"]
+    ]],
+    ["1:14",[
+      ["καθὼς","καθώς","Conjunction","subordinating, comparative","G2531","just as, according as"],
+      ["καὶ","καί","Conjunction","adverbial (also, even)","G2532","and, also, even"],
+      ["ἐπέγνωτε","ἐπιγινώσκω","Verb","aorist active indicative, 2nd plural","G1921","to recognise, understand fully"],
+      ["ἡμᾶς","ἐγώ","Personal pronoun","accusative plural, 1st person","G1473","I, we"],
+      ["ἀπὸ","ἀπό","Preposition","+ genitive","G575","from, away from, since"],
+      ["μέρους,","μέρος","Noun","genitive singular neuter","G3313","part, portion, share"],
+      ["ὅτι","ὅτι","Conjunction","subordinating, content","G3754","that, because, since"],
+      ["καύχημα","καύχημα","Noun","nominative singular neuter","G2745","ground of boasting, object of pride"],
+      ["ὑμῶν","σύ","Personal pronoun","genitive plural, 2nd person","G4771","you"],
+      ["ἐσμεν","εἰμί","Verb","present active indicative, 1st plural","G1510","to be, exist"],
+      ["καθάπερ","καθάπερ","Conjunction","subordinating, comparative","G2509","just as, even as"],
+      ["καὶ","καί","Conjunction","adverbial (also, even)","G2532","and, also, even"],
+      ["ὑμεῖς","σύ","Personal pronoun","nominative plural, 2nd person","G4771","you"],
+      ["ἡμῶν","ἐγώ","Personal pronoun","genitive plural, 1st person","G1473","I, we"],
+      ["ἐν","ἐν","Preposition","+ dative","G1722","in, on, among"],
+      ["τῇ","ὁ","Article","dative singular feminine","G3588","the"],
+      ["ἡμέρᾳ","ἡμέρα","Noun","dative singular feminine","G2250","day"],
+      ["τοῦ","ὁ","Article","genitive singular masculine","G3588","the"],
+      ["κυρίου","κύριος","Noun","genitive singular masculine","G2962","lord, master, owner"],
+      ["ἡμῶν","ἐγώ","Personal pronoun","genitive plural, 1st person","G1473","I, we"],
+      ["Ἰησοῦ.","Ἰησοῦς","Noun","genitive singular masculine","G2424","Jesus"]
+    ]],
+    ["1:15",[
+      ["Καὶ","καί","Conjunction","coordinating","G2532","and, also, even"],
+      ["ταύτῃ","οὗτος","Demonstrative pronoun","dative singular feminine","G3778","this, this one"],
+      ["τῇ","ὁ","Article","dative singular feminine","G3588","the"],
+      ["πεποιθήσει","πεποίθησις","Noun","dative singular feminine","G4006","confidence, trust"],
+      ["ἐβουλόμην","βούλομαι","Verb","imperfect middle indicative, 1st singular","G1014","to wish, want, intend"],
+      ["πρότερον","πρότερον","Adverb","temporal","G4386","earlier, formerly, first"],
+      ["πρὸς","πρός","Preposition","+ accusative","G4314","toward, with, in relation to"],
+      ["ὑμᾶς","σύ","Personal pronoun","accusative plural, 2nd person","G4771","you"],
+      ["ἐλθεῖν,","ἔρχομαι","Verb","aorist active infinitive","G2064","to come, go"],
+      ["ἵνα","ἵνα","Conjunction","subordinating, purpose","G2443","in order that, so that"],
+      ["δευτέραν","δεύτερος","Adjective","accusative singular feminine","G1208","second"],
+      ["χάριν","χάρις","Noun","accusative singular feminine","G5485","grace, favour, kindness"],
+      ["σχῆτε,","ἔχω","Verb","aorist active subjunctive, 2nd plural","G2192","to have, hold, possess"]
+    ]],
+    ["1:16",[
+      ["καὶ","καί","Conjunction","coordinating","G2532","and, also, even"],
+      ["δι’","διά","Preposition","+ genitive","G1223","through, by way of"],
+      ["ὑμῶν","σύ","Personal pronoun","genitive plural, 2nd person","G4771","you"],
+      ["διελθεῖν","διέρχομαι","Verb","aorist active infinitive","G1330","to go through, pass through"],
+      ["εἰς","εἰς","Preposition","+ accusative","G1519","into, toward, for"],
+      ["Μακεδονίαν,","Μακεδονία","Noun","accusative singular feminine","G3109","Macedonia"],
+      ["καὶ","καί","Conjunction","coordinating","G2532","and, also, even"],
+      ["πάλιν","πάλιν","Adverb","temporal","G3825","again, once more"],
+      ["ἀπὸ","ἀπό","Preposition","+ genitive","G575","from, away from, since"],
+      ["Μακεδονίας","Μακεδονία","Noun","genitive singular feminine","G3109","Macedonia"],
+      ["ἐλθεῖν","ἔρχομαι","Verb","aorist active infinitive","G2064","to come, go"],
+      ["πρὸς","πρός","Preposition","+ accusative","G4314","toward, with, in relation to"],
+      ["ὑμᾶς","σύ","Personal pronoun","accusative plural, 2nd person","G4771","you"],
+      ["καὶ","καί","Conjunction","coordinating","G2532","and, also, even"],
+      ["ὑφ’","ὑπό","Preposition","+ genitive","G5259","by (agent of a passive verb)"],
+      ["ὑμῶν","σύ","Personal pronoun","genitive plural, 2nd person","G4771","you"],
+      ["προπεμφθῆναι","προπέμπω","Verb","aorist passive infinitive","G4311","to send on one's way, help on a journey"],
+      ["εἰς","εἰς","Preposition","+ accusative","G1519","into, toward, for"],
+      ["τὴν","ὁ","Article","accusative singular feminine","G3588","the"],
+      ["Ἰουδαίαν.","Ἰουδαία","Noun","accusative singular feminine","G2449","Judea"]
+    ]],
+    ["1:17",[
+      ["τοῦτο","οὗτος","Demonstrative pronoun","accusative singular neuter","G3778","this, this one"],
+      ["οὖν","οὖν","Conjunction","inferential","G3767","therefore, then, accordingly"],
+      ["βουλόμενος","βούλομαι","Verb","present middle participle, nominative singular masculine","G1014","to wish, want, intend"],
+      ["μήτι","μήτι","Particle","interrogative, expecting a negative answer","G3385","surely not?"],
+      ["ἄρα","ἄρα","Conjunction","inferential","G686","then, therefore, consequently"],
+      ["τῇ","ὁ","Article","dative singular feminine","G3588","the"],
+      ["ἐλαφρίᾳ","ἐλαφρία","Noun","dative singular feminine","G1644","levity, vacillation, fickleness"],
+      ["ἐχρησάμην;","χράομαι","Verb","aorist middle indicative, 1st singular","G5530","to use, make use of"],
+      ["ἢ","ἤ","Conjunction","disjunctive","G2228","or, than"],
+      ["ἃ","ὅς","Relative pronoun","accusative plural neuter","G3739","who, which, that"],
+      ["βουλεύομαι","βουλεύω","Verb","present middle indicative, 1st singular","G1011","to deliberate, resolve, plan"],
+      ["κατὰ","κατά","Preposition","+ accusative","G2596","according to, in keeping with"],
+      ["σάρκα","σάρξ","Noun","accusative singular feminine","G4561","flesh, body, human nature"],
+      ["βουλεύομαι,","βουλεύω","Verb","present middle indicative, 1st singular","G1011","to deliberate, resolve, plan"],
+      ["ἵνα","ἵνα","Conjunction","subordinating, purpose","G2443","in order that, so that"],
+      ["ᾖ","εἰμί","Verb","present active subjunctive, 3rd singular","G1510","to be, exist"],
+      ["παρ’","παρά","Preposition","+ dative","G3844","with, beside, in the presence of"],
+      ["ἐμοὶ","ἐγώ","Personal pronoun","dative singular, 1st person (emphatic)","G1473","I, me"],
+      ["τὸ","ὁ","Article","nominative singular neuter","G3588","the"],
+      ["Ναὶ","ναί","Particle","affirmative","G3483","yes, indeed"],
+      ["ναὶ","ναί","Particle","affirmative","G3483","yes, indeed"],
+      ["καὶ","καί","Conjunction","coordinating","G2532","and, also, even"],
+      ["τὸ","ὁ","Article","nominative singular neuter","G3588","the"],
+      ["Οὒ","οὐ","Particle","negative","G3756","not, no"],
+      ["οὔ;","οὐ","Particle","negative","G3756","not, no"]
+    ]],
+    ["1:18",[
+      ["πιστὸς","πιστός","Adjective","nominative singular masculine","G4103","faithful, trustworthy, reliable"],
+      ["δὲ","δέ","Conjunction","coordinating, developmental","G1161","but, and, now"],
+      ["ὁ","ὁ","Article","nominative singular masculine","G3588","the"],
+      ["θεὸς","θεός","Noun","nominative singular masculine","G2316","God, a god"],
+      ["ὅτι","ὅτι","Conjunction","subordinating, content","G3754","that, because, since"],
+      ["ὁ","ὁ","Article","nominative singular masculine","G3588","the"],
+      ["λόγος","λόγος","Noun","nominative singular masculine","G3056","word, message, account, reason"],
+      ["ἡμῶν","ἐγώ","Personal pronoun","genitive plural, 1st person","G1473","I, we"],
+      ["ὁ","ὁ","Article","nominative singular masculine","G3588","the"],
+      ["πρὸς","πρός","Preposition","+ accusative","G4314","toward, with, in relation to"],
+      ["ὑμᾶς","σύ","Personal pronoun","accusative plural, 2nd person","G4771","you"],
+      ["οὐκ","οὐ","Particle","negative","G3756","not"],
+      ["ἔστιν","εἰμί","Verb","present active indicative, 3rd singular","G1510","to be, exist"],
+      ["Ναὶ","ναί","Particle","affirmative","G3483","yes, indeed"],
+      ["καὶ","καί","Conjunction","coordinating","G2532","and, also, even"],
+      ["Οὔ.","οὐ","Particle","negative","G3756","not, no"]
+    ]],
+    ["1:19",[
+      ["ὁ","ὁ","Article","nominative singular masculine","G3588","the"],
+      ["τοῦ","ὁ","Article","genitive singular masculine","G3588","the"],
+      ["θεοῦ","θεός","Noun","genitive singular masculine","G2316","God, a god"],
+      ["γὰρ","γάρ","Conjunction","coordinating, causal","G1063","for, because, indeed"],
+      ["υἱὸς","υἱός","Noun","nominative singular masculine","G5207","son"],
+      ["Ἰησοῦς","Ἰησοῦς","Noun","nominative singular masculine","G2424","Jesus"],
+      ["Χριστὸς","Χριστός","Noun","nominative singular masculine","G5547","Christ, Anointed One, Messiah"],
+      ["ὁ","ὁ","Article","nominative singular masculine","G3588","the"],
+      ["ἐν","ἐν","Preposition","+ dative","G1722","in, on, among"],
+      ["ὑμῖν","σύ","Personal pronoun","dative plural, 2nd person","G4771","you"],
+      ["δι’","διά","Preposition","+ genitive","G1223","through, by means of"],
+      ["ἡμῶν","ἐγώ","Personal pronoun","genitive plural, 1st person","G1473","I, we"],
+      ["κηρυχθείς,","κηρύσσω","Verb","aorist passive participle, nominative singular masculine","G2784","to proclaim, preach, herald"],
+      ["δι’","διά","Preposition","+ genitive","G1223","through, by means of"],
+      ["ἐμοῦ","ἐγώ","Personal pronoun","genitive singular, 1st person (emphatic)","G1473","I, me"],
+      ["καὶ","καί","Conjunction","coordinating","G2532","and, also, even"],
+      ["Σιλουανοῦ","Σιλουανός","Noun","genitive singular masculine","G4610","Silvanus"],
+      ["καὶ","καί","Conjunction","coordinating","G2532","and, also, even"],
+      ["Τιμοθέου,","Τιμόθεος","Noun","genitive singular masculine","G5095","Timothy"],
+      ["οὐκ","οὐ","Particle","negative","G3756","not"],
+      ["ἐγένετο","γίνομαι","Verb","aorist middle indicative, 3rd singular","G1096","to become, come into being, happen"],
+      ["Ναὶ","ναί","Particle","affirmative","G3483","yes, indeed"],
+      ["καὶ","καί","Conjunction","coordinating","G2532","and, also, even"],
+      ["Οὒ,","οὐ","Particle","negative","G3756","not, no"],
+      ["ἀλλὰ","ἀλλά","Conjunction","coordinating, adversative","G235","but, rather, yet"],
+      ["Ναὶ","ναί","Particle","affirmative","G3483","yes, indeed"],
+      ["ἐν","ἐν","Preposition","+ dative","G1722","in, on, among"],
+      ["αὐτῷ","αὐτός","Personal pronoun","dative singular masculine","G846","he, him, it; self"],
+      ["γέγονεν·","γίνομαι","Verb","perfect active indicative, 3rd singular","G1096","to become, come into being, happen"]
+    ]],
+    ["1:20",[
+      ["ὅσαι","ὅσος","Relative pronoun","nominative plural feminine","G3745","as many as, how great"],
+      ["γὰρ","γάρ","Conjunction","coordinating, causal","G1063","for, because, indeed"],
+      ["ἐπαγγελίαι","ἐπαγγελία","Noun","nominative plural feminine","G1860","promise"],
+      ["θεοῦ,","θεός","Noun","genitive singular masculine","G2316","God, a god"],
+      ["ἐν","ἐν","Preposition","+ dative","G1722","in, on, among"],
+      ["αὐτῷ","αὐτός","Personal pronoun","dative singular masculine","G846","he, him, it; self"],
+      ["τὸ","ὁ","Article","nominative singular neuter","G3588","the"],
+      ["Ναί·","ναί","Particle","affirmative","G3483","yes, indeed"],
+      ["διὸ","διό","Conjunction","inferential","G1352","therefore, for this reason"],
+      ["καὶ","καί","Conjunction","adverbial (also, even)","G2532","and, also, even"],
+      ["δι’","διά","Preposition","+ genitive","G1223","through, by means of"],
+      ["αὐτοῦ","αὐτός","Personal pronoun","genitive singular masculine","G846","he, him, it; self"],
+      ["τὸ","ὁ","Article","nominative singular neuter","G3588","the"],
+      ["Ἀμὴν","ἀμήν","Particle","transliterated Hebrew, affirmative","G281","amen, truly, so be it"],
+      ["τῷ","ὁ","Article","dative singular masculine","G3588","the"],
+      ["θεῷ","θεός","Noun","dative singular masculine","G2316","God, a god"],
+      ["πρὸς","πρός","Preposition","+ accusative","G4314","toward, for, with a view to"],
+      ["δόξαν","δόξα","Noun","accusative singular feminine","G1391","glory, splendour, honour"],
+      ["δι’","διά","Preposition","+ genitive","G1223","through, by means of"],
+      ["ἡμῶν.","ἐγώ","Personal pronoun","genitive plural, 1st person","G1473","I, we"]
+    ]],
+    ["1:21",[
+      ["ὁ","ὁ","Article","nominative singular masculine","G3588","the"],
+      ["δὲ","δέ","Conjunction","coordinating, developmental","G1161","but, and, now"],
+      ["βεβαιῶν","βεβαιόω","Verb","present active participle, nominative singular masculine","G950","to confirm, establish, make firm"],
+      ["ἡμᾶς","ἐγώ","Personal pronoun","accusative plural, 1st person","G1473","I, we"],
+      ["σὺν","σύν","Preposition","+ dative","G4862","with, together with"],
+      ["ὑμῖν","σύ","Personal pronoun","dative plural, 2nd person","G4771","you"],
+      ["εἰς","εἰς","Preposition","+ accusative","G1519","into, toward, for"],
+      ["Χριστὸν","Χριστός","Noun","accusative singular masculine","G5547","Christ, Anointed One, Messiah"],
+      ["καὶ","καί","Conjunction","coordinating","G2532","and, also, even"],
+      ["χρίσας","χρίω","Verb","aorist active participle, nominative singular masculine","G5548","to anoint"],
+      ["ἡμᾶς","ἐγώ","Personal pronoun","accusative plural, 1st person","G1473","I, we"],
+      ["θεός,","θεός","Noun","nominative singular masculine","G2316","God, a god"]
+    ]],
+    ["1:22",[
+      ["ὁ","ὁ","Article","nominative singular masculine","G3588","the"],
+      ["καὶ","καί","Conjunction","adverbial (also, even)","G2532","and, also, even"],
+      ["σφραγισάμενος","σφραγίζω","Verb","aorist middle participle, nominative singular masculine","G4972","to seal, mark with a seal"],
+      ["ἡμᾶς","ἐγώ","Personal pronoun","accusative plural, 1st person","G1473","I, we"],
+      ["καὶ","καί","Conjunction","coordinating","G2532","and, also, even"],
+      ["δοὺς","δίδωμι","Verb","aorist active participle, nominative singular masculine","G1325","to give, grant, entrust"],
+      ["τὸν","ὁ","Article","accusative singular masculine","G3588","the"],
+      ["ἀρραβῶνα","ἀρραβών","Noun","accusative singular masculine","G728","down payment, pledge, first instalment"],
+      ["τοῦ","ὁ","Article","genitive singular neuter","G3588","the"],
+      ["πνεύματος","πνεῦμα","Noun","genitive singular neuter","G4151","spirit, Spirit, wind, breath"],
+      ["ἐν","ἐν","Preposition","+ dative","G1722","in, on, among"],
+      ["ταῖς","ὁ","Article","dative plural feminine","G3588","the"],
+      ["καρδίαις","καρδία","Noun","dative plural feminine","G2588","heart, inner self"],
+      ["ἡμῶν.","ἐγώ","Personal pronoun","genitive plural, 1st person","G1473","I, we"]
+    ]],
+    ["1:23",[
+      ["Ἐγὼ","ἐγώ","Personal pronoun","nominative singular, 1st person","G1473","I, me"],
+      ["δὲ","δέ","Conjunction","coordinating, developmental","G1161","but, and, now"],
+      ["μάρτυρα","μάρτυς","Noun","accusative singular masculine","G3144","witness"],
+      ["τὸν","ὁ","Article","accusative singular masculine","G3588","the"],
+      ["θεὸν","θεός","Noun","accusative singular masculine","G2316","God, a god"],
+      ["ἐπικαλοῦμαι","ἐπικαλέω","Verb","present middle indicative, 1st singular","G1941","to call upon, invoke, appeal to"],
+      ["ἐπὶ","ἐπί","Preposition","+ accusative","G1909","upon, against, with reference to"],
+      ["τὴν","ὁ","Article","accusative singular feminine","G3588","the"],
+      ["ἐμὴν","ἐμός","Adjective","possessive, accusative singular feminine","G1699","my, mine"],
+      ["ψυχήν,","ψυχή","Noun","accusative singular feminine","G5590","soul, life, self"],
+      ["ὅτι","ὅτι","Conjunction","subordinating, content","G3754","that, because, since"],
+      ["φειδόμενος","φείδομαι","Verb","present middle participle, nominative singular masculine","G5339","to spare, refrain from"],
+      ["ὑμῶν","σύ","Personal pronoun","genitive plural, 2nd person","G4771","you"],
+      ["οὐκέτι","οὐκέτι","Adverb","negative, temporal","G3765","no longer, no more"],
+      ["ἦλθον","ἔρχομαι","Verb","aorist active indicative, 1st singular","G2064","to come, go"],
+      ["εἰς","εἰς","Preposition","+ accusative","G1519","into, toward, for"],
+      ["Κόρινθον.","Κόρινθος","Noun","accusative singular feminine","G2882","Corinth"]
+    ]],
+    ["1:24",[
+      ["οὐχ","οὐ","Particle","negative","G3756","not"],
+      ["ὅτι","ὅτι","Conjunction","subordinating, content","G3754","that, because, since"],
+      ["κυριεύομεν","κυριεύω","Verb","present active indicative, 1st plural","G2961","to rule over, lord it over"],
+      ["ὑμῶν","σύ","Personal pronoun","genitive plural, 2nd person","G4771","you"],
+      ["τῆς","ὁ","Article","genitive singular feminine","G3588","the"],
+      ["πίστεως,","πίστις","Noun","genitive singular feminine","G4102","faith, faithfulness, trust"],
+      ["ἀλλὰ","ἀλλά","Conjunction","coordinating, adversative","G235","but, rather, yet"],
+      ["συνεργοί","συνεργός","Noun","nominative plural masculine","G4904","fellow worker, co-labourer"],
+      ["ἐσμεν","εἰμί","Verb","present active indicative, 1st plural","G1510","to be, exist"],
+      ["τῆς","ὁ","Article","genitive singular feminine","G3588","the"],
+      ["χαρᾶς","χαρά","Noun","genitive singular feminine","G5479","joy, gladness"],
+      ["ὑμῶν,","σύ","Personal pronoun","genitive plural, 2nd person","G4771","you"],
+      ["τῇ","ὁ","Article","dative singular feminine","G3588","the"],
+      ["γὰρ","γάρ","Conjunction","coordinating, causal","G1063","for, because, indeed"],
+      ["πίστει","πίστις","Noun","dative singular feminine","G4102","faith, faithfulness, trust"],
+      ["ἑστήκατε.","ἵστημι","Verb","perfect active indicative, 2nd plural","G2476","to stand, stand firm"]
+    ]],
+    ["2:1",[
+      ["ἔκρινα","κρίνω","Verb","aorist active indicative, 1st singular","G2919","to judge, decide, conclude"],
+      ["γὰρ","γάρ","Conjunction","coordinating, causal","G1063","for, because, indeed"],
+      ["ἐμαυτῷ","ἐμαυτοῦ","Reflexive pronoun","dative singular masculine","G1683","myself"],
+      ["τοῦτο,","οὗτος","Demonstrative pronoun","accusative singular neuter","G3778","this, this one"],
+      ["τὸ","ὁ","Article","accusative singular neuter","G3588","the"],
+      ["μὴ","μή","Particle","negative","G3361","not, lest"],
+      ["πάλιν","πάλιν","Adverb","temporal","G3825","again, once more"],
+      ["ἐν","ἐν","Preposition","+ dative","G1722","in, on, among"],
+      ["λύπῃ","λύπη","Noun","dative singular feminine","G3077","grief, sorrow, pain"],
+      ["πρὸς","πρός","Preposition","+ accusative","G4314","toward, with, in relation to"],
+      ["ὑμᾶς","σύ","Personal pronoun","accusative plural, 2nd person","G4771","you"],
+      ["ἐλθεῖν·","ἔρχομαι","Verb","aorist active infinitive","G2064","to come, go"]
+    ]],
+    ["2:2",[
+      ["εἰ","εἰ","Conjunction","subordinating, conditional","G1487","if, whether"],
+      ["γὰρ","γάρ","Conjunction","coordinating, causal","G1063","for, because, indeed"],
+      ["ἐγὼ","ἐγώ","Personal pronoun","nominative singular, 1st person","G1473","I, me"],
+      ["λυπῶ","λυπέω","Verb","present active indicative, 1st singular","G3076","to grieve, cause pain to"],
+      ["ὑμᾶς,","σύ","Personal pronoun","accusative plural, 2nd person","G4771","you"],
+      ["καὶ","καί","Conjunction","adverbial (also, even)","G2532","and, also, even"],
+      ["τίς","τίς","Interrogative pronoun","nominative singular masculine","G5101","who? which? what?"],
+      ["ὁ","ὁ","Article","nominative singular masculine","G3588","the"],
+      ["εὐφραίνων","εὐφραίνω","Verb","present active participle, nominative singular masculine","G2165","to gladden, cheer; (pass.) rejoice"],
+      ["με","ἐγώ","Personal pronoun","accusative singular, 1st person","G1473","I, me"],
+      ["εἰ","εἰ","Conjunction","subordinating, conditional","G1487","if, whether"],
+      ["μὴ","μή","Particle","negative","G3361","not, lest"],
+      ["ὁ","ὁ","Article","nominative singular masculine","G3588","the"],
+      ["λυπούμενος","λυπέω","Verb","present passive participle, nominative singular masculine","G3076","to grieve, cause pain to"],
+      ["ἐξ","ἐκ","Preposition","+ genitive","G1537","from, out of, by"],
+      ["ἐμοῦ;","ἐγώ","Personal pronoun","genitive singular, 1st person (emphatic)","G1473","I, me"]
+    ]],
+    ["2:3",[
+      ["καὶ","καί","Conjunction","coordinating","G2532","and, also, even"],
+      ["ἔγραψα","γράφω","Verb","aorist active indicative, 1st singular","G1125","to write"],
+      ["τοῦτο","οὗτος","Demonstrative pronoun","accusative singular neuter","G3778","this, this one"],
+      ["αὐτὸ","αὐτός","Personal pronoun","accusative singular neuter","G846","he, him, it; self, very"],
+      ["ἵνα","ἵνα","Conjunction","subordinating, purpose","G2443","in order that, so that"],
+      ["μὴ","μή","Particle","negative","G3361","not, lest"],
+      ["ἐλθὼν","ἔρχομαι","Verb","aorist active participle, nominative singular masculine","G2064","to come, go"],
+      ["λύπην","λύπη","Noun","accusative singular feminine","G3077","grief, sorrow, pain"],
+      ["σχῶ","ἔχω","Verb","aorist active subjunctive, 1st singular","G2192","to have, hold, possess"],
+      ["ἀφ’","ἀπό","Preposition","+ genitive","G575","from, away from, since"],
+      ["ὧν","ὅς","Relative pronoun","genitive plural masculine","G3739","who, which, that"],
+      ["ἔδει","δεῖ","Verb","imperfect active indicative, 3rd singular (impersonal)","G1163","it is necessary, one must"],
+      ["με","ἐγώ","Personal pronoun","accusative singular, 1st person","G1473","I, me"],
+      ["χαίρειν,","χαίρω","Verb","present active infinitive","G5463","to rejoice, be glad"],
+      ["πεποιθὼς","πείθω","Verb","perfect active participle, nominative singular masculine","G3982","to persuade; (perfect) to be confident, trust"],
+      ["ἐπὶ","ἐπί","Preposition","+ accusative","G1909","upon, concerning, with reference to"],
+      ["πάντας","πᾶς","Adjective","accusative plural masculine","G3956","all, every, the whole"],
+      ["ὑμᾶς","σύ","Personal pronoun","accusative plural, 2nd person","G4771","you"],
+      ["ὅτι","ὅτι","Conjunction","subordinating, content","G3754","that, because, since"],
+      ["ἡ","ὁ","Article","nominative singular feminine","G3588","the"],
+      ["ἐμὴ","ἐμός","Adjective","possessive, nominative singular feminine","G1699","my, mine"],
+      ["χαρὰ","χαρά","Noun","nominative singular feminine","G5479","joy, gladness"],
+      ["πάντων","πᾶς","Adjective","genitive plural masculine","G3956","all, every, the whole"],
+      ["ὑμῶν","σύ","Personal pronoun","genitive plural, 2nd person","G4771","you"],
+      ["ἐστιν.","εἰμί","Verb","present active indicative, 3rd singular","G1510","to be, exist"]
+    ]],
+    ["2:4",[
+      ["ἐκ","ἐκ","Preposition","+ genitive","G1537","from, out of, by"],
+      ["γὰρ","γάρ","Conjunction","coordinating, causal","G1063","for, because, indeed"],
+      ["πολλῆς","πολύς","Adjective","genitive singular feminine","G4183","much, many, great"],
+      ["θλίψεως","θλῖψις","Noun","genitive singular feminine","G2347","affliction, tribulation, pressure"],
+      ["καὶ","καί","Conjunction","coordinating","G2532","and, also, even"],
+      ["συνοχῆς","συνοχή","Noun","genitive singular feminine","G4928","distress, anguish, anxiety"],
+      ["καρδίας","καρδία","Noun","genitive singular feminine","G2588","heart, inner self"],
+      ["ἔγραψα","γράφω","Verb","aorist active indicative, 1st singular","G1125","to write"],
+      ["ὑμῖν","σύ","Personal pronoun","dative plural, 2nd person","G4771","you"],
+      ["διὰ","διά","Preposition","+ genitive","G1223","through, by means of, amid"],
+      ["πολλῶν","πολύς","Adjective","genitive plural neuter","G4183","much, many, great"],
+      ["δακρύων,","δάκρυον","Noun","genitive plural neuter","G1144","tear"],
+      ["οὐχ","οὐ","Particle","negative","G3756","not"],
+      ["ἵνα","ἵνα","Conjunction","subordinating, purpose","G2443","in order that, so that"],
+      ["λυπηθῆτε","λυπέω","Verb","aorist passive subjunctive, 2nd plural","G3076","to grieve, cause pain to"],
+      ["ἀλλὰ","ἀλλά","Conjunction","coordinating, adversative","G235","but, rather, yet"],
+      ["τὴν","ὁ","Article","accusative singular feminine","G3588","the"],
+      ["ἀγάπην","ἀγάπη","Noun","accusative singular feminine","G26","love"],
+      ["ἵνα","ἵνα","Conjunction","subordinating, purpose","G2443","in order that, so that"],
+      ["γνῶτε","γινώσκω","Verb","aorist active subjunctive, 2nd plural","G1097","to know, come to know, recognise"],
+      ["ἣν","ὅς","Relative pronoun","accusative singular feminine","G3739","who, which, that"],
+      ["ἔχω","ἔχω","Verb","present active indicative, 1st singular","G2192","to have, hold, possess"],
+      ["περισσοτέρως","περισσοτέρως","Adverb","comparative","G4056","all the more, especially"],
+      ["εἰς","εἰς","Preposition","+ accusative","G1519","into, toward, for"],
+      ["ὑμᾶς.","σύ","Personal pronoun","accusative plural, 2nd person","G4771","you"]
+    ]],
+    ["2:5",[
+      ["Εἰ","εἰ","Conjunction","subordinating, conditional","G1487","if, whether"],
+      ["δέ","δέ","Conjunction","coordinating, developmental","G1161","but, and, now"],
+      ["τις","τις","Indefinite pronoun","nominative singular masculine","G5100","someone, anyone, a certain one"],
+      ["λελύπηκεν,","λυπέω","Verb","perfect active indicative, 3rd singular","G3076","to grieve, cause pain to"],
+      ["οὐκ","οὐ","Particle","negative","G3756","not"],
+      ["ἐμὲ","ἐγώ","Personal pronoun","accusative singular, 1st person (emphatic)","G1473","I, me"],
+      ["λελύπηκεν,","λυπέω","Verb","perfect active indicative, 3rd singular","G3076","to grieve, cause pain to"],
+      ["ἀλλὰ","ἀλλά","Conjunction","coordinating, adversative","G235","but, rather, yet"],
+      ["ἀπὸ","ἀπό","Preposition","+ genitive","G575","from, away from, in part"],
+      ["μέρους","μέρος","Noun","genitive singular neuter","G3313","part, portion, share"],
+      ["ἵνα","ἵνα","Conjunction","subordinating, purpose","G2443","in order that, so that"],
+      ["μὴ","μή","Particle","negative","G3361","not, lest"],
+      ["ἐπιβαρῶ","ἐπιβαρέω","Verb","present active subjunctive, 1st singular","G1912","to burden, be a burden to"],
+      ["πάντας","πᾶς","Adjective","accusative plural masculine","G3956","all, every, the whole"],
+      ["ὑμᾶς.","σύ","Personal pronoun","accusative plural, 2nd person","G4771","you"]
+    ]],
+    ["2:6",[
+      ["ἱκανὸν","ἱκανός","Adjective","nominative singular neuter","G2425","sufficient, adequate, enough"],
+      ["τῷ","ὁ","Article","dative singular masculine","G3588","the"],
+      ["τοιούτῳ","τοιοῦτος","Demonstrative pronoun","dative singular masculine","G5108","such a one, of this kind"],
+      ["ἡ","ὁ","Article","nominative singular feminine","G3588","the"],
+      ["ἐπιτιμία","ἐπιτιμία","Noun","nominative singular feminine","G2009","punishment, penalty"],
+      ["αὕτη","οὗτος","Demonstrative pronoun","nominative singular feminine","G3778","this, this one"],
+      ["ἡ","ὁ","Article","nominative singular feminine","G3588","the"],
+      ["ὑπὸ","ὑπό","Preposition","+ genitive","G5259","by (agent), at the hands of"],
+      ["τῶν","ὁ","Article","genitive plural masculine","G3588","the"],
+      ["πλειόνων,","πολύς","Adjective","genitive plural masculine, comparative","G4183","more; the majority"]
+    ]],
+    ["2:7",[
+      ["ὥστε","ὥστε","Conjunction","result","G5620","so that, with the result that, therefore"],
+      ["τοὐναντίον","τοὐναντίον","Adverb","contrastive","G5121","on the contrary, instead"],
+      ["μᾶλλον","μᾶλλον","Adverb","comparative","G3123","more, rather, all the more"],
+      ["ὑμᾶς","σύ","Personal pronoun","accusative plural, 2nd person","G4771","you"],
+      ["χαρίσασθαι","χαρίζομαι","Verb","aorist middle infinitive","G5483","to give freely, forgive, pardon"],
+      ["καὶ","καί","Conjunction","coordinating","G2532","and, also, even"],
+      ["παρακαλέσαι,","παρακαλέω","Verb","aorist active infinitive","G3870","to comfort, encourage, urge, appeal to"],
+      ["μή","μή","Particle","negative","G3361","not, lest"],
+      ["πως","πως","Particle","indefinite","G4458","somehow, perhaps"],
+      ["τῇ","ὁ","Article","dative singular feminine","G3588","the"],
+      ["περισσοτέρᾳ","περισσός","Adjective","dative singular feminine, comparative","G4055","greater, excessive, abundant"],
+      ["λύπῃ","λύπη","Noun","dative singular feminine","G3077","grief, sorrow, pain"],
+      ["καταποθῇ","καταπίνω","Verb","aorist passive subjunctive, 3rd singular","G2666","to swallow up, devour, overwhelm"],
+      ["ὁ","ὁ","Article","nominative singular masculine","G3588","the"],
+      ["τοιοῦτος.","τοιοῦτος","Demonstrative pronoun","nominative singular masculine","G5108","such a one, of this kind"]
+    ]],
+    ["2:8",[
+      ["διὸ","διό","Conjunction","inferential","G1352","therefore, for this reason"],
+      ["παρακαλῶ","παρακαλέω","Verb","present active indicative, 1st singular","G3870","to comfort, encourage, urge, appeal to"],
+      ["ὑμᾶς","σύ","Personal pronoun","accusative plural, 2nd person","G4771","you"],
+      ["κυρῶσαι","κυρόω","Verb","aorist active infinitive","G2964","to confirm, ratify, put into effect"],
+      ["εἰς","εἰς","Preposition","+ accusative","G1519","into, toward, for"],
+      ["αὐτὸν","αὐτός","Personal pronoun","accusative singular masculine","G846","he, him, it; self"],
+      ["ἀγάπην·","ἀγάπη","Noun","accusative singular feminine","G26","love"]
+    ]],
+    ["2:9",[
+      ["εἰς","εἰς","Preposition","+ accusative","G1519","into, toward, for"],
+      ["τοῦτο","οὗτος","Demonstrative pronoun","accusative singular neuter","G3778","this, this one"],
+      ["γὰρ","γάρ","Conjunction","coordinating, causal","G1063","for, because, indeed"],
+      ["καὶ","καί","Conjunction","adverbial (also, even)","G2532","and, also, even"],
+      ["ἔγραψα","γράφω","Verb","aorist active indicative, 1st singular","G1125","to write"],
+      ["ἵνα","ἵνα","Conjunction","subordinating, purpose","G2443","in order that, so that"],
+      ["γνῶ","γινώσκω","Verb","aorist active subjunctive, 1st singular","G1097","to know, come to know, recognise"],
+      ["τὴν","ὁ","Article","accusative singular feminine","G3588","the"],
+      ["δοκιμὴν","δοκιμή","Noun","accusative singular feminine","G1382","proven character, tested worth"],
+      ["ὑμῶν,","σύ","Personal pronoun","genitive plural, 2nd person","G4771","you"],
+      ["εἰ","εἰ","Conjunction","subordinating, conditional","G1487","if, whether"],
+      ["εἰς","εἰς","Preposition","+ accusative","G1519","into, toward, for"],
+      ["πάντα","πᾶς","Adjective","accusative plural neuter","G3956","all, every, the whole"],
+      ["ὑπήκοοί","ὑπήκοος","Adjective","nominative plural masculine","G5255","obedient"],
+      ["ἐστε.","εἰμί","Verb","present active indicative, 2nd plural","G1510","to be, exist"]
+    ]],
+    ["2:10",[
+      ["ᾧ","ὅς","Relative pronoun","dative singular masculine","G3739","who, which, that"],
+      ["δέ","δέ","Conjunction","coordinating, developmental","G1161","but, and, now"],
+      ["τι","τις","Indefinite pronoun","accusative singular neuter","G5100","someone, anything, a certain thing"],
+      ["χαρίζεσθε,","χαρίζομαι","Verb","present middle indicative, 2nd plural","G5483","to give freely, forgive, pardon"],
+      ["κἀγώ·","κἀγώ","Personal pronoun","nominative singular, 1st person (crasis καί + ἐγώ)","G2504","and I, I also"],
+      ["καὶ","καί","Conjunction","adverbial (also, even)","G2532","and, also, even"],
+      ["γὰρ","γάρ","Conjunction","coordinating, causal","G1063","for, because, indeed"],
+      ["ἐγὼ","ἐγώ","Personal pronoun","nominative singular, 1st person","G1473","I, me"],
+      ["ὃ","ὅς","Relative pronoun","accusative singular neuter","G3739","who, which, that"],
+      ["κεχάρισμαι,","χαρίζομαι","Verb","perfect middle indicative, 1st singular","G5483","to give freely, forgive, pardon"],
+      ["εἴ","εἰ","Conjunction","subordinating, conditional","G1487","if, whether"],
+      ["τι","τις","Indefinite pronoun","accusative singular neuter","G5100","someone, anything, a certain thing"],
+      ["κεχάρισμαι,","χαρίζομαι","Verb","perfect middle indicative, 1st singular","G5483","to give freely, forgive, pardon"],
+      ["δι’","διά","Preposition","+ accusative","G1223","because of, for the sake of"],
+      ["ὑμᾶς","σύ","Personal pronoun","accusative plural, 2nd person","G4771","you"],
+      ["ἐν","ἐν","Preposition","+ dative","G1722","in, on, before"],
+      ["προσώπῳ","πρόσωπον","Noun","dative singular neuter","G4383","face, presence, person"],
+      ["Χριστοῦ,","Χριστός","Noun","genitive singular masculine","G5547","Christ, Anointed One, Messiah"]
+    ]],
+    ["2:11",[
+      ["ἵνα","ἵνα","Conjunction","subordinating, purpose","G2443","in order that, so that"],
+      ["μὴ","μή","Particle","negative","G3361","not, lest"],
+      ["πλεονεκτηθῶμεν","πλεονεκτέω","Verb","aorist passive subjunctive, 1st plural","G4122","to take advantage of, exploit, outwit"],
+      ["ὑπὸ","ὑπό","Preposition","+ genitive","G5259","by (agent), at the hands of"],
+      ["τοῦ","ὁ","Article","genitive singular masculine","G3588","the"],
+      ["Σατανᾶ,","Σατανᾶς","Noun","genitive singular masculine","G4567","Satan, the adversary"],
+      ["οὐ","οὐ","Particle","negative","G3756","not"],
+      ["γὰρ","γάρ","Conjunction","coordinating, causal","G1063","for, because, indeed"],
+      ["αὐτοῦ","αὐτός","Personal pronoun","genitive singular masculine","G846","he, him, it; self"],
+      ["τὰ","ὁ","Article","accusative plural neuter","G3588","the"],
+      ["νοήματα","νόημα","Noun","accusative plural neuter","G3540","thought, design, scheme, mind"],
+      ["ἀγνοοῦμεν.","ἀγνοέω","Verb","present active indicative, 1st plural","G50","to be ignorant of, not know"]
+    ]]
+  ]}
+};
+
+/* ============================================================
+   STATE
+   ============================================================ */
+const INDENT = 36, ROW = 44, MARGIN = 78, TOP = 30, GAPW = 9, WRAP = 1075;
+const SECGAP = 46;          // vertical space a section break opens up
+
+/* The four drawable line weights. "thick" is deliberately absent: choosing it
+   in the Style menu makes a section break instead of a stroke. */
+const LINESTYLE = {
+  thin:    {w:1.2},
+  regular: {w:2.2},
+  dotted:  {w:2.2, dash:[2.5,5.5]},
+  double:  {w:1.3, offset:2.1}
+};
+
+const S = {
+  key:"c2_112", chapter:"all", docs:{}, undo:[], redo:[],
+  words:[], lines:[], strokes:[], conns:[], sections:[],
+  tool:"move", lastInk:"pen", ci:12, wheelOpen:false, lineStyle:"regular",
+  pencilMode:true, sel:null, lemHi:{}, connFrom:null, curLine:null, dpr:1
+};
+
+const board = document.getElementById("board");
+const svg   = document.getElementById("svg");
+const cv    = document.getElementById("ink");
+const hit   = document.getElementById("hit");
+const ctx   = cv.getContext("2d");
+
+/* One palette drives everything: `hue` inks the pen and (at low alpha) the
+   highlighter; `tint` is the flat background used for lemma highlighting.
+   First 12 are the outer hue ring, last 6 the inner neutral ring. */
+const COLORS = [
+  {n:"Red",     hue:"#f5230f", tint:"#ffb0a5"},
+  {n:"Orange",  hue:"#ff7a00", tint:"#ffcd99"},
+  {n:"Amber",   hue:"#ffac00", tint:"#ffdd85"},
+  // yellow and lime are held back a little: a pen stroke that light
+  // vanishes on the cream page, and must stay distinct from its own tint
+  {n:"Yellow",  hue:"#edc200", tint:"#fff170"},
+  {n:"Lime",    hue:"#96cc00", tint:"#ddf877"},
+  {n:"Green",   hue:"#0ac23c", tint:"#8fefa6"},
+  {n:"Teal",    hue:"#00cbae", tint:"#7bf0de"},
+  {n:"Cyan",    hue:"#00b9f0", tint:"#84dcfa"},
+  {n:"Blue",    hue:"#1a6cff", tint:"#a8c9ff"},
+  {n:"Indigo",  hue:"#5f3dff", tint:"#c2b4ff"},
+  {n:"Violet",  hue:"#ab26f5", tint:"#deb0fc"},
+  {n:"Magenta", hue:"#fa0f9e", tint:"#ffaae0"},
+  // inner ring stays darker on purpose — you need a legible pen for writing
+  {n:"Ink",     hue:"#17140f", tint:"#d8d3c8"},
+  {n:"Slate",   hue:"#5a6b7a", tint:"#c9d7e2"},
+  {n:"Brown",   hue:"#9c6224", tint:"#f0d2ab"},
+  {n:"Olive",   hue:"#78912b", tint:"#dced96"},
+  {n:"Crimson", hue:"#c01340", tint:"#ffb3c4"},
+  {n:"Navy",    hue:"#1d4bc4", tint:"#b6cbf7"}
+];
+const HUES = 12;   // outer ring count; the rest form the inner ring
+
+const LEXNAME = { BDAG:"BDAG lookup", CBDAG:"Concise BDAG", BrillDAG:"Brill lookup",
+                  LSJ:"LSJ lookup", Thayers:"Thayer's" };
+
+/* ============================================================
+   MorphGNT LOADER
+   Format is tab/space delimited, one word per line:
+     bcv  pos  parse  text  word  normalised  lemma
+     010101  N-  ----NSF-  Βίβλος  Βίβλος  βίβλος  βίβλος
+   The 8-character parse code is positional:
+     person tense voice mood case number gender degree
+   ============================================================ */
+const MG_POS = {
+  "N-":"Noun", "V-":"Verb", "A-":"Adjective", "RA":"Article",
+  "RD":"Demonstrative pronoun", "RI":"Interrogative/indefinite pronoun",
+  "RP":"Personal pronoun", "RR":"Relative pronoun", "C-":"Conjunction",
+  "P-":"Preposition", "D-":"Adverb", "I-":"Interjection", "X-":"Particle"
+};
+const MG = [
+  {1:"1st person", 2:"2nd person", 3:"3rd person"},
+  {P:"present", I:"imperfect", F:"future", A:"aorist", X:"perfect", Y:"pluperfect"},
+  {A:"active", M:"middle", P:"passive"},
+  {I:"indicative", D:"imperative", S:"subjunctive", O:"optative",
+   N:"infinitive", P:"participle"},
+  {N:"nominative", G:"genitive", D:"dative", A:"accusative", V:"vocative"},
+  {S:"singular", P:"plural"},
+  {M:"masculine", F:"feminine", N:"neuter"},
+  {C:"comparative", S:"superlative"}
+];
+
+/* Turn "3IAI-S--" into "imperfect active indicative, 3rd singular". */
+function mgParse(code){
+  code = String(code || "");
+  const g = i => (MG[i][code[i]] || "");
+  const person = g(0), tense = g(1), voice = g(2), mood = g(3);
+  const cse = g(4), num = g(5), gen = g(6), deg = g(7);
+  const verbal = [tense, voice, mood].filter(Boolean).join(" ");
+
+  if(verbal){
+    // a participle declines, so report case/number/gender
+    if(cse) return verbal + ", " + [cse, num, gen].filter(Boolean).join(" ");
+    // a finite verb agrees with its subject: "3rd singular",
+    // not "singular, 3rd person"
+    const pn = [person.replace(" person",""), num].filter(Boolean).join(" ");
+    return pn ? verbal + ", " + pn : verbal;       // bare verbal = infinitive
+  }
+  return [[cse, num, gen].filter(Boolean).join(" "), deg].filter(Boolean).join(", ") || code;
+}
+
+function parseMorphGNT(raw, label, abbr){
+  const verses = [];          // [["1:1", [token,…]], …]
+  let cur = null, curRef = null, bad = 0;
+
+  raw.split(/\r?\n/).forEach(line=>{
+    line = line.trim();
+    if(!line) return;
+    const f = line.split(/[\t ]+/);
+    if(f.length < 7){ bad++; return; }
+    const [bcv, pos, code, text, , , lemma] = f;
+    if(!/^\d{6}$/.test(bcv)){ bad++; return; }
+    const ref = String(+bcv.slice(2,4)) + ":" + String(+bcv.slice(4,6));
+    if(ref !== curRef){ curRef = ref; cur = []; verses.push([ref, cur]); }
+    cur.push([ text, lemma, MG_POS[pos] || pos, mgParse(code), "", "" ]);
+  });
+
+  if(!verses.length) return { error:"No MorphGNT lines found in that file." };
+  const words = verses.reduce((n,v)=>n+v[1].length, 0);
+  const chapters = [...new Set(verses.map(v=>v[0].split(":")[0]))]
+                     .sort((a,b)=>a-b);
+  return { title:label, abbr, module:"GNT28-T", verses, words, chapters, byChapter:true, bad };
+}
+
+/* MorphGNT ships one file per book: 47-2Cor-morphgnt.txt → "2Cor".
+   The numeric prefix differs between numbering schemes, so books are
+   identified by the alphabetic stem, which is unambiguous. */
+const BOOKS = [
+  {ids:["mt","matt","matthew"],   name:"Matthew",         acc:"Matt."},
+  {ids:["mk","mark"],             name:"Mark",            acc:"Mark"},
+  {ids:["lk","luke"],             name:"Luke",            acc:"Luke"},
+  {ids:["jn","john"],             name:"John",            acc:"John"},
+  {ids:["ac","acts"],             name:"Acts",            acc:"Acts"},
+  {ids:["ro","rom","romans"],     name:"Romans",          acc:"Rom."},
+  {ids:["1co","1cor"],            name:"1 Corinthians",   acc:"1_Cor."},
+  {ids:["2co","2cor"],            name:"2 Corinthians",   acc:"2_Cor."},
+  {ids:["ga","gal"],              name:"Galatians",       acc:"Gal."},
+  {ids:["eph"],                   name:"Ephesians",       acc:"Eph."},
+  {ids:["php","phil","phi"],      name:"Philippians",     acc:"Phil."},
+  {ids:["col"],                   name:"Colossians",      acc:"Col."},
+  {ids:["1th","1thess"],          name:"1 Thessalonians", acc:"1_Thess."},
+  {ids:["2th","2thess"],          name:"2 Thessalonians", acc:"2_Thess."},
+  {ids:["1ti","1tim"],            name:"1 Timothy",       acc:"1_Tim."},
+  {ids:["2ti","2tim"],            name:"2 Timothy",       acc:"2_Tim."},
+  {ids:["tit","titus"],           name:"Titus",           acc:"Titus"},
+  {ids:["phm","phlm"],            name:"Philemon",        acc:"Phlm."},
+  {ids:["heb"],                   name:"Hebrews",         acc:"Heb."},
+  {ids:["jas","jam","james"],     name:"James",           acc:"James"},
+  {ids:["1pe","1pet"],            name:"1 Peter",         acc:"1_Pet."},
+  {ids:["2pe","2pet"],            name:"2 Peter",         acc:"2_Pet."},
+  {ids:["1jn","1john"],           name:"1 John",          acc:"1_John"},
+  {ids:["2jn","2john"],           name:"2 John",          acc:"2_John"},
+  {ids:["3jn","3john"],           name:"3 John",          acc:"3_John"},
+  {ids:["jud","jude"],            name:"Jude",            acc:"Jude"},
+  {ids:["re","rev"],              name:"Revelation",      acc:"Rev."}
+];
+const BOOK_BY_ID = (()=>{ const m={}; BOOKS.forEach((b,i)=>b.ids.forEach(id=>m[id]={...b, order:i})); return m; })();
+
+function bookFromFilename(name){
+  const base = String(name).replace(/\.[^.]*$/,"").replace(/-morphgnt$/i,"");
+  const stem = (/(?:^|[-_/])(\d?[A-Za-z]+)$/.exec(base) || [,base])[1].toLowerCase();
+  return BOOK_BY_ID[stem] || null;
+}
+
+function labelFromFilename(name){
+  const b = bookFromFilename(name);
+  if(b) return b.name;
+  const m = /^\d*-?([A-Za-z0-9]+)-morphgnt/.exec(name) || /^([A-Za-z0-9]+)/.exec(name);
+  const raw = m ? m[1] : "Loaded book";
+  return raw.replace(/^(\d)([A-Za-z])/, "$1 $2");   // "2Cor" → "2 Cor"
+}
+
+/* ============================================================
+   ZIP READER
+   Enough of the format to pull text entries out of GitHub's
+   "Download ZIP": central directory, stored and deflated entries.
+   Inflation uses the platform's DecompressionStream — no library.
+   ============================================================ */
+async function readZip(buf){
+  const dv = new DataView(buf), u8 = new Uint8Array(buf);
+  const U32 = o => dv.getUint32(o, true), U16 = o => dv.getUint16(o, true);
+
+  // End of central directory: scan back from the tail past any comment
+  let eocd = -1;
+  for(let i = u8.length - 22; i >= 0 && i > u8.length - 66000; i--){
+    if(U32(i) === 0x06054b50){ eocd = i; break; }
+  }
+  if(eocd < 0) throw new Error("Not a zip file");
+
+  let n = U16(eocd + 10), off = U32(eocd + 16);
+  const dec = new TextDecoder("utf-8");
+  const out = [];
+
+  for(let k = 0; k < n; k++){
+    if(U32(off) !== 0x02014b50) break;
+    const method = U16(off + 10), csize = U32(off + 20), usize = U32(off + 24);
+    const nameLen = U16(off + 28), extraLen = U16(off + 30), cmtLen = U16(off + 32);
+    const lho = U32(off + 42);
+    const name = dec.decode(u8.subarray(off + 46, off + 46 + nameLen));
+    off += 46 + nameLen + extraLen + cmtLen;
+
+    if(!/-morphgnt\.txt$/i.test(name) || usize === 0) continue;
+    if(U32(lho) !== 0x04034b50) continue;
+    const lNameLen = U16(lho + 26), lExtraLen = U16(lho + 28);
+    const start = lho + 30 + lNameLen + lExtraLen;
+    const raw = u8.subarray(start, start + csize);
+
+    let text;
+    if(method === 0){
+      text = dec.decode(raw);
+    } else if(method === 8){
+      const src = new ReadableStream({ start(c){ c.enqueue(raw); c.close(); } });
+      const inflated = src.pipeThrough(new DecompressionStream("deflate-raw"));
+      text = dec.decode(new Uint8Array(await new Response(inflated).arrayBuffer()));
+    } else continue;                      // some other compression: skip
+    out.push({ name: name.split("/").pop(), raw: text });
+  }
+  return out;
+}
+
+/* ---- registering books ----
+   Each book becomes its own passage under the key "nt:<stem>", so the
+   existing chapter picker, refs and Accordance links all work unchanged. */
+S.corpusFiles = [];        // [{name, raw}] — kept verbatim so it can be re-saved
+
+function registerBook(file){
+  const b = bookFromFilename(file.name);
+  const label = b ? b.name : labelFromFilename(file.name);
+  const abbr  = b ? b.acc  : label.replace(/\s+/g,"_");
+  const p = parseMorphGNT(file.raw, label, abbr);
+  if(p.error) return null;
+  p._raw = file.raw; p._file = file.name;
+  p.order = b ? b.order : 99;
+  p.key = "nt:" + (b ? b.ids[0] : label.toLowerCase().replace(/\s+/g,""));
+  PASSAGES[p.key] = p;
+  return p;
+}
+
+/* Rebuild the book menu from every registered book, in canonical order. */
+function refreshBookMenu(){
+  const sel = document.getElementById("passage");
+  sel.querySelectorAll(".ntgroup").forEach(n=>n.remove());
+  const books = Object.keys(PASSAGES).filter(k=>k.startsWith("nt:"))
+                  .map(k=>PASSAGES[k]).sort((a,b)=>a.order-b.order);
+  if(!books.length) return books;
+  const og = document.createElement("optgroup");
+  og.className = "ntgroup";
+  og.label = "New Testament (" + books.length + " books)";
+  books.forEach(p=>{
+    const o = document.createElement("option");
+    o.value = p.key; o.textContent = p.title;
+    og.appendChild(o);
+  });
+  sel.appendChild(og);
+  return books;
+}
+
+function refreshChapterMenu(){
+  const p = PASSAGES[S.key];
+  const ch = document.getElementById("chapter");
+  if(!p || !p.byChapter){ ch.style.display = "none"; return; }
+  ch.innerHTML = "";
+  const all = document.createElement("option");
+  all.value = "all";
+  all.textContent = "Whole book (" + p.words.toLocaleString() + " words)";
+  ch.appendChild(all);
+  p.chapters.forEach(c=>{
+    const o = document.createElement("option");
+    o.value = c; o.textContent = "Chapter " + c;
+    ch.appendChild(o);
+  });
+  ch.style.display = "";
+  ch.value = S.chapter;
+}
+
+/* Load any mix of MorphGNT .txt files and/or a repository .zip. */
+async function loadFiles(files){
+  const status = document.getElementById("mgStatus");
+  status.textContent = "Reading…";
+  const incoming = [];
+
+  for(const f of files){
+    try{
+      if(/\.zip$/i.test(f.name)){
+        const entries = await readZip(await f.arrayBuffer());
+        if(!entries.length){ status.textContent =
+          "No MorphGNT files inside that zip."; return false; }
+        incoming.push(...entries);
+      } else {
+        incoming.push({ name:f.name, raw: await f.text() });
+      }
+    }catch(err){
+      status.textContent = "Could not read " + f.name + " (" + (err.message || err) + ").";
+      return false;
+    }
+  }
+
+  let added = 0, skipped = 0;
+  incoming.forEach(file=>{
+    const p = registerBook(file);
+    if(!p){ skipped++; return; }
+    added++;
+    S.corpusFiles = S.corpusFiles.filter(x => x.name !== file.name);
+    S.corpusFiles.push(file);
+  });
+
+  if(!added){ status.textContent = "None of those files looked like MorphGNT."; return false; }
+
+  const books = refreshBookMenu();
+  const total = books.reduce((n,p)=>n+p.words, 0);
+  status.textContent = `${books.length} book${books.length>1?"s":""} loaded · ` +
+    `${total.toLocaleString()} words` + (skipped ? ` (${skipped} file(s) skipped)` : "");
+
+  // land on the first newly added book
+  const first = incoming.map(f=>registerBook(f)).filter(Boolean)[0];
+  if(first){
+    S.key = first.key; S.chapter = "all";
+    document.getElementById("passage").value = first.key;
+  }
+  refreshChapterMenu();
+  build(S.key); syncJoin(); closePops();
+  saveCorpus(); saveNow();
+  return true;
+}
+
+/* ============================================================
+   BUILD / LAYOUT
+   ============================================================ */
+function build(key){
+  S.key = key; S.words = []; S.lines = []; S.strokes = []; S.conns = []; S.sections = [];
+  S.sel = null; S.lemHi = {}; S.connFrom = null; S.curLine = null;
+
+  // undo history belongs to one diagram: snapshots refer to that passage's
+  // word ids, so carrying them across passages would corrupt the page
+  const dk = key + "|" + (S.chapter || "all");
+  if(dk !== S._lastDocKey){ S.undo.length = 0; S.redo.length = 0; S._lastDocKey = dk; }
+
+  const p = PASSAGES[key];
+  board.querySelectorAll(".w,.vn,.lh,.secbreak").forEach(n=>n.remove());
+
+  // a loaded book can be laid out whole or one chapter at a time
+  let verses = p.verses;
+  if(p.byChapter && S.chapter && S.chapter !== "all")
+    verses = verses.filter(([ref]) => String(ref).split(":")[0] === String(S.chapter));
+
+  verses.forEach(([vn, toks])=>{
+    // a verse key is either a bare number (chapter comes from p.ch) or "ch:v"
+    const label = (typeof vn === "number") ? p.ch + ":" + vn : String(vn);
+    const line = { id:S.lines.length, indent:0, ids:[], verse:label, y:0, x:0, h:ROW };
+    toks.forEach(t=>{
+      const w = {
+        id:S.words.length, surface:t[0], lemma:t[1], pos:t[2], parse:t[3],
+        strongs:t[4], gloss:t[5], verse:label, line:line.id,
+        lx:0, ly:0, fx:null, fy:null, w:0, h:0, el:null
+      };
+      const el = document.createElement("div");
+      el.className = "w"; el.textContent = t[0]; el.dataset.id = w.id;
+      board.appendChild(el); w.el = el;
+      S.words.push(w); line.ids.push(w.id);
+    });
+    S.lines.push(line);
+  });
+
+  // measure
+  S.words.forEach(w=>{ const r = w.el.getBoundingClientRect(); w.w = r.width; w.h = r.height; });
+  const wc = document.getElementById("wcount");
+  wc.textContent = S.words.length > 500 ? S.words.length.toLocaleString() + " words" : "";
+
+  // restore whatever diagram was last made for this passage and chapter
+  if(S.docs && S.docs[docKey()]) applyDoc(S.docs[docKey()]);
+
+  syncUndo();
+  layout(); resizeCanvas();
+}
+
+function layout(){
+  board.querySelectorAll(".vn,.lh").forEach(n=>n.remove());
+  const secs = sectionsByLine();
+  S.sections.forEach(s => s._y = undefined);
+  let y = TOP, lastVerse = null, lastCh = null;
+
+  S.lines.forEach(line=>{
+    // a section break pushes this line — and everything after it — down a notch
+    const sec = secs[line.id];
+    if(sec){ y += SECGAP; sec._y = y - SECGAP + 17; }
+
+    const x0 = MARGIN + line.indent*INDENT;
+    let x = x0, rows = 1;
+    line.y = y; line.x = x0;
+
+    line.ids.forEach(id=>{
+      const w = S.words[id];
+      if(x > x0 && x + w.w > WRAP){ x = x0 + 22; y += ROW; rows++; }
+      w.lx = x; w.ly = y;
+      x += w.w + GAPW;
+    });
+
+    line.h = rows*ROW;
+
+    // verse number
+    const first = S.words[line.ids[0]];
+    if(first && first.verse !== lastVerse){
+      const [ch, v] = first.verse.split(":");
+      const vn = document.createElement("div");
+      vn.className = "vn";
+      // print the chapter only when it changes, so 1:12 … 24, 2:1 … reads naturally
+      vn.textContent = (ch !== lastCh) ? first.verse : v;
+      vn.style.left = (x0 - 48) + "px"; vn.style.top = (line.y + 6) + "px";
+      board.appendChild(vn);
+      lastVerse = first.verse; lastCh = ch;
+    }
+    // line grip
+    const lh = document.createElement("div");
+    lh.className = "lh";
+    lh.style.left = (x0 - 68) + "px"; lh.style.top = (line.y + 2) + "px";
+    lh.style.height = (ROW - 12) + "px";
+    lh.dataset.line = line.id;
+    board.appendChild(lh);
+    line.hx = x0 - 68; line.hy = line.y + 2; line.hw = 16; line.hh = ROW - 12;
+
+    y += ROW + 10;
+  });
+
+  render(); drawConns(); redraw(); renderSections(); saveSoon();
+  const need = y + 120;
+  if(need > board.offsetHeight){ board.style.height = need + "px"; resizeCanvas(); }
+}
+
+function px(w){ return w.fx !== null ? w.fx : w.lx; }
+function py(w){ return w.fy !== null ? w.fy : w.ly; }
+function cx(w){ return px(w) + w.w/2; }
+function cy(w){ return py(w) + w.h/2; }
+
+/* Only writes properties that actually changed. At whole-book scale (4,500+
+   words) dragging one word would otherwise touch every element on every
+   pointermove; this keeps it to the handful that moved. */
+function render(){
+  S.words.forEach(w=>{
+    const x = px(w), y = py(w);
+    if(w._wx !== x){ w.el.style.left = x + "px"; w._wx = x; }
+    if(w._wy !== y){ w.el.style.top  = y + "px"; w._wy = y; }
+
+    const lc = S.lemHi[w.lemma] || "";        // per-lemma highlight colour, if any
+    if(w._wbg !== lc){ w.el.style.background = lc; w._wbg = lc; }   // beats .sel/.float
+
+    const cls = "w"
+      + (S.sel === w.id ? " sel" : "")
+      + (lc ? " lem" : "")
+      + (w.fx !== null ? " float" : "");
+    if(w._wcls !== cls){ w.el.className = cls; w._wcls = cls; }
+  });
+}
+
+/* ============================================================
+   CANVAS / INK
+   ============================================================ */
+function resizeCanvas(){
+  S.dpr = Math.min(window.devicePixelRatio || 1, 2);
+  cv.width  = board.offsetWidth  * S.dpr;
+  cv.height = board.offsetHeight * S.dpr;
+  cv.style.width  = board.offsetWidth  + "px";
+  cv.style.height = board.offsetHeight + "px";
+  redraw();
+}
+
+// a stroke's points are stored relative to its anchor word's render origin
+function strokePoints(s){
+  if(s.anchor === null) return s.pts;
+  const w = S.words[s.anchor];
+  const ox = px(w), oy = py(w);
+  return s.pts.map(p=>({x:p.x+ox, y:p.y+oy, p:p.p}));
+}
+
+function redraw(){
+  ctx.setTransform(S.dpr,0,0,S.dpr,0,0);
+  ctx.clearRect(0,0,cv.width,cv.height);
+  ctx.lineCap = "round"; ctx.lineJoin = "round";
+
+  // highlighter first so it sits underneath everything else
+  for(const pass of ["highlight","pen","line","rect"]){
+    S.strokes.filter(s=>s.mode===pass).forEach(s=>{
+      const pts = strokePoints(s);
+      if(pts.length < 2) return;
+      ctx.strokeStyle = s.color;
+      ctx.globalAlpha = s.mode === "highlight" ? 0.34 : 1;   // strokes store the hue
+
+      if(s.mode === "highlight"){
+        ctx.lineWidth = 22;
+        ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
+        for(let i=1;i<pts.length;i++) ctx.lineTo(pts[i].x, pts[i].y);
+        ctx.stroke();
+
+      } else if(s.mode === "pen"){
+        // pressure-varying: draw as short segments of differing width
+        for(let i=1;i<pts.length;i++){
+          const pr = (pts[i].p || 0.5);
+          ctx.lineWidth = 1.1 + pr*3.4;
+          ctx.beginPath();
+          ctx.moveTo(pts[i-1].x, pts[i-1].y);
+          ctx.lineTo(pts[i].x, pts[i].y);
+          ctx.stroke();
+        }
+
+      } else if(s.mode === "line"){
+        const st = LINESTYLE[s.style] || LINESTYLE.regular;
+        ctx.lineWidth = st.w;
+        ctx.setLineDash(st.dash || []);
+        const a = pts[0], b = pts[1];
+        if(st.offset){
+          // two parallel rules, offset along the segment's normal
+          const dx = b.x-a.x, dy = b.y-a.y, len = Math.hypot(dx,dy) || 1;
+          const nx = -dy/len*st.offset, ny = dx/len*st.offset;
+          [1,-1].forEach(k=>{
+            ctx.beginPath();
+            ctx.moveTo(a.x+nx*k, a.y+ny*k);
+            ctx.lineTo(b.x+nx*k, b.y+ny*k);
+            ctx.stroke();
+          });
+        } else {
+          ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+        }
+        ctx.setLineDash([]);
+
+      } else {                                    // rect
+        ctx.lineWidth = 2.2;
+        const x = Math.min(pts[0].x, pts[1].x), y = Math.min(pts[0].y, pts[1].y);
+        const w = Math.abs(pts[1].x - pts[0].x), h = Math.abs(pts[1].y - pts[0].y);
+        ctx.beginPath(); ctx.rect(x, y, w, h); ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+    });
+  }
+}
+
+/* Points to test the eraser against. Freehand strokes are already dense;
+   shapes are only stored as two corners, so walk their outline. */
+function hitPoints(s){
+  const pts = strokePoints(s);
+  if(s.mode === "pen" || s.mode === "highlight" || pts.length < 2) return pts;
+  const a = pts[0], b = pts[1], out = [];
+  const seg = (p,q)=>{ for(let i=0;i<=20;i++)
+    out.push({x:p.x+(q.x-p.x)*i/20, y:p.y+(q.y-p.y)*i/20}); };
+  if(s.mode === "line") seg(a,b);
+  else {
+    const c1={x:a.x,y:a.y}, c2={x:b.x,y:a.y}, c3={x:b.x,y:b.y}, c4={x:a.x,y:b.y};
+    seg(c1,c2); seg(c2,c3); seg(c3,c4); seg(c4,c1);
+  }
+  return out;
+}
+
+/* ============================================================
+   SECTION BREAKS
+   Structure, not ink: a break is anchored to a word id (stable across
+   splits and joins), opens vertical space in the flow, and carries a title.
+   ============================================================ */
+
+/* Resolve each break onto a real line and heal it to that line's first word,
+   so it always lands on a clean line boundary after splits and joins. */
+function sectionsByLine(){
+  const byLine = {}, keep = [];
+  S.sections.forEach(sec=>{
+    const line = S.lines.find(l => l.ids.includes(sec.beforeWord));
+    if(!line) return;                       // its word vanished; drop it
+    sec.beforeWord = line.ids[0];           // snap to the head of the line
+    if(byLine[line.id]) return;             // one break per line
+    byLine[line.id] = sec; keep.push(sec);
+  });
+  S.sections = keep;
+  return byLine;
+}
+
+/* Toggle a break above whichever line boundary is nearest the tap. */
+function toggleSection(boardY){
+  if(!S.lines.length) return null;
+  let best = S.lines[0], bd = Infinity;
+  S.lines.forEach(l=>{ const d = Math.abs(boardY - l.y); if(d < bd){ bd = d; best = l; } });
+  const head = best.ids[0];
+  const at = S.sections.findIndex(s => s.beforeWord === head);
+  if(at >= 0){ S.sections.splice(at, 1); layout(); return null; }
+  const sec = { id: (S.secSeq = (S.secSeq||0)+1), beforeWord: head, title:"", ci: S.ci };
+  S.sections.push(sec);
+  layout();
+  return sec;
+}
+
+/* Put the caret straight into a new break's title — you almost always want to
+   name it the moment you make it.
+   iOS only raises the keyboard when focus() happens inside the user's own
+   gesture, so this must be called synchronously from the pointer handler,
+   never from a timeout. It is tried again on pointerup as a belt-and-braces
+   second chance within the same gesture. */
+function focusSectionTitle(sec){
+  if(!sec || !sec._ttl || !sec._ttl.focus) return;
+  try{
+    sec._ttl.focus({preventScroll:true});
+    if(sec._ttl.select) sec._ttl.select();
+  }catch(e){ try{ sec._ttl.focus(); }catch(_){} }
+}
+
+function renderSections(){
+  board.querySelectorAll(".secbreak").forEach(n=>n.remove());
+  S.sections.forEach(sec=>{
+    if(sec._y === undefined) return;
+    const c = COLORS[sec.ci] || COLORS[12];
+    const el = document.createElement("div");
+    el.className = "secbreak";
+    el.style.left = "24px"; el.style.top = (sec._y - 11) + "px";
+    el.style.width = (WRAP - 24) + "px"; el.style.height = "28px";
+
+    const rule = document.createElement("div");
+    rule.className = "rule"; rule.style.background = c.hue;
+
+    const chip = document.createElement("div");
+    chip.className = "chip";
+
+    const ttl = document.createElement("input");
+    ttl.className = "ttl";
+    ttl.type = "text";
+    ttl.setAttribute("placeholder", "Name this section");
+    ttl.setAttribute("spellcheck", "false");
+    ttl.setAttribute("enterkeyhint", "done");
+    ttl.setAttribute("autocapitalize", "sentences");
+    ttl.style.color = c.hue;
+    ttl.value = sec.title;
+    // typing only updates the model — no relayout, so the caret survives
+    ttl.addEventListener("input", ()=>{ sec.title = ttl.value.trim(); saveSoon(); });
+    ttl.addEventListener("focus", ()=>{ pushUndo(); });   // so a retitle is undoable
+    ttl.addEventListener("keydown", e=>{ if(e.key === "Enter"){ e.preventDefault(); ttl.blur(); } });
+
+    const del = document.createElement("div");
+    del.className = "del";
+    del.setAttribute("title", "Remove this break");
+    del.textContent = "×";
+    del.addEventListener("pointerdown", e=>{
+      e.stopPropagation();
+      pushUndo();
+      S.sections = S.sections.filter(s => s !== sec);
+      layout();
+    });
+
+    chip.appendChild(ttl); chip.appendChild(del);
+    el.appendChild(rule); el.appendChild(chip);
+    sec._el = el; sec._ttl = ttl;             // kept for focus and tests
+    board.appendChild(el);
+  });
+}
+
+/* Nudge a line to true horizontal/vertical when it's within ~8° —
+   underlines and brackets are almost never meant to be slightly askew. */
+function snapLine(a, x, y){
+  const dx = x - a.x, dy = y - a.y, T = 0.1405;   // tan 8°
+  if(Math.abs(dy) < Math.abs(dx)*T) return [x, a.y];
+  if(Math.abs(dx) < Math.abs(dy)*T) return [a.x, y];
+  return [x, y];
+}
+
+function nearestWord(x,y,maxd){
+  let best=null, bd=maxd;
+  S.words.forEach(w=>{
+    const dx = x - cx(w), dy = y - cy(w);
+    const d = Math.hypot(dx,dy);
+    if(d < bd){ bd = d; best = w.id; }
+  });
+  return best;
+}
+
+/* ============================================================
+   CONNECTORS
+   ============================================================ */
+function drawConns(){
+  let out = `<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5"
+      markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#8a5a2b"/></marker></defs>`;
+  S.conns.forEach(c=>{
+    const a = S.words[c.a], b = S.words[c.b];
+    const ax = cx(a), ay = py(a) + a.h, bx = cx(b), by = py(b) + b.h;
+    const dip = Math.max(26, Math.abs(bx-ax)*0.18 + Math.abs(by-ay)*0.35);
+    const mx = (ax+bx)/2, my = Math.max(ay,by) + dip;
+    out += `<path d="M${ax},${ay} Q${mx},${my} ${bx},${by}"
+      fill="none" stroke="#8a5a2b" stroke-width="1.8" opacity=".8"
+      marker-end="url(#ah)"/>`;
+  });
+  if(S.connFrom !== null){
+    const a = S.words[S.connFrom];
+    out += `<circle cx="${cx(a)}" cy="${py(a)+a.h+4}" r="5" fill="#8a5a2b"/>`;
+  }
+  svg.innerHTML = out;
+}
+
+/* ============================================================
+   POINTER HANDLING
+   ============================================================ */
+let drag = null;
+const scroller = document.getElementById("scroll");
+const active = new Map();
+let panning = false, panRef = null;
+
+function bpt(e){
+  const r = board.getBoundingClientRect();
+  return { x: e.clientX - r.left, y: e.clientY - r.top };
+}
+
+const INKTOOLS = new Set(["pen","highlight","line","rect"]);
+
+function activeTool(e){
+  if(S.pencilMode && e.pointerType === "pen"){
+    return (S.tool === "erase") ? "erase" : S.lastInk;
+  }
+  // finger never inks while pencil mode is on; a mouse still does (desktop testing)
+  if(S.pencilMode && e.pointerType === "touch" && INKTOOLS.has(S.tool)) return "move";
+  return S.tool;
+}
+
+function wordAt(x,y){
+  for(let i=S.words.length-1;i>=0;i--){
+    const w = S.words[i];
+    const wx = px(w), wy = py(w);
+    if(x>=wx-2 && x<=wx+w.w+2 && y>=wy-2 && y<=wy+w.h+2) return w;
+  }
+  return null;
+}
+function lineHandleAt(x,y){
+  for(const l of S.lines){
+    if(x>=l.hx-8 && x<=l.hx+l.hw+8 && y>=l.hy-4 && y<=l.hy+l.hh+4) return l;
+  }
+  return null;
+}
+
+hit.addEventListener("pointerdown", e=>{
+  e.preventDefault();
+  active.set(e.pointerId, {x:e.clientX, y:e.clientY});
+
+  // two or more fingers down → pan the page instead of drawing
+  if(active.size >= 2){
+    if(drag && (drag.kind === "ink" || drag.kind === "shape")){ S.strokes.pop(); redraw(); }
+    drag = null; panning = true; panRef = e.pointerId;
+    return;
+  }
+  if(panning) return;
+
+  hit.setPointerCapture(e.pointerId);
+  const p = bpt(e), t = activeTool(e);
+
+  // extra-thick isn't a stroke: it demarcates a section of the text
+  if(t === "line" && S.lineStyle === "thick"){
+    pushUndo();
+    const sec = toggleSection(p.y);
+    if(sec){ S._focusSec = sec; focusSectionTitle(sec); }
+    return;
+  }
+
+  if(INKTOOLS.has(t)){
+    pushUndo();
+    const anchor = nearestWord(p.x, p.y, 110);
+    const ox = anchor !== null ? px(S.words[anchor]) : 0;
+    const oy = anchor !== null ? py(S.words[anchor]) : 0;
+    const start = {x:p.x-ox, y:p.y-oy, p:e.pressure || 0.5};
+    const s = {
+      mode: t, anchor,
+      color: COLORS[S.ci].hue,   // highlighter renders the same hue at low alpha
+      style: S.lineStyle,        // only meaningful for mode === "line"
+      // shapes keep exactly two points: origin and the live corner/endpoint
+      pts: (t === "line" || t === "rect") ? [start, {x:start.x, y:start.y}] : [start]
+    };
+    S.strokes.push(s);
+    drag = { kind:(t === "line" || t === "rect") ? "shape" : "ink", s, ox, oy };
+    return;
+  }
+
+  if(t === "erase"){ pushUndo(); drag = { kind:"erase" }; eraseAt(p); return; }
+
+  if(t === "connect"){
+    const w = wordAt(p.x, p.y);
+    if(w){
+      if(S.connFrom === null) S.connFrom = w.id;
+      else if(S.connFrom !== w.id){ pushUndo(); S.conns.push({a:S.connFrom, b:w.id}); S.connFrom = null; }
+      else S.connFrom = null;
+      drawConns();
+    }
+    return;
+  }
+
+  if(t === "split"){
+    const w = wordAt(p.x, p.y);
+    if(w){ pushUndo(); splitBefore(w); }
+    return;
+  }
+
+  if(t === "join"){
+    const w = wordAt(p.x, p.y);
+    if(w){ pushUndo(); joinWordLine(w); }
+    return;
+  }
+
+  // ---- move ----
+  const lh = lineHandleAt(p.x, p.y);
+  if(lh){
+    S.curLine = lh.id; syncJoin();
+    drag = { kind:"line", line:lh, sx:p.x, sy:p.y, cy:p.y, i0:lh.indent, merge:false };
+    return;
+  }
+
+  const w = wordAt(p.x, p.y);
+  if(w){
+    S.curLine = w.line; syncJoin();
+    drag = { kind:"word", w, sx:p.x, sy:p.y, ox:px(w), oy:py(w), moved:false, t0:Date.now() };
+    return;
+  }
+  // empty space: clear selection
+  S.sel = null; document.getElementById("insp").classList.remove("show"); render();
+});
+
+hit.addEventListener("pointermove", e=>{
+  if(panning){
+    const prev = active.get(e.pointerId);
+    if(e.pointerId === panRef && prev){
+      scroller.scrollLeft -= e.clientX - prev.x;
+      scroller.scrollTop  -= e.clientY - prev.y;
+    }
+    active.set(e.pointerId, {x:e.clientX, y:e.clientY});
+    return;
+  }
+  if(!drag) return;
+  e.preventDefault();
+  const p = bpt(e);
+
+  if(drag.kind === "ink"){
+    drag.s.pts.push({x:p.x-drag.ox, y:p.y-drag.oy, p:e.pressure || 0.5});
+    redraw(); return;
+  }
+  if(drag.kind === "shape"){
+    let x = p.x - drag.ox, y = p.y - drag.oy;
+    if(drag.s.mode === "line") [x, y] = snapLine(drag.s.pts[0], x, y);
+    drag.s.pts[1] = {x, y};
+    redraw(); return;
+  }
+  if(drag.kind === "erase"){ eraseAt(p); return; }
+
+  if(drag.kind === "line"){
+    drag.cy = p.y;
+    const dx = p.x - drag.sx;
+    const ni = Math.max(0, Math.min(10, drag.i0 + Math.round(dx/INDENT)));
+    if(ni !== drag.line.indent){
+      if(!drag.undone){ drag.undone = true; pushUndo(); }
+      drag.line.indent = ni; layout();
+    }
+    // dragged up past the halfway point of the row above → offer to merge
+    const li = S.lines.indexOf(drag.line);
+    const wantMerge = li > 0 && (p.y < drag.line.y - ROW*0.45);
+    if(wantMerge !== drag.merge){ drag.merge = wantMerge; showMergeHint(wantMerge ? S.lines[li-1] : null); }
+    return;
+  }
+  if(drag.kind === "word"){
+    const dx = p.x - drag.sx, dy = p.y - drag.sy;
+    if(Math.abs(dx) > 4 || Math.abs(dy) > 4){
+      if(!drag.moved) pushUndo();
+      drag.moved = true;
+    }
+    if(drag.moved){
+      drag.w.fx = drag.ox + dx; drag.w.fy = drag.oy + dy;
+      render(); drawConns(); redraw();
+    }
+  }
+});
+
+function endPointer(e){
+  active.delete(e.pointerId);
+  if(active.size === 0){ panning = false; panRef = null; }
+  else if(panRef === e.pointerId) panRef = active.keys().next().value;
+}
+hit.addEventListener("pointerup", e=>{
+  if(drag && drag.kind === "word" && !drag.moved && Date.now() - drag.t0 < 450){
+    select(drag.w);
+  }
+  if(drag && drag.kind === "line"){
+    showMergeHint(null);
+    if(drag.merge){ pushUndo(); joinUp(S.lines.indexOf(drag.line)); }
+  }
+  // discard a shape that was only tapped, not dragged out
+  if(drag && drag.kind === "shape"){
+    const [a,b] = drag.s.pts;
+    if(Math.abs(b.x-a.x) < 5 && Math.abs(b.y-a.y) < 5){
+      S.strokes.splice(S.strokes.indexOf(drag.s), 1); redraw();
+    }
+  }
+  // second chance to raise the iPad keyboard, still inside the user's gesture
+  if(S._focusSec){ focusSectionTitle(S._focusSec); S._focusSec = null; }
+  drag = null; endPointer(e); saveSoon();   // ink, shapes and word moves
+});
+hit.addEventListener("pointercancel", e=>{ drag = null; endPointer(e); });
+
+let mergeHintEl = null;
+function showMergeHint(line){
+  if(!mergeHintEl){
+    mergeHintEl = document.createElement("div");
+    mergeHintEl.className = "mh";
+    board.appendChild(mergeHintEl);
+  }
+  if(!line){ mergeHintEl.style.display = "none"; return; }
+  mergeHintEl.style.display = "block";
+  mergeHintEl.style.left = (line.x - 46) + "px";
+  mergeHintEl.style.top  = (line.y - 4) + "px";
+  mergeHintEl.style.width  = (WRAP - line.x + 60) + "px";
+  mergeHintEl.style.height = (line.h - 4) + "px";
+}
+
+function eraseAt(p){
+  const before = S.strokes.length;
+  S.strokes = S.strokes.filter(s=>
+    !hitPoints(s).some(q => Math.hypot(q.x-p.x, q.y-p.y) < 14));
+  if(S.strokes.length !== before) redraw();
+}
+
+/* ============================================================
+   SPLIT / AUTO-SPLIT
+   ============================================================ */
+function splitBefore(w){
+  const li = S.lines.findIndex(l => l.id === w.line);
+  const line = S.lines[li];
+  const at = line.ids.indexOf(w.id);
+  if(at <= 0) return;
+  const tail = line.ids.splice(at);
+  const nl = { id: Math.max(...S.lines.map(l=>l.id))+1, indent: line.indent+1,
+               ids: tail, verse: S.words[tail[0]].verse, y:0, x:0, h:ROW };
+  tail.forEach(id => S.words[id].line = nl.id);
+  S.lines.splice(li+1, 0, nl);
+  S.curLine = nl.id;
+  layout(); syncJoin();
+}
+
+/* Rejoin: merge the line at index li into the one above it. */
+function joinUp(li){
+  if(li <= 0 || li >= S.lines.length) return false;
+  const prev = S.lines[li-1], line = S.lines[li];
+  line.ids.forEach(id => {
+    S.words[id].line = prev.id;
+    S.words[id].fx = null; S.words[id].fy = null;   // un-float, back into flow
+  });
+  prev.ids = prev.ids.concat(line.ids);
+  S.lines.splice(li, 1);
+  S.curLine = prev.id;
+  layout(); syncJoin();
+  return true;
+}
+
+/* Merge the line containing a given word back into the previous line. */
+function joinWordLine(w){
+  return joinUp(S.lines.findIndex(l => l.id === w.line));
+}
+
+function syncJoin(){
+  const b = document.getElementById("joinUp");
+  const li = S.lines.findIndex(l => l.id === S.curLine);
+  b.disabled = !(li > 0);
+}
+
+const COORD = new Set(["καί","δέ","ἀλλά","οὖν","γάρ","οὐδέ","ἤ",
+                       "διό","ἄρα","εἴτε","οὔτε","μηδέ","πλήν"]);
+const SUBORD = new Set(["ἵνα","ὅτι","καθώς","ὅτε","ὅταν","ἐάν","εἰ","ὥστε",
+                        "ὅπως","ἐπεί","πρίν","ὡς","μήποτε"]);
+
+function autoSplit(){
+  const keepInk = S.strokes, keepConn = S.conns, keepSec = S.sections;
+  build(S.key);                              // fresh start
+  S.strokes = keepInk; S.conns = keepConn; S.sections = keepSec;
+  const flat = [];
+  S.lines.forEach(l => l.ids.forEach(id => flat.push(id)));
+
+  const lines = [];
+  let cur = { indent:0, ids:[] };
+  let base = 0;
+
+  flat.forEach((id, i)=>{
+    const w = S.words[id];
+    let brk = null;
+    if(i > 0){
+      if(COORD.has(w.lemma))                                     brk = base;
+      else if(SUBORD.has(w.lemma))                               brk = base + 1;
+      else if(/participle/i.test(w.parse))                       brk = base + 1;
+      else if(/infinitive/i.test(w.parse))                       brk = base + 1;
+      else if(w.pos === "Relative pronoun")                      brk = base + 1;
+    }
+    if(brk !== null && cur.ids.length){
+      lines.push(cur);
+      cur = { indent: brk, ids: [] };
+      if(COORD.has(w.lemma)) base = brk;
+    }
+    cur.ids.push(id);
+  });
+  if(cur.ids.length) lines.push(cur);
+
+  S.lines = lines.map((l, i)=>{
+    l.ids.forEach(id => S.words[id].line = i);
+    return { id:i, indent:l.indent, ids:l.ids,
+             verse:S.words[l.ids[0]].verse, y:0, x:0, h:ROW };
+  });
+  S.curLine = null;
+  layout(); syncJoin();
+}
+
+/* ============================================================
+   INSPECTOR
+   ============================================================ */
+const insp = document.getElementById("insp");
+
+function select(w){
+  S.sel = w.id; S.curLine = w.line; syncJoin(); render();
+  const p = PASSAGES[S.key];
+  const ref = `${p.title} ${w.verse}`;
+  document.getElementById("i-surf").textContent = w.surface.replace(/[,.·;·]$/,"");
+  document.getElementById("i-ref").textContent = ref.toUpperCase();
+
+  // gloss and Strong's exist only for the hand-parsed passages; MorphGNT
+  // supplies neither, so those rows are omitted rather than shown empty
+  document.getElementById("i-rows").innerHTML = `
+    <div class="row"><div class="k">Lemma</div><div class="v"><span class="gk">${w.lemma}</span></div></div>
+    <div class="row"><div class="k">Parsing</div><div class="v">${w.pos} · ${w.parse}</div></div>`
+    + (w.gloss   ? `<div class="row"><div class="k">Gloss</div><div class="v">${w.gloss}</div></div>` : "")
+    + (w.strongs ? `<div class="row"><div class="k">Keys</div><div class="v">Strong's ${w.strongs}</div></div>` : "");
+
+  const lexMod  = document.getElementById("mLex").value;
+  const textMod = document.getElementById("mText").value;
+  const bdag = document.getElementById("i-bdag");
+  bdag.href = "accord://search/" + lexMod + "?" + encodeURIComponent(w.lemma);
+  bdag.textContent = LEXNAME[lexMod] || lexMod;
+  const tlink = document.getElementById("i-text");
+  tlink.href = "accord://read/" + textMod + "#" + encodeURIComponent(`${p.abbr}_${w.verse}`);
+  tlink.textContent = "Open " + textMod;
+  const lemBtn = document.getElementById("i-lem");
+  lemBtn.onclick = ()=>{
+    pushUndo();
+    if(S.lemHi[w.lemma]) delete S.lemHi[w.lemma];
+    else S.lemHi[w.lemma] = COLORS[S.ci].tint;   // current wheel colour, as a tint
+    render(); syncLemBtn(w); paintLemSwatches(w);
+  };
+  syncLemBtn(w); paintLemSwatches(w);
+  insp.classList.add("show");
+}
+
+function syncLemBtn(w){
+  const n = S.words.filter(x => x.lemma === w.lemma).length;
+  document.getElementById("i-lem").textContent =
+    (S.lemHi[w.lemma] ? "Remove highlight" : "Highlight lemma") + (n > 1 ? ` (${n})` : "");
+}
+
+/* Colour picker for the selected word's lemma. Tapping a colour highlights every
+   occurrence of that lemma in it; tapping the active colour clears it. */
+function paintLemSwatches(w){
+  const box = document.getElementById("i-sw");
+  box.innerHTML = "";
+  const label = document.createElement("div");
+  label.className = "k"; label.textContent = "Lemma colour";
+  box.appendChild(label);
+
+  COLORS.forEach((c,i)=>{
+    const d = document.createElement("div");
+    d.className = "sw" + (S.lemHi[w.lemma] === c.tint ? " on" : "");
+    d.style.background = c.tint;
+    d.title = c.n;
+    d.onclick = ()=>{
+      pushUndo();
+      if(S.lemHi[w.lemma] === c.tint) delete S.lemHi[w.lemma];
+      else S.lemHi[w.lemma] = c.tint;
+      S.ci = i;                             // keep pen/highlighter in step
+      render(); syncLemBtn(w); paintLemSwatches(w); paintWheel();
+    };
+    box.appendChild(d);
+  });
+
+  if(Object.keys(S.lemHi).length){
+    const clr = document.createElement("button");
+    clr.className = "clr";
+    clr.textContent = "Clear all (" + Object.keys(S.lemHi).length + ")";
+    clr.onclick = ()=>{ S.lemHi = {}; render(); paintLemSwatches(w); };
+    box.appendChild(clr);
+  }
+}
+
+document.getElementById("i-close").onclick = ()=>{
+  insp.classList.remove("show"); S.sel = null; render();   // highlights persist
+};
+
+/* ============================================================
+   TOOLBAR
+   ============================================================ */
+/* ============================================================
+   FLOATING COLOUR WHEEL
+   Outer ring = 12 hues, inner ring = 6 neutrals, hub = current colour.
+   Tap the hub to open/close; drag the hub to reposition it over the page.
+   ============================================================ */
+const wheelEl = document.getElementById("wheel");
+const WH = { x: null, y: null, R:122, r1:112, r0:70, r3:66, r2:34, hub:30 };
+
+function arcPath(cx, cy, rIn, rOut, a0, a1){
+  const pt = (r,a)=>[(cx + r*Math.cos(a)).toFixed(2), (cy + r*Math.sin(a)).toFixed(2)];
+  const big = (a1 - a0) > Math.PI ? 1 : 0;
+  const [x0,y0] = pt(rOut,a0), [x1,y1] = pt(rOut,a1);
+  const [x2,y2] = pt(rIn ,a1), [x3,y3] = pt(rIn ,a0);
+  return `M${x0},${y0} A${rOut},${rOut} 0 ${big} 1 ${x1},${y1} `
+       + `L${x2},${y2} A${rIn},${rIn} 0 ${big} 0 ${x3},${y3} Z`;
+}
+
+/* Show tints while the highlighter is active so the wheel previews the result. */
+function swatchColor(c){ return (S.tool === "highlight") ? c.tint : c.hue; }
+
+function paintWheel(){
+  const cur = COLORS[S.ci];
+  if(!S.wheelOpen){
+    wheelEl.innerHTML =
+      `<svg width="58" height="58" viewBox="0 0 58 58">
+         <circle class="hub" data-hub="1" cx="29" cy="29" r="26"
+                 fill="${swatchColor(cur)}" stroke="#fffdf8" stroke-width="3"/>
+         <circle cx="29" cy="29" r="27.5" fill="none" stroke="rgba(0,0,0,.18)" stroke-width="1"/>
+       </svg>`;
+    place(); return;
+  }
+
+  const C = WH.R, gap = 0.022;
+  let out = `<svg width="${C*2}" height="${C*2}" viewBox="0 0 ${C*2} ${C*2}">`;
+  out += `<circle cx="${C}" cy="${C}" r="${WH.r1+3}" fill="#fffdf8" opacity=".97"/>`;
+
+  COLORS.forEach((c,i)=>{
+    const outer = i < HUES;
+    const n  = outer ? HUES : COLORS.length - HUES;
+    const k  = outer ? i : i - HUES;
+    const a0 = (k/n)*2*Math.PI - Math.PI/2 + gap;
+    const a1 = ((k+1)/n)*2*Math.PI - Math.PI/2 - gap;
+    const on = (i === S.ci);
+    out += `<path class="sec" data-i="${i}" d="${
+      arcPath(C, C, outer?WH.r0:WH.r2, outer?WH.r1:WH.r3, a0, a1)}"
+      fill="${swatchColor(c)}" stroke="${on?'#1c1a17':'rgba(0,0,0,.10)'}"
+      stroke-width="${on?2.5:1}"/>`;
+  });
+
+  out += `<circle class="hub" data-hub="1" cx="${C}" cy="${C}" r="${WH.hub}"
+            fill="${swatchColor(cur)}" stroke="#fffdf8" stroke-width="3"/>
+          <circle cx="${C}" cy="${C}" r="${WH.hub+1.5}" fill="none"
+            stroke="rgba(0,0,0,.16)" stroke-width="1"/>
+          <text class="hublbl" x="${C}" y="${C-4}">${
+            (INKTOOLS.has(S.tool) ? S.tool : S.lastInk).toUpperCase()
+              .replace("RECT","BOX")}</text>
+          <text class="hubname" x="${C}" y="${C+10}">${cur.n}</text>
+        </svg>`;
+  wheelEl.innerHTML = out;
+  place();
+}
+
+function place(){
+  if(WH.x === null){                       // first paint: park it top-right
+    WH.x = Math.max(12, window.innerWidth - 300);
+    WH.y = 104;
+  }
+  const size = S.wheelOpen ? WH.R*2 : 58;
+  const maxX = Math.max(8, window.innerWidth  - size - 8);
+  const maxY = Math.max(8, window.innerHeight - size - 8);
+  wheelEl.style.left = Math.min(Math.max(8, WH.x), maxX) + "px";
+  wheelEl.style.top  = Math.min(Math.max(8, WH.y), maxY) + "px";
+}
+
+function pickColor(i){
+  S.ci = i;
+  // the style menu previews in the live colour, so refresh it if it is open
+  if(linePop.classList.contains("show")) paintLinePop();
+  saveSoon();
+  // recolour a highlighted lemma live if its word is open in the inspector
+  if(S.sel !== null){
+    const w = S.words[S.sel];
+    if(S.lemHi[w.lemma]){ S.lemHi[w.lemma] = COLORS[i].tint; render(); syncLemBtn(w); paintLemSwatches(w); }
+  }
+  paintWheel();
+}
+
+let wdrag = null;
+wheelEl.addEventListener("pointerdown", e=>{
+  const hub = e.target.dataset && e.target.dataset.hub;
+  const sec = e.target.dataset && e.target.dataset.i;
+  e.preventDefault(); e.stopPropagation();
+  if(hub){
+    wheelEl.setPointerCapture(e.pointerId);
+    wdrag = { sx:e.clientX, sy:e.clientY, ox:WH.x, oy:WH.y, moved:false };
+  } else if(sec !== undefined && sec !== null && sec !== ""){
+    pickColor(+sec);
+  }
+});
+wheelEl.addEventListener("pointermove", e=>{
+  if(!wdrag) return;
+  const dx = e.clientX - wdrag.sx, dy = e.clientY - wdrag.sy;
+  if(Math.abs(dx) > 4 || Math.abs(dy) > 4) wdrag.moved = true;
+  if(wdrag.moved){ WH.x = wdrag.ox + dx; WH.y = wdrag.oy + dy; place(); }
+});
+wheelEl.addEventListener("pointerup", ()=>{
+  if(wdrag && !wdrag.moved){ S.wheelOpen = !S.wheelOpen; paintWheel(); }
+  wdrag = null;
+});
+wheelEl.addEventListener("pointercancel", ()=>{ wdrag = null; });
+
+document.querySelectorAll("[data-tool]").forEach(b=>{
+  b.onclick = ()=>{
+    S.tool = b.dataset.tool;
+    if(INKTOOLS.has(S.tool)) S.lastInk = S.tool;
+    if(S.tool !== "connect") S.connFrom = null;
+    document.querySelectorAll("[data-tool]").forEach(x=>x.classList.toggle("on", x === b));
+    // selecting Line opens its style menu; any other tool closes it
+    if(S.tool === "line"){ paintLinePop(); placeLinePop(); openPop(linePop); }
+    else closePops();
+    paintWheel(); drawConns();   // wheel previews tints vs hues per tool
+  };
+});
+
+/* ---- dropdown panels ---- */
+const helpPop = document.getElementById("help");
+const setPop  = document.getElementById("settings");
+
+const ALLPOPS = ()=> [helpPop, setPop, document.getElementById("linePop")];
+
+function openPop(pop){
+  const opening = !pop.classList.contains("show");
+  ALLPOPS().forEach(p => p.classList.remove("show"));
+  if(opening) pop.classList.add("show");
+  document.getElementById("helpBtn").classList.toggle("on", helpPop.classList.contains("show"));
+  document.getElementById("setBtn").classList.toggle("on", setPop.classList.contains("show"));
+}
+document.getElementById("helpBtn").onclick = ()=> openPop(helpPop);
+document.getElementById("setBtn").onclick  = ()=> openPop(setPop);
+
+function closePops(){
+  ALLPOPS().forEach(p => p.classList.remove("show"));
+  document.getElementById("helpBtn").classList.remove("on");
+  document.getElementById("setBtn").classList.remove("on");
+}
+// tapping the page dismisses them, but not taps inside a panel or on its button
+document.addEventListener("pointerdown", e=>{
+  const t = e.target;
+  if(t.closest && (t.closest(".pop") || t.closest("#helpBtn") ||
+                   t.closest("#setBtn") || t.closest("#lineBtn"))) return;
+  closePops();
+}, true);
+
+// re-label the inspector buttons when the target modules change
+["mText","mLex"].forEach(id=>{
+  document.getElementById(id).onchange = ()=>{ if(S.sel !== null) select(S.words[S.sel]); };
+});
+
+/* ---- corpus loading ----
+   Accepts MorphGNT .txt files (any number at once), a repository .zip,
+   or a saved workspace .json. */
+async function handleFiles(list){
+  const files = Array.from(list || []);
+  if(!files.length) return;
+
+  // a saved workspace arrives on its own
+  if(files.length === 1 && /\.json$/i.test(files[0].name)){
+    let snap = null;
+    try{ snap = JSON.parse(await files[0].text()); }catch(e){}
+    if(snap && (snap.v === 1 || snap.v === 2)){
+      if(openWorkspace(snap)){ closePops(); return; }
+    }
+    document.getElementById("mgStatus").textContent = "That JSON is not a Kolon workspace.";
+    return;
+  }
+  await loadFiles(files);
+}
+document.getElementById("mgFile").onchange = e => handleFiles(e.target.files);
+
+// dropping files — or the whole zip — anywhere on the window works too
+["dragover","drop"].forEach(t => window.addEventListener(t, e=>{
+  e.preventDefault();
+  if(t === "drop" && e.dataTransfer && e.dataTransfer.files.length){
+    handleFiles(e.dataTransfer.files);
+  }
+}));
+
+/* Switching passage or chapter banks the current diagram first, so each
+   passage keeps its own work. */
+document.getElementById("chapter").onchange = e =>{
+  saveNow();
+  S.chapter = e.target.value;
+  build(S.key); syncJoin(); saveNow();
+};
+
+/* ---- line-style menu, anchored under the Line button ---- */
+const linePop = document.getElementById("linePop");
+
+const STYLEOPTS = [
+  {v:"thin",    nm:"Thin",        sub:""},
+  {v:"regular", nm:"Regular",     sub:""},
+  {v:"dotted",  nm:"Dotted",      sub:""},
+  {v:"double",  nm:"Double",      sub:""},
+  {v:"thick",   nm:"Extra thick", sub:"Lays a section break across the page and opens a titled gap"}
+];
+
+/* Each row previews the actual weight, in the colour currently on the wheel. */
+function stylePreview(v, hue){
+  const S_ = `stroke="${hue}" fill="none" stroke-linecap="round"`;
+  switch(v){
+    case "thin":    return `<path d="M2 8h58" ${S_} stroke-width="1.2"/>`;
+    case "regular": return `<path d="M2 8h58" ${S_} stroke-width="2.2"/>`;
+    case "dotted":  return `<path d="M2 8h58" ${S_} stroke-width="2.2" stroke-dasharray="2.5 5.5"/>`;
+    case "double":  return `<path d="M2 6h58" ${S_} stroke-width="1.3"/>`
+                         + `<path d="M2 10h58" ${S_} stroke-width="1.3"/>`;
+    default:        return `<rect x="2" y="5.5" width="58" height="5" rx="2.5" fill="${hue}"/>`;
+  }
+}
+
+function paintLinePop(){
+  const hue = COLORS[S.ci].hue;
+  linePop.innerHTML = "";
+  const h = document.createElement("h4");
+  h.textContent = "Line style"; linePop.appendChild(h);
+
+  STYLEOPTS.forEach(o=>{
+    const b = document.createElement("button");
+    b.className = "styleopt" + (S.lineStyle === o.v ? " on" : "");
+    b.setAttribute("data-style", o.v);
+    b.innerHTML =
+      `<svg class="prev" viewBox="0 0 62 16">${stylePreview(o.v, hue)}</svg>` +
+      `<span class="txt"><span class="nm">${o.nm}</span>` +
+      (o.sub ? `<span class="sub">${o.sub}</span>` : "") + `</span>` +
+      `<span class="tick">✓</span>`;
+    b.onclick = ()=>{
+      S.lineStyle = o.v;
+      paintLinePop();
+      closePops();
+    };
+    linePop.appendChild(b);
+  });
+}
+
+/* Sit the menu directly under the Line button. */
+function placeLinePop(){
+  const r = document.getElementById("lineBtn").getBoundingClientRect();
+  linePop.style.top = (r.bottom + 8) + "px";
+  const w = 264;
+  linePop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8)) + "px";
+}
+document.getElementById("undoBtn").onclick = undo;
+document.getElementById("redoBtn").onclick = redo;
+document.addEventListener("keydown", e=>{
+  if(!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== "z") return;
+  const t = e.target;
+  if(t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) return;  // let fields undo text
+  e.preventDefault();
+  e.shiftKey ? redo() : undo();
+});
+
+document.getElementById("pmode").onchange = e => S.pencilMode = e.target.checked;
+document.getElementById("passage").onchange = e =>{
+  saveNow();                       // bank the diagram we are leaving
+  S.key = e.target.value;
+  S.chapter = "all";
+  refreshChapterMenu();
+  build(S.key); syncJoin(); saveNow();
+};
+document.getElementById("auto").onclick  = ()=>{ pushUndo(); autoSplit(); };
+document.getElementById("joinUp").onclick = ()=>{
+  pushUndo();
+  joinUp(S.lines.findIndex(l => l.id === S.curLine));
+};
+document.getElementById("reset").onclick = ()=>{
+  pushUndo();
+  const ink = S.strokes, cn = S.conns, sec = S.sections;
+  build(S.key); S.strokes = ink; S.conns = cn; S.sections = sec;
+  layout(); syncJoin(); closePops();
+};
+document.getElementById("clear").onclick = ()=>{
+  pushUndo();
+  S.strokes = []; S.conns = []; drawConns(); redraw(); closePops();
+};
+document.getElementById("clearSec").onclick = ()=>{
+  pushUndo();
+  S.sections = []; layout(); closePops();
+};
+
+window.addEventListener("resize", resizeCanvas);
+
+/* ============================================================
+   PERSISTENCE
+   Three things are stored separately, because they have very different sizes:
+     corpus  — the raw MorphGNT text of every loaded book (~8 MB for the NT)
+     docs    — one diagram per passage, keyed "<passage>|<chapter>"
+     prefs   — which passage is open, tool and colour settings
+   IndexedDB holds them, since the whole NT is far past what localStorage
+   allows; localStorage is a fallback for the small records only.
+   ============================================================ */
+const DB_NAME = "kolon", DB_VER = 1;
+let dbPromise = null, storageOK = true, saveTimer = null;
+
+function idb(){
+  if(dbPromise) return dbPromise;
+  dbPromise = new Promise((res, rej)=>{
+    if(typeof indexedDB === "undefined") return rej(new Error("no IndexedDB"));
+    const r = indexedDB.open(DB_NAME, DB_VER);
+    r.onupgradeneeded = ()=>{
+      const d = r.result;
+      if(!d.objectStoreNames.contains("kv")) d.createObjectStore("kv");
+    };
+    r.onsuccess = ()=> res(r.result);
+    r.onerror   = ()=> rej(r.error);
+  });
+  return dbPromise;
+}
+
+async function kvGet(key){
+  try{
+    const db = await idb();
+    return await new Promise((res, rej)=>{
+      const q = db.transaction("kv", "readonly").objectStore("kv").get(key);
+      q.onsuccess = ()=> res(q.result);
+      q.onerror   = ()=> rej(q.error);
+    });
+  }catch(e){
+    try{ const v = localStorage.getItem("kolon." + key); return v ? JSON.parse(v) : undefined; }
+    catch(_){ return undefined; }
+  }
+}
+
+async function kvSet(key, val){
+  try{
+    const db = await idb();
+    await new Promise((res, rej)=>{
+      const q = db.transaction("kv", "readwrite").objectStore("kv").put(val, key);
+      q.onsuccess = ()=> res();
+      q.onerror   = ()=> rej(q.error);
+    });
+    return true;
+  }catch(e){
+    try{ localStorage.setItem("kolon." + key, JSON.stringify(val)); return true; }
+    catch(err){
+      storageOK = false;
+      document.getElementById("saveState").textContent =
+        "Could not save automatically (" + (err && err.name || "storage blocked") +
+        "). Use “Save a copy as a file”.";
+      return false;
+    }
+  }
+}
+
+/* Which diagram we are looking at: passage plus chapter selection. */
+function docKey(){ return S.key + "|" + (S.chapter || "all"); }
+
+/* ---- one diagram ---- */
+function docSnapshot(){
+  const r1 = n => Math.round(n * 10) / 10;
+  return {
+    at: Date.now(),
+    // ids and lemHi must be COPIED: splitBefore/joinUp splice the live arrays,
+    // and a snapshot holding references would mutate along with them
+    lines:  S.lines.map(l => ({ i:l.indent, ids:l.ids.slice() })),
+    floats: S.words.filter(w => w.fx !== null).map(w => [w.id, Math.round(w.fx), Math.round(w.fy)]),
+    strokes:S.strokes.map(s => ({
+      m:s.mode, a:s.anchor, c:s.color, st:s.style,
+      p:s.pts.map(q => [r1(q.x), r1(q.y), Math.round((q.p == null ? .5 : q.p) * 100) / 100])
+    })),
+    conns:   S.conns.map(c => [c.a, c.b]),
+    sections:S.sections.map(s => ({ w:s.beforeWord, t:s.title, ci:s.ci })),
+    lem: Object.assign({}, S.lemHi)
+  };
+}
+
+/* Apply a saved diagram onto the freshly built words for this passage.
+   Structure is only reapplied if it still accounts for every word exactly
+   once, so a changed corpus cannot produce a mangled page. */
+function applyDoc(d){
+  if(!d) return false;
+  // clear anything the snapshot does not mention, so undo genuinely reverses
+  // a word move rather than leaving it floated
+  S.words.forEach(w=>{ w.fx = null; w.fy = null; });
+  if(Array.isArray(d.lines) && d.lines.length){
+    const flat = d.lines.flatMap(l => l.ids);
+    const intact = flat.length === S.words.length &&
+                   new Set(flat).size === flat.length &&
+                   flat.every(id => id >= 0 && id < S.words.length);
+    if(intact){
+      S.lines = d.lines.map((l, i) => ({
+        id:i, indent:l.i || 0, ids:l.ids.slice(),
+        verse:S.words[l.ids[0]].verse, y:0, x:0, h:ROW
+      }));
+      S.lines.forEach(l => l.ids.forEach(id => S.words[id].line = l.id));
+    }
+  }
+  (d.floats || []).forEach(([id, x, y])=>{
+    if(S.words[id]){ S.words[id].fx = x; S.words[id].fy = y; }
+  });
+  S.strokes = (d.strokes || []).map(s => ({
+    mode:s.m, anchor:(s.a == null ? null : s.a), color:s.c, style:s.st,
+    pts:(s.p || []).map(q => ({ x:q[0], y:q[1], p:q[2] }))
+  })).filter(s => s.pts.length && (s.anchor === null || S.words[s.anchor]));
+  S.conns = (d.conns || []).filter(([a,b]) => S.words[a] && S.words[b])
+                           .map(([a,b]) => ({ a, b }));
+  S.sections = (d.sections || []).filter(s => S.words[s.w])
+    .map((s,i) => ({ id:i+1, beforeWord:s.w, title:s.t || "", ci:s.ci || 0 }));
+  S.secSeq = S.sections.length;
+  S.lemHi = Object.assign({}, d.lem || {});
+  return true;
+}
+
+/* ---- settings ---- */
+function prefsSnapshot(){
+  return {
+    key:S.key, chapter:S.chapter, ci:S.ci, ls:S.lineStyle, tool:S.tool,
+    pencil:S.pencilMode, wheel:[WH.x, WH.y, S.wheelOpen],
+    mods:[document.getElementById("mText").value, document.getElementById("mLex").value],
+    abbr:document.getElementById("mgAbbr").value
+  };
+}
+
+function applyPrefs(p){
+  if(!p) return;
+  if(p.mods){
+    document.getElementById("mText").value = p.mods[0] || "GNT28-T";
+    document.getElementById("mLex").value  = p.mods[1] || "BDAG";
+  }
+  if(p.abbr) document.getElementById("mgAbbr").value = p.abbr;
+  S.ci = (p.ci >= 0 && p.ci < COLORS.length) ? p.ci : 12;
+  S.lineStyle = (LINESTYLE[p.ls] || p.ls === "thick") ? p.ls : "regular";
+  S.tool = p.tool || "move";
+  S.pencilMode = p.pencil !== false;
+  document.getElementById("pmode").checked = S.pencilMode;
+  if(p.wheel){ WH.x = p.wheel[0]; WH.y = p.wheel[1]; S.wheelOpen = !!p.wheel[2]; }
+  document.querySelectorAll("[data-tool]").forEach(x =>
+    x.classList.toggle("on", x.dataset.tool === S.tool));
+  if(PASSAGES[p.key]){ S.key = p.key; S.chapter = p.chapter || "all"; }
+}
+
+/* ============================================================
+   UNDO
+   One stack for everything — splits, joins, indents, word moves, ink,
+   shapes, arrows, section breaks and titles — because a separate undo
+   per kind of action is worse than none at all. Each entry is a document
+   snapshot, which is the same shape used for saving, so there is only one
+   serialisation format to keep correct.
+   ============================================================ */
+const UNDO_MAX = 40;
+
+function pushUndo(){
+  if(S._restoring) return;
+  S.undo.push(docSnapshot());
+  if(S.undo.length > UNDO_MAX) S.undo.shift();
+  S.redo.length = 0;              // a new action forks the history
+  syncUndo();
+}
+
+function applySnap(d){
+  S._restoring = true;
+  try{ applyDoc(d); }finally{ S._restoring = false; }
+  layout(); syncJoin(); syncUndo(); saveNow();
+}
+
+function undo(){
+  if(!S.undo.length) return;
+  S.redo.push(docSnapshot());
+  applySnap(S.undo.pop());
+}
+
+function redo(){
+  if(!S.redo.length) return;
+  S.undo.push(docSnapshot());
+  applySnap(S.redo.pop());
+}
+
+function syncUndo(){
+  const u = document.getElementById("undoBtn"), r = document.getElementById("redoBtn");
+  if(u) u.disabled = !S.undo.length;
+  if(r) r.disabled = !S.redo.length;
+}
+
+/* ---- saving ---- */
+function saveSoon(){
+  if(S._restoring) return;
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveNow, 600);
+}
+
+function saveNow(){
+  if(S._restoring || !storageOK) return;
+  S.docs[docKey()] = docSnapshot();
+  kvSet("docs", S.docs);
+  kvSet("prefs", prefsSnapshot());
+  stampSaved(Date.now());
+}
+
+function saveCorpus(){
+  if(!S.corpusFiles.length) return;
+  kvSet("corpus", { files:S.corpusFiles, at:Date.now() });
+}
+
+function stampSaved(t){
+  const d = new Date(t);
+  const n = Object.keys(S.docs).length;
+  document.getElementById("saveState").textContent =
+    "Saved automatically · " + d.toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"}) +
+    (n ? " · " + n + " diagram" + (n>1?"s":"") : "");
+}
+
+/* ---- opening ---- */
+async function loadSaved(){
+  // read first: the guard flag must not span an await, or every save made
+  // while storage is still answering would be silently dropped
+  let corpus, docs, prefs;
+  try{
+    [corpus, docs, prefs] = await Promise.all([
+      kvGet("corpus"), kvGet("docs"), kvGet("prefs")
+    ]);
+  }catch(err){ return false; }
+
+  S._restoring = true;
+  try{
+    S.docs = docs || {};
+    if(corpus && Array.isArray(corpus.files) && corpus.files.length){
+      S.corpusFiles = corpus.files;
+      corpus.files.forEach(registerBook);
+      const books = refreshBookMenu();
+      const total = books.reduce((n,p)=>n+p.words, 0);
+      document.getElementById("mgStatus").textContent =
+        books.length + " book" + (books.length>1?"s":"") + " loaded · " +
+        total.toLocaleString() + " words";
+    }
+    applyPrefs(prefs);
+    if(!PASSAGES[S.key]) S.key = "c2_112";
+    document.getElementById("passage").value = S.key;
+    refreshChapterMenu();
+    return !!(corpus || docs || prefs);
+  }catch(err){
+    return false;
+  }finally{
+    S._restoring = false;
+  }
+}
+
+/* ---- workspace file: backup and moving between devices ---- */
+function saveProjectFile(){
+  const payload = { v:2, at:Date.now(), corpus:{ files:S.corpusFiles },
+                    docs:S.docs, prefs:prefsSnapshot() };
+  const blob = new Blob([JSON.stringify(payload)], {type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "kolon-workspace.json";
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 0);
+  closePops();
+}
+
+function openWorkspace(snap){
+  if(!snap) return false;
+  S._restoring = true;
+  try{
+    if(snap.v === 2){
+      S.corpusFiles = (snap.corpus && snap.corpus.files) || [];
+      S.corpusFiles.forEach(registerBook);
+      refreshBookMenu();
+      S.docs = snap.docs || {};
+      applyPrefs(snap.prefs);
+    } else if(snap.v === 1){
+      // older single-document file
+      if(snap.corpus && snap.corpus.raw){
+        S.corpusFiles = [{ name:snap.corpus.file || "book.txt", raw:snap.corpus.raw }];
+        S.corpusFiles.forEach(registerBook);
+        refreshBookMenu();
+      }
+      S.docs = {};
+      applyPrefs({ key:S.key, chapter:snap.chapter, ci:snap.ci, ls:snap.ls,
+                   tool:snap.tool, pencil:snap.pencil, wheel:snap.wheel, mods:snap.mods });
+      S.docs[docKey()] = { lines:snap.lines, floats:snap.floats, strokes:snap.strokes,
+                           conns:snap.conns, sections:snap.sections, lem:snap.lem };
+    } else return false;
+  }finally{
+    S._restoring = false;
+  }
+  if(!PASSAGES[S.key]) S.key = "c2_112";
+  document.getElementById("passage").value = S.key;
+  refreshChapterMenu();
+  build(S.key); syncJoin();
+  saveCorpus(); saveNow();
+  return true;
+}
+
+document.getElementById("saveFile").onclick = saveProjectFile;
+document.getElementById("forget").onclick = ()=>{
+  S.docs = {}; S.corpusFiles = [];
+  Object.keys(PASSAGES).filter(k=>k.startsWith("nt:")).forEach(k=>delete PASSAGES[k]);
+  kvSet("docs", {}); kvSet("corpus", {files:[]}); kvSet("prefs", {});
+  refreshBookMenu();
+  document.getElementById("mgStatus").textContent = "Nothing loaded.";
+  document.getElementById("saveState").textContent = "Saved work cleared.";
+  S.key = "c2_112"; S.chapter = "all";
+  document.getElementById("passage").value = "c2_112";
+  refreshChapterMenu();
+  build("c2_112"); syncJoin(); closePops();
+};
+
+/* Offline support. Only active when served over http(s); opening the file
+   directly still works, just without the cache. */
+if("serviceWorker" in navigator && location.protocol.startsWith("http")){
+  window.addEventListener("load", ()=>{
+    navigator.serviceWorker.register("./sw.js").catch(()=>{});
+  });
+}
+
+/* ---- go ---- */
+let booted = false;
+async function boot(){
+  if(booted) return;
+  booted = true;
+  await loadSaved();          // books, diagrams and settings from last time
+  build(S.key); syncJoin(); syncUndo();
+  paintWheel(); paintLinePop();
+}
+document.fonts.ready.then(boot);
+// a last save on the way out, in case the debounce had not fired
+["pagehide","beforeunload"].forEach(t => window.addEventListener(t, ()=>{
+  clearTimeout(saveTimer); saveNow();
+}));
+document.addEventListener("visibilitychange", ()=>{
+  if(document.visibilityState === "hidden"){ clearTimeout(saveTimer); saveNow(); }
+});
+window.addEventListener("resize", ()=>{
+  place();
+  if(linePop.classList.contains("show")) placeLinePop();
+});
+boot();
+</script>
+</body>
+</html>

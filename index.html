@@ -417,6 +417,7 @@
   <hr>
   <h4>Your work</h4>
   <div class="foot" id="saveState" style="padding-top:0">Not saved yet.</div>
+  <div class="foot" id="storeInfo" style="padding-top:0">Checking storage…</div>
   <button class="rowbtn" id="saveFile">Save a copy as a file…</button>
   <button class="rowbtn" id="forget">Forget saved work</button>
   <hr>
@@ -1764,7 +1765,8 @@ function drawConns(){
 let drag = null;
 const scroller = document.getElementById("scroll");
 const active = new Map();
-let panning = false, panRef = null;
+let panning = false, panRef = null, lastPointerAt = 0;
+const STALE_POINTER = 700;   // ms a tracked pointer may go silent before it is dropped
 
 function bpt(e){
   const r = board.getBoundingClientRect();
@@ -1799,7 +1801,22 @@ function lineHandleAt(x,y){
 
 hit.addEventListener("pointerdown", e=>{
   e.preventDefault();
-  active.set(e.pointerId, {x:e.clientX, y:e.clientY});
+
+  // Reap stale pointers. A pointerup can be lost entirely — the finger lifts
+  // over the inspector or the colour wheel, or iPadOS claims the gesture — and
+  // a stranded id would leave us permanently convinced two fingers are down,
+  // which silently kills every drawing tool. Each pointer carries its own
+  // last-seen time; a live finger refreshes it on every move, so only genuinely
+  // abandoned ids are dropped.
+  const now = Date.now();
+  for(const [id, p] of active){
+    if(now - (p.t || 0) > STALE_POINTER) active.delete(id);
+  }
+  if(!active.size){ panning = false; panRef = null; drag = null; }
+
+  lastPointerAt = now;
+  active.set(e.pointerId, {x:e.clientX, y:e.clientY, t:now});
+  if(active.size < 2 && panning){ panning = false; panRef = null; }
 
   // two or more fingers down → pan the page instead of drawing
   if(active.size >= 2){
@@ -1888,7 +1905,7 @@ hit.addEventListener("pointermove", e=>{
       scroller.scrollLeft -= e.clientX - prev.x;
       scroller.scrollTop  -= e.clientY - prev.y;
     }
-    active.set(e.pointerId, {x:e.clientX, y:e.clientY});
+    active.set(e.pointerId, {x:e.clientX, y:e.clientY, t:Date.now()});
     return;
   }
   if(!drag) return;
@@ -1935,10 +1952,22 @@ hit.addEventListener("pointermove", e=>{
 });
 
 function endPointer(e){
+  lastPointerAt = Date.now();
   active.delete(e.pointerId);
   if(active.size === 0){ panning = false; panRef = null; }
   else if(panRef === e.pointerId) panRef = active.keys().next().value;
 }
+
+/* The authoritative cleanup: a pointer can end anywhere on the page, not just
+   over the board, so listen at the window in the capture phase. Without this
+   a lost pointerup strands an id and the tools stop responding. */
+window.addEventListener("pointerup", endPointer, true);
+window.addEventListener("pointercancel", endPointer, true);
+window.addEventListener("pointermove", e=>{
+  lastPointerAt = Date.now();
+  const p = active.get(e.pointerId);
+  if(p) p.t = lastPointerAt;
+}, true);
 hit.addEventListener("pointerup", e=>{
   if(drag && drag.kind === "word" && !drag.moved && Date.now() - drag.t0 < 450){
     select(drag.w);
@@ -2647,7 +2676,19 @@ function saveNow(){
   S.docs[docKey()] = docSnapshot();
   kvSet("docs", S.docs);
   kvSet("prefs", prefsSnapshot());
+  mirrorSync();
   stampSaved(Date.now());
+}
+
+/* IndexedDB writes are asynchronous, and iPadOS often tears the page down on
+   pagehide before a transaction commits. The diagrams and settings are small,
+   so mirror them into localStorage synchronously as a safety net. The corpus
+   is far too big for that and stays in IndexedDB only. */
+function mirrorSync(){
+  try{
+    localStorage.setItem("kolon.mirror",
+      JSON.stringify({ at:Date.now(), docs:S.docs, prefs:prefsSnapshot() }));
+  }catch(e){ /* quota or private mode — IndexedDB is still the primary */ }
 }
 
 function saveCorpus(){
@@ -2674,6 +2715,14 @@ async function loadSaved(){
     ]);
   }catch(err){ return false; }
 
+  // fall back to the synchronous mirror if IndexedDB came back empty
+  if(!docs || !Object.keys(docs).length){
+    try{
+      const mir = JSON.parse(localStorage.getItem("kolon.mirror") || "null");
+      if(mir){ docs = mir.docs || docs; prefs = prefs || mir.prefs; }
+    }catch(e){}
+  }
+
   S._restoring = true;
   try{
     S.docs = docs || {};
@@ -2696,6 +2745,37 @@ async function loadSaved(){
   }finally{
     S._restoring = false;
   }
+}
+
+/* A plain-language report of where things are actually being kept, so a
+   storage problem is visible instead of silent. */
+async function reportStorage(){
+  const el = document.getElementById("storeInfo");
+  if(!el) return;
+  const bits = [];
+  let idbOK = false;
+  try{ await idb(); idbOK = true; }catch(e){}
+  bits.push(idbOK ? "IndexedDB available" : "IndexedDB NOT available");
+
+  try{
+    const c = await kvGet("corpus");
+    const n = c && c.files ? c.files.length : 0;
+    const mb = c ? (JSON.stringify(c).length / 1048576).toFixed(1) : "0";
+    bits.push(n ? `${n} book file${n>1?"s":""} stored (${mb} MB)` : "no books stored");
+  }catch(e){ bits.push("could not read stored books"); }
+
+  bits.push(Object.keys(S.docs).length + " diagram(s) held");
+
+  if(navigator.storage && navigator.storage.estimate){
+    try{
+      const est = await navigator.storage.estimate();
+      if(est && est.quota) bits.push(
+        `using ${(est.usage/1048576).toFixed(1)} of ${(est.quota/1048576).toFixed(0)} MB allowed`);
+    }catch(e){}
+  }
+  bits.push(window.matchMedia && window.matchMedia("(display-mode: standalone)").matches
+    ? "running as an installed app" : "running in the browser tab");
+  el.textContent = bits.join(" · ");
 }
 
 /* ---- workspace file: backup and moving between devices ---- */
@@ -2775,8 +2855,17 @@ async function boot(){
   await loadSaved();          // books, diagrams and settings from last time
   build(S.key); syncJoin(); syncUndo();
   paintWheel(); paintLinePop();
+  reportStorage();
 }
-document.fonts.ready.then(boot);
+
+/* Word widths are measured from the DOM. If Cardo arrives after the first
+   layout, every measurement is stale and the text overlaps — so re-measure
+   and re-flow once the fonts are actually ready. */
+function remeasure(){
+  S.words.forEach(w=>{ const r = w.el.getBoundingClientRect(); w.w = r.width; w.h = r.height; });
+  layout();
+}
+document.fonts.ready.then(()=> booted ? remeasure() : boot());
 // a last save on the way out, in case the debounce had not fired
 ["pagehide","beforeunload"].forEach(t => window.addEventListener(t, ()=>{
   clearTimeout(saveTimer); saveNow();

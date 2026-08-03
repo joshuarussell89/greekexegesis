@@ -1516,16 +1516,28 @@ hit.addEventListener("pointerdown", e=>{
   if(!active.size){ panning = false; panRef = null; drag = null; }
 
   lastPointerAt = now;
-  active.set(e.pointerId, {x:e.clientX, y:e.clientY, t:now});
-  if(active.size < 2 && panning){ panning = false; panRef = null; }
+  active.set(e.pointerId, {x:e.clientX, y:e.clientY, t:now, type:e.pointerType});
+  S._lastInput = e.pointerType;
+  S._inputCount = (S._inputCount || 0) + 1;
 
-  // two or more fingers down → pan the page instead of drawing
-  if(active.size >= 2){
+  const vals = [...active.values()];
+  const pens = vals.filter(p => p.type === "pen").length;
+  const touches = vals.filter(p => p.type === "touch").length;
+
+  // Palm rejection. The pencil outranks everything: a hand resting on the
+  // glass is a second pointer, and counting it turned drawing into panning —
+  // which made the pencil appear completely dead for anyone who rests a hand.
+  if(pens > 0 && e.pointerType !== "pen") return;      // ignore the palm
+  if(e.pointerType === "pen"){ panning = false; panRef = null; }
+
+  // two or more FINGERS (never the pen) → pan the page instead of drawing
+  if(e.pointerType !== "pen" && touches >= 2){
     if(drag && (drag.kind === "ink" || drag.kind === "shape")){ S.strokes.pop(); redraw(); }
     drag = null; panning = true; panRef = e.pointerId;
     return;
   }
-  if(panning) return;
+  if(touches < 2 && panning){ panning = false; panRef = null; }
+  if(panning && e.pointerType !== "pen") return;
 
   hit.setPointerCapture(e.pointerId);
   const p = bpt(e), t = activeTool(e);
@@ -1608,7 +1620,9 @@ hit.addEventListener("pointerdown", e=>{
 hit.addEventListener("pointermove", e=>{
   if(panning){
     const prev = active.get(e.pointerId);
-    if(e.pointerId === panRef && prev){
+    // a pen is never a panning finger
+    if(e.pointerType === "pen"){ panning = false; panRef = null; }
+    else if(e.pointerId === panRef && prev){
       scroller.scrollLeft -= e.clientX - prev.x;
       scroller.scrollTop  -= e.clientY - prev.y;
     }
@@ -3103,6 +3117,10 @@ async function reportStorage(){
   bits.push(window.matchMedia && window.matchMedia("(display-mode: standalone)").matches
     ? "running as an installed app" : "running in the browser tab");
   bits.push("build " + BUILD);
+  bits.push(S._inputCount
+    ? `last input on the page: ${S._lastInput} (${S._inputCount} so far)`
+    : "the page has received no touches yet");
+  bits.push(S.words.length ? S.words.length + " words on screen" : "no passage loaded");
   el.textContent = bits.join(" · ");
 }
 
@@ -3170,7 +3188,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-08-04c";
+const BUILD = "2026-08-04d";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file

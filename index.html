@@ -179,6 +179,44 @@
   #esv .ekey input:focus{outline:none;border-color:var(--accent);}
   #esv .ekey button{font-size:13px;padding:9px 14px;border-radius:9px;}
 
+  /* ---------- concordance ---------- */
+  #conc{position:fixed;top:0;right:0;bottom:0;width:400px;max-width:92vw;background:var(--paper);
+    border-left:1px solid var(--rule);box-shadow:-8px 0 28px rgba(0,0,0,.08);z-index:72;
+    display:none;flex-direction:column;}
+  #conc.show{display:flex;}
+  body.concopen #scroll{padding-right:416px;}
+  #concBody{flex:1 1 auto;overflow:auto;padding:6px 0 10px;}
+  #concBody .cbook{font-size:9.5px;text-transform:uppercase;letter-spacing:.1em;
+    color:var(--muted);font-weight:700;padding:12px 16px 5px;position:sticky;top:0;
+    background:var(--paper);}
+  #concBody .chit{display:block;width:100%;text-align:left;padding:7px 16px;font-size:13px;
+    line-height:1.5;border-radius:0;}
+  #concBody .chit:hover{background:var(--chip);}
+  #concBody .cref{font-size:10.5px;color:var(--accent);font-weight:700;letter-spacing:.03em;
+    margin-right:7px;}
+  #concBody .cgk{font-family:Cardo,serif;font-size:15px;}
+  #concBody .cgk b{background:rgba(138,90,43,.16);border-radius:3px;padding:0 2px;font-weight:400;}
+  #concBody .cnote{padding:14px 16px;font-size:12.5px;color:var(--muted);line-height:1.6;}
+
+  /* ---------- notes ---------- */
+  .noterow{display:flex;gap:10px;padding:10px 0 0;border-top:1px solid var(--rule2);margin-top:11px;}
+  .noterow .k{flex:0 0 62px;color:var(--muted);font-size:9.5px;text-transform:uppercase;
+    letter-spacing:.09em;padding-top:6px;font-weight:600;}
+  #i-note{flex:1;min-width:0;font:inherit;font-size:12.5px;line-height:1.5;padding:8px 10px;
+    border:1px solid var(--rule);border-radius:9px;background:var(--paper);color:var(--ink);
+    resize:vertical;}
+  #i-note:focus{outline:none;border-color:var(--accent);}
+  .w.hasnote:after{content:"";position:absolute;top:-3px;right:-3px;width:6px;height:6px;
+    border-radius:50%;background:var(--accent);box-shadow:0 0 0 1.5px var(--paper);}
+
+  /* ---------- printing ---------- */
+  @media print{
+    header,#wheel,.pop,#insp,#esv,#conc,.sheet{display:none !important;}
+    #scroll{overflow:visible !important;padding:0 !important;}
+    #board{box-shadow:none !important;border:none !important;}
+    html,body,#app{height:auto !important;overflow:visible !important;background:#fff !important;}
+  }
+
   /* ---------- handwriting sheet ---------- */
   #writeSheet{position:fixed;inset:0;z-index:200;display:none;align-items:flex-end;
     justify-content:center;background:rgba(30,26,20,.28);}
@@ -187,8 +225,9 @@
     background:var(--paper);border-radius:18px;box-shadow:0 18px 50px rgba(0,0,0,.3);
     padding:18px 20px 16px;}
   #writeSheet .wslbl{font-size:11.5px;color:var(--muted);margin-bottom:10px;}
-  #writeIn{width:100%;font:inherit;font-size:26px;padding:20px 16px;border-radius:12px;
-    border:2px dashed var(--rule);background:#fffdf6;color:var(--ink);outline:none;}
+  #writeIn{width:100%;font:inherit;font-size:30px;padding:34px 20px;border-radius:14px;
+    border:2px dashed var(--rule);background:#fffdf6;color:var(--ink);outline:none;
+    min-height:110px;}
   #writeIn:focus{border-color:var(--accent);border-style:solid;}
   #writeSheet .wsbtns{display:flex;justify-content:flex-end;gap:8px;margin-top:12px;}
   #writeSheet .wsbtns button{font-size:13px;padding:10px 16px;border-radius:9px;
@@ -294,7 +333,10 @@
   /* ---------- section breaks ---------- */
   /* NB: named .secbreak, not .sec — the colour wheel's SVG sectors use .sec,
      and an unscoped .sec rule here silently killed pointer events on them. */
-  #board .secbreak{position:absolute;z-index:4;pointer-events:none;}
+  /* Above #hit (z-index 10), or every tap on the title lands on the drawing
+     overlay instead, which steals focus and closes the box. The container
+     itself stays click-through; only the chip is interactive. */
+  #board .secbreak{position:absolute;z-index:12;pointer-events:none;}
   #board .secbreak .rule{position:absolute;left:0;right:0;top:11px;height:5px;border-radius:3px;}
   #board .secbreak .chip{position:absolute;left:34px;top:0;display:inline-flex;
     align-items:center;gap:2px;background:var(--paper);border-radius:8px;
@@ -432,6 +474,15 @@
   </div>
 </div>
 
+<aside id="conc">
+  <div class="ehead">
+    <div><div class="etitle">Concordance</div><div class="eref" id="concRef"></div></div>
+    <div class="x" id="concClose">×</div>
+  </div>
+  <div id="concBody"></div>
+  <div class="efoot" id="concFoot"></div>
+</aside>
+
 <aside id="esv">
   <div class="ehead">
     <div>
@@ -484,7 +535,8 @@
 
 <div id="writeSheet" class="sheet">
   <div class="ws">
-    <div class="wslbl">Write the section title — use your Pencil, then tap ✓</div>
+    <div class="wslbl">Write the section title with your Pencil — iPadOS turns the
+      handwriting into text. Then tap ✓.</div>
     <input type="text" id="writeIn" spellcheck="false" enterkeyhint="done"
            placeholder="Write here" autocapitalize="sentences">
     <div class="wsbtns">
@@ -504,6 +556,11 @@
     <a id="i-bdag" href="#">BDAG in Accordance</a>
     <a id="i-text" href="#" class="alt">Open text</a>
     <button id="i-lem" class="alt">Highlight lemma</button>
+    <button id="i-conc" class="alt">Concordance</button>
+  </div>
+  <div class="noterow">
+    <div class="k">Note</div>
+    <textarea id="i-note" rows="2" placeholder="Anything you want to remember about this word"></textarea>
   </div>
   <div class="lemsw" id="i-sw"></div>
   <div class="note">Gloss shown is from a public-domain lexicon. BDAG text is licensed
@@ -552,6 +609,9 @@
     within 8°.</div></div>
   <div class="item"><div class="kbd">Box</div><div>Drag corner to corner. Erasing its empty
     interior is ignored.</div></div>
+  <div class="item"><div class="kbd">Eraser</div><div>Rubs out whatever it passes over — ink,
+    lines, boxes, arrows, and the underline, box or symbol on a word. Lemma highlights are left
+    alone, since those belong to every occurrence; clear those from the word inspector.</div></div>
   <div class="item"><div class="kbd">Line styles</div><div>Tapping <b>Line</b> opens a menu of
     weights. Thin, regular, dotted and double are ordinary strokes. <b>Extra thick</b> is
     different: it lays a section break across the page, opens a gap in the flow, and gives you a
@@ -569,6 +629,15 @@
   <div class="item"><div class="kbd">Mark</div><div>Underline a word, box it, or put a small
     badge above it — ♥, 🩸, ✝, ★ and others. Tap a word to apply, tap again to remove. Marks are
     attached to the word, so they move with it.</div></div>
+  <hr>
+  <h4>Notes and concordance</h4>
+  <div class="item"><div class="kbd">Note</div><div>Tap a word and type in the Note box. Words
+    carrying a note show a small dot.</div></div>
+  <div class="item"><div class="kbd">Concordance</div><div>Every occurrence of that lemma across
+    every book you have loaded, with the verse. Tap a result to go there. Entirely on the device
+    — no connection needed.</div></div>
+  <div class="item"><div class="kbd">Export</div><div><b>⋯ → Export</b> saves the page as an
+    image, or prints it, which on an iPad gives you a PDF via Save to Files.</div></div>
   <hr>
   <h4>Lexical</h4>
   <div class="item"><div class="kbd">Tap a word</div><div>Lemma, full parsing, gloss, and a
@@ -620,8 +689,8 @@
   <h4>Accordance links</h4>
   <div class="fld"><label for="mText">Greek text</label>
     <select id="mText">
-      <option value="NA28-T">NA28-T — NA28 with apparatus</option>
-      <option value="GNT28-T" selected>GNT28-T — tagged NA28</option>
+      <option value="NA28-T" selected>NA28-T — NA28 with apparatus</option>
+      <option value="GNT28-T">GNT28-T — tagged NA28</option>
       <option value="GNT-T">GNT-T — tagged Greek NT</option>
       <option value="SBLGNT">SBLGNT</option>
       <option value="TR">TR — Textus Receptus</option>
@@ -643,6 +712,13 @@
   <div class="foot" id="storeInfo" style="padding-top:0">Checking storage…</div>
   <button class="rowbtn" id="saveFile">Save a copy as a file…</button>
   <button class="rowbtn" id="forget">Forget saved work</button>
+  <hr>
+  <h4>Export</h4>
+  <button class="rowbtn" id="exportPng">Save this page as an image…</button>
+  <button class="rowbtn" id="exportPrint">Print / Save as PDF…</button>
+  <div class="foot">The image is exactly what you see: text, ink, boxes, arrows, section
+    breaks and marks. Printing uses the iPad's own share sheet, where "Save to Files"
+    produces a PDF.</div>
   <hr>
   <h4>Page</h4>
   <button class="rowbtn" id="reset">Reset layout — keep ink and sections</button>
@@ -679,7 +755,7 @@ const LINESTYLE = {
 
 const S = {
   key:"", chapter:"all", docs:{}, undo:[], redo:[],
-  hits:{}, marks:{}, markMode:"underline", findQ:"", glyphs:[],
+  hits:{}, marks:{}, notes:{}, markMode:"underline", findQ:"", glyphs:[],
   words:[], lines:[], strokes:[], conns:[], sections:[],
   tool:"move", lastInk:"pen", ci:12, wheelOpen:false, lineStyle:"regular",
   pencilMode:true, sel:null, lemHi:{}, connFrom:null, curLine:null, dpr:1
@@ -820,7 +896,7 @@ function parseMorphGNT(raw, label, abbr){
   const words = verses.reduce((n,v)=>n+v[1].length, 0);
   const chapters = [...new Set(verses.map(v=>v[0].split(":")[0]))]
                      .sort((a,b)=>a-b);
-  return { title:label, abbr, module:"GNT28-T", verses, words, chapters, byChapter:true, bad };
+  return { title:label, abbr, module:"NA28-T", verses, words, chapters, byChapter:true, bad };
 }
 
 /* MorphGNT ships one file per book: 47-2Cor-morphgnt.txt → "2Cor".
@@ -1056,7 +1132,7 @@ function build(key){
 function buildPassage(key){
   S.key = key; S.words = []; S.lines = []; S.strokes = []; S.conns = []; S.sections = [];
   S.sel = null; S.lemHi = {}; S.connFrom = null; S.curLine = null;
-  S.hits = {}; S.marks = {}; S._hits = [];
+  S.hits = {}; S.marks = {}; S.notes = {}; S._hits = [];
 
   // undo history belongs to one diagram: snapshots refer to that passage's
   // word ids, so carrying them across passages would corrupt the page
@@ -1193,6 +1269,7 @@ function render(){
     const cls = "w"
       + (S.sel === w.id ? " sel" : "")
       + (lc ? " lem" : "")
+      + (S.notes[w.id] ? " hasnote" : "")
       + (w.fx !== null ? " float" : "");
     if(w._wcls !== cls){ w.el.className = cls; w._wcls = cls; }
 
@@ -1415,13 +1492,19 @@ function renderSections(){
     const ttl = document.createElement("input");
     ttl.className = "ttl";
     ttl.type = "text";
-    ttl.setAttribute("placeholder", "Name this section");
+    ttl.setAttribute("placeholder", "Tap to name this section");
+    ttl.setAttribute("readonly", "readonly");
     ttl.setAttribute("spellcheck", "false");
     ttl.setAttribute("enterkeyhint", "done");
     ttl.setAttribute("autocapitalize", "sentences");
     ttl.style.color = c.hue;
     ttl.value = sec.title;
     // typing only updates the model — no relayout, so the caret survives
+    ttl.addEventListener("pointerdown", e=>{
+      // a 12px field is a poor target for a pencil: open the large sheet
+      e.preventDefault(); e.stopPropagation();
+      openWriteSheet(sec);
+    });
     const fit = ()=>{
       // the chip grows along the rule as the title gets longer
       const n = Math.max(8, (ttl.value || ttl.getAttribute("placeholder") || "").length);
@@ -1793,11 +1876,60 @@ function showMergeHint(line){
   mergeHintEl.style.height = (line.h - 4) + "px";
 }
 
+/* Points along a connector's curve, so an arrow can be erased by crossing it
+   rather than only by clearing every arrow at once. */
+function connPoints(c){
+  const a = S.words[c.a], b = S.words[c.b];
+  if(!a || !b) return [];
+  const ax = cx(a), ay = py(a) + a.h, bx = cx(b), by = py(b) + b.h;
+  const dip = Math.max(26, Math.abs(bx-ax)*0.18 + Math.abs(by-ay)*0.35);
+  const mx = (ax+bx)/2, my = Math.max(ay,by) + dip;
+  const out = [];
+  for(let i=0;i<=24;i++){
+    const t = i/24, u = 1-t;
+    out.push({ x:u*u*ax + 2*u*t*mx + t*t*bx, y:u*u*ay + 2*u*t*my + t*t*by });
+  }
+  return out;
+}
+
+/* The eraser rubs out whatever is under it: ink, shapes, arrows, and the
+   marks attached to a word. Lemma highlights are deliberately excluded —
+   they belong to every occurrence, so removing them all from one rub would
+   be a surprise; use the inspector for those. */
 function eraseAt(p){
+  let changed = false;
+
   const before = S.strokes.length;
   S.strokes = S.strokes.filter(s=>
     !hitPoints(s).some(q => Math.hypot(q.x-p.x, q.y-p.y) < 14));
-  if(S.strokes.length !== before) redraw();
+  if(S.strokes.length !== before) changed = true;
+
+  const nConn = S.conns.length;
+  S.conns = S.conns.filter(c =>
+    !connPoints(c).some(q => Math.hypot(q.x-p.x, q.y-p.y) < 12));
+  if(S.conns.length !== nConn){ drawConns(); changed = true; }
+
+  // marks sit on the word, so erase by touching the word itself
+  const w = wordAt(p.x, p.y) || nearWordFor(p);
+  if(w){
+    if(S.marks[w.id]){ delete S.marks[w.id]; changed = true; }
+    if(S.hits[w.id]){ delete S.hits[w.id]; changed = true; }
+  }
+  if(changed){ render(); redraw(); saveSoon(); }
+}
+
+/* A symbol badge sits above its word, so allow erasing slightly outside it. */
+function nearWordFor(p){
+  let best = null, bd = 26;
+  S.words.forEach(w=>{
+    if(!S.marks[w.id] && !S.hits[w.id]) return;
+    const x = px(w), y = py(w);
+    const dx = Math.max(x - p.x, 0, p.x - (x + w.w));
+    const dy = Math.max(y - 18 - p.y, 0, p.y - (y + w.h));
+    const d = Math.hypot(dx, dy);
+    if(d < bd){ bd = d; best = w; }
+  });
+  return best;
 }
 
 /* ============================================================
@@ -1922,6 +2054,18 @@ function select(w){
     else S.lemHi[w.lemma] = COLORS[S.ci].tint;   // current wheel colour, as a tint
     render(); syncLemBtn(w); paintLemSwatches(w);
   };
+  const note = document.getElementById("i-note");
+  note.value = S.notes[w.id] || "";
+  note.oninput = ()=>{
+    const t = note.value.trim();
+    if(t) S.notes[w.id] = t; else delete S.notes[w.id];
+    render(); saveSoon();
+  };
+  const cb = document.getElementById("i-conc");
+  const occ = (buildConcIndex()[w.lemma] || []).length;
+  cb.textContent = occ ? "Concordance (" + occ + ")" : "Concordance";
+  cb.onclick = ()=> showConcordance(w.lemma);
+
   syncLemBtn(w); paintLemSwatches(w);
   insp.classList.add("show");
 }
@@ -2759,6 +2903,244 @@ function saveGlyph(name, paths){
   paintMarkPop();
 }
 
+
+/* ============================================================
+   CONCORDANCE
+   Every loaded book is already parsed on the device, so this is a local
+   lookup — no network, no Accordance round-trip. The index is built once
+   and rebuilt only when the corpus changes.
+   ============================================================ */
+let concIndex = null, concStamp = "";
+
+function buildConcIndex(){
+  // canonical order, not alphabetical by internal key — otherwise
+  // 2 Corinthians would be listed before Romans
+  const keys = Object.keys(PASSAGES).filter(k => k.startsWith("nt:"))
+                 .sort((a,b) => (PASSAGES[a].order ?? 99) - (PASSAGES[b].order ?? 99));
+  const stamp = keys.join(",");
+  if(concIndex && concStamp === stamp) return concIndex;
+  const idx = {};
+  keys.forEach(k=>{
+    const p = PASSAGES[k];
+    if(!Array.isArray(p.verses)) return;
+    p.verses.forEach(([ref, toks])=>{
+      toks.forEach((t, i)=>{
+        const lem = t[1];
+        (idx[lem] || (idx[lem] = [])).push({ k, ref, i });
+      });
+    });
+  });
+  concIndex = idx; concStamp = stamp;
+  return idx;
+}
+
+function verseTokens(key, ref){
+  const p = PASSAGES[key];
+  const v = p && p.verses.find(x => String(x[0]) === String(ref));
+  return v ? v[1] : [];
+}
+
+function showConcordance(lemma){
+  const idx = buildConcIndex();
+  const hits = idx[lemma] || [];
+  const body = document.getElementById("concBody");
+  document.getElementById("concRef").textContent = lemma;
+  document.getElementById("concFoot").textContent =
+    hits.length + " occurrence" + (hits.length === 1 ? "" : "s") +
+    " in " + Object.keys(PASSAGES).filter(k=>k.startsWith("nt:")).length + " loaded book(s)";
+  body.innerHTML = "";
+
+  if(!hits.length){
+    const n = document.createElement("div");
+    n.className = "cnote";
+    n.textContent = Object.keys(PASSAGES).some(k=>k.startsWith("nt:"))
+      ? "No other occurrences in the books you have loaded."
+      : "Load the New Testament first — the concordance searches what is on this device.";
+    body.appendChild(n); openConc(); return;
+  }
+
+  const CAP = 400;
+  let lastBook = null, shown = 0;
+  for(const h of hits){
+    if(shown >= CAP) break;
+    if(h.k !== lastBook){
+      const hd = document.createElement("div");
+      hd.className = "cbook"; hd.textContent = PASSAGES[h.k].title;
+      body.appendChild(hd); lastBook = h.k;
+    }
+    const toks = verseTokens(h.k, h.ref);
+    const row = document.createElement("button");
+    row.className = "chit";
+    const ref = document.createElement("span");
+    ref.className = "cref"; ref.textContent = h.ref;
+    const gk = document.createElement("span");
+    gk.className = "cgk";
+    toks.forEach((t, i)=>{
+      if(i === h.i){
+        const b = document.createElement("b"); b.textContent = t[0];
+        gk.appendChild(b);
+      } else gk.appendChild(document.createTextNode(t[0]));
+      gk.appendChild(document.createTextNode(" "));
+    });
+    row.appendChild(ref); row.appendChild(gk);
+    row.onclick = ()=> goTo(h.k, h.ref);
+    body.appendChild(row); shown++;
+  }
+  if(hits.length > CAP){
+    const n = document.createElement("div");
+    n.className = "cnote";
+    n.textContent = "Showing the first " + CAP + " of " + hits.length + ".";
+    body.appendChild(n);
+  }
+  openConc();
+}
+
+/* Jump to an occurrence, banking the diagram we are leaving. */
+function goTo(key, ref){
+  if(!PASSAGES[key]) return;
+  saveNow();
+  S.key = key;
+  S.chapter = String(ref).split(":")[0];
+  document.getElementById("passage").value = key;
+  refreshChapterMenu();
+  build(key); syncJoin(); saveNow();
+}
+
+function openConc(){
+  document.getElementById("conc").classList.add("show");
+  document.body.classList.add("concopen");
+  resizeCanvas();
+}
+document.getElementById("concClose").onclick = ()=>{
+  document.getElementById("conc").classList.remove("show");
+  document.body.classList.remove("concopen");
+  resizeCanvas();
+};
+
+/* ============================================================
+   EXPORT
+   The page is redrawn onto one canvas — words, ink, shapes, arrows, section
+   breaks and marks — so the image is what you actually see rather than a
+   screenshot of part of it.
+   ============================================================ */
+function exportPNG(){
+  const w = board.offsetWidth, h = board.offsetHeight;
+  let scale = 2;
+  if(w * h * scale * scale > CANVAS_BUDGET) scale = Math.sqrt(CANVAS_BUDGET / (w * h));
+  const c = document.createElement("canvas");
+  c.width = Math.max(1, Math.floor(w * scale));
+  c.height = Math.max(1, Math.floor(h * scale));
+  const g = c.getContext("2d");
+  g.setTransform(scale, 0, 0, scale, 0, 0);
+  g.fillStyle = "#fffefb"; g.fillRect(0, 0, w, h);
+
+  // section rules and their titles
+  S.sections.forEach(sec=>{
+    if(sec._y === undefined) return;
+    const col = (COLORS[sec.ci] || COLORS[12]).hue;
+    g.fillStyle = col;
+    g.fillRect(24, sec._y - 2, WRAP - 24, 5);
+    if(sec.title){
+      g.font = "600 12px Inter, sans-serif";
+      const tw = g.measureText(sec.title).width;
+      g.fillStyle = "#fffefb"; g.fillRect(52, sec._y - 11, tw + 16, 22);
+      g.fillStyle = col; g.fillText(sec.title, 60, sec._y + 4);
+    }
+  });
+
+  // arrows
+  g.strokeStyle = "#8a5a2b"; g.lineWidth = 1.8; g.globalAlpha = .8;
+  S.conns.forEach(cn=>{
+    const pts = connPoints(cn);
+    if(pts.length < 2) return;
+    g.beginPath(); g.moveTo(pts[0].x, pts[0].y);
+    pts.slice(1).forEach(q => g.lineTo(q.x, q.y));
+    g.stroke();
+  });
+  g.globalAlpha = 1;
+
+  // words, with their highlights and marks
+  S.words.forEach(wd=>{
+    const x = px(wd), y = py(wd);
+    const bg = S.hits[wd.id] || S.lemHi[wd.lemma];
+    if(bg){ g.fillStyle = bg; g.fillRect(x, y, wd.w, wd.h); }
+    const mk = S.marks[wd.id];
+    if(mk && mk.b){ g.strokeStyle = mk.b; g.lineWidth = 2;
+                    g.strokeRect(x - 1, y - 1, wd.w + 2, wd.h + 2); }
+    if(mk && mk.u){ g.strokeStyle = mk.u; g.lineWidth = 2.5;
+                    g.beginPath(); g.moveTo(x, y + wd.h); g.lineTo(x + wd.w, y + wd.h); g.stroke(); }
+    g.fillStyle = "#211d18";
+    g.font = "27px Cardo, Georgia, serif";
+    g.textBaseline = "top";
+    g.fillText(wd.surface, x + 4, y + 3);
+    if(mk && mk.s && typeof Path2D !== "undefined"){
+      const gl = anyGlyph(mk.s);
+      if(gl){
+        const ds = (Array.isArray(gl.d) ? gl.d : [gl.d]).map(safePath).filter(Boolean);
+        g.save();
+        g.translate(x + wd.w / 2 - 8.5, y - 16);
+        g.scale(17 / 24, 17 / 24);
+        g.strokeStyle = mk.sc || "#8a5a2b"; g.fillStyle = mk.sc || "#8a5a2b";
+        g.lineWidth = 1.9; g.lineCap = "round"; g.lineJoin = "round";
+        ds.forEach(d=>{ const pth = new Path2D(d); gl.f ? g.fill(pth) : g.stroke(pth); });
+        g.restore();
+      } else { g.font = "15px sans-serif"; g.fillStyle = mk.sc || "#8a5a2b";
+               g.fillText(mk.s, x + wd.w / 2 - 7, y - 17); }
+    }
+  });
+
+  // ink last, so it sits over the text as it does on screen
+  g.lineCap = "round"; g.lineJoin = "round";
+  ["highlight","pen","line","rect"].forEach(pass=>{
+    S.strokes.filter(st => st.mode === pass).forEach(st=>{
+      const pts = strokePoints(st);
+      if(pts.length < 2) return;
+      g.strokeStyle = st.color;
+      g.globalAlpha = st.mode === "highlight" ? 0.34 : 1;
+      if(st.mode === "highlight"){
+        g.lineWidth = 22; g.beginPath(); g.moveTo(pts[0].x, pts[0].y);
+        pts.slice(1).forEach(q => g.lineTo(q.x, q.y)); g.stroke();
+      } else if(st.mode === "pen"){
+        for(let i=1;i<pts.length;i++){
+          g.lineWidth = 1.1 + (pts[i].p || .5) * 3.4;
+          g.beginPath(); g.moveTo(pts[i-1].x, pts[i-1].y); g.lineTo(pts[i].x, pts[i].y); g.stroke();
+        }
+      } else if(st.mode === "line"){
+        const sty = LINESTYLE[st.style] || LINESTYLE.regular;
+        g.lineWidth = sty.w; g.setLineDash(sty.dash || []);
+        const a = pts[0], b = pts[1];
+        if(sty.offset){
+          const dx=b.x-a.x, dy=b.y-a.y, len=Math.hypot(dx,dy)||1;
+          const nx=-dy/len*sty.offset, ny=dx/len*sty.offset;
+          [1,-1].forEach(k=>{ g.beginPath(); g.moveTo(a.x+nx*k,a.y+ny*k);
+                              g.lineTo(b.x+nx*k,b.y+ny*k); g.stroke(); });
+        } else { g.beginPath(); g.moveTo(a.x,a.y); g.lineTo(b.x,b.y); g.stroke(); }
+        g.setLineDash([]);
+      } else {
+        g.lineWidth = 2.2;
+        const x0=Math.min(pts[0].x,pts[1].x), y0=Math.min(pts[0].y,pts[1].y);
+        g.strokeRect(x0, y0, Math.abs(pts[1].x-pts[0].x), Math.abs(pts[1].y-pts[0].y));
+      }
+      g.globalAlpha = 1;
+    });
+  });
+
+  const p = PASSAGES[S.key];
+  const name = ((p && p.title) || "nous").replace(/\s+/g,"-").toLowerCase() +
+               (S.chapter && S.chapter !== "all" ? "-" + S.chapter : "") + ".png";
+  c.toBlob(blob=>{
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    document.body.appendChild(a); a.click();
+    setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 0);
+  }, "image/png");
+  closePops();
+}
+
+document.getElementById("exportPng").onclick = exportPNG;
+document.getElementById("exportPrint").onclick = ()=>{ closePops(); setTimeout(()=>window.print(), 60); };
+
 /* ---- line-style menu, anchored under the Line button ---- */
 const linePop = document.getElementById("linePop");
 
@@ -2946,6 +3328,7 @@ function docSnapshot(){
     conns:   S.conns.map(c => [c.a, c.b]),
     sections:S.sections.map(s => ({ w:s.beforeWord, t:s.title, ci:s.ci })),
     lem: Object.assign({}, S.lemHi),
+    notes: Object.assign({}, S.notes),
     hits: Object.assign({}, S.hits),
     marks: JSON.parse(JSON.stringify(S.marks)),
     findQ: S.findQ
@@ -2987,6 +3370,8 @@ function applyDoc(d){
   S.secSeq = S.sections.length;
   S.lemHi = Object.assign({}, d.lem || {});
   S.hits  = Object.assign({}, d.hits || {});
+  S.notes = Object.assign({}, d.notes || {});
+  Object.keys(S.notes).forEach(id =>{ if(!S.words[id]) delete S.notes[id]; });
   S.marks = JSON.parse(JSON.stringify(d.marks || {}));
   // drop anything pointing at a word this passage no longer has
   Object.keys(S.hits).forEach(id =>{ if(!S.words[id]) delete S.hits[id]; });
@@ -3011,7 +3396,7 @@ function prefsSnapshot(){
 function applyPrefs(p){
   if(!p) return;
   if(p.mods){
-    document.getElementById("mText").value = p.mods[0] || "GNT28-T";
+    document.getElementById("mText").value = p.mods[0] || "NA28-T";
     document.getElementById("mLex").value  = p.mods[1] || "BDAG";
   }
   if(p.abbr) document.getElementById("mgAbbr").value = p.abbr;
@@ -3259,7 +3644,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-08-04f";
+const BUILD = "2026-08-05b";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file

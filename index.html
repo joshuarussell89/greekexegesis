@@ -194,6 +194,48 @@
   #writeSheet .wsbtns button{font-size:13px;padding:10px 16px;border-radius:9px;
     border:1px solid var(--rule);}
 
+
+  /* ---------- symbol picker ---------- */
+  .gsearch{width:calc(100% - 20px);margin:2px 10px 8px;font:inherit;font-size:12.5px;
+    padding:8px 10px;border:1px solid var(--rule);border-radius:9px;background:var(--paper);
+    color:var(--ink);}
+  .gsearch:focus{outline:none;border-color:var(--accent);}
+  .gwrap{max-height:46vh;overflow:auto;padding:0 6px;}
+  .gcat{font-size:9.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);
+    font-weight:700;padding:8px 4px 5px;position:sticky;top:0;background:var(--paper);}
+  .ggrid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
+  .ggrid .s{aspect-ratio:1;border-radius:9px;border:1px solid var(--rule);background:var(--paper);
+    cursor:pointer;display:flex;align-items:center;justify-content:center;}
+  .ggrid .s:hover{background:var(--chip);}
+  .ggrid .s.on{border-color:var(--accent);box-shadow:0 0 0 2px rgba(138,90,43,.22);}
+  .gacts{display:flex;gap:6px;padding:8px 10px 4px;}
+  .gacts button{flex:1;font-size:12.5px;padding:8px 10px;border-radius:9px;justify-content:center;}
+
+  /* ---------- draw / ask sheets ---------- */
+  .sheet{position:fixed;inset:0;z-index:200;display:none;align-items:flex-end;
+    justify-content:center;background:rgba(30,26,20,.28);}
+  .sheet.show{display:flex;}
+  .sheet .ws{width:min(720px,94vw);margin:0 0 max(24px,env(safe-area-inset-bottom));
+    background:var(--paper);border-radius:18px;box-shadow:0 18px 50px rgba(0,0,0,.3);
+    padding:18px 20px 16px;}
+  .sheet .wslbl{font-size:11.5px;color:var(--muted);margin-bottom:10px;}
+  .sheet .wsbtns{display:flex;justify-content:flex-end;gap:8px;margin-top:12px;}
+  .sheet .wsbtns button{font-size:13px;padding:10px 16px;border-radius:9px;
+    border:1px solid var(--rule);}
+  .drawrow{display:flex;gap:16px;align-items:flex-start;}
+  #drawPad{border:2px dashed var(--rule);border-radius:12px;background:#fffdf6;touch-action:none;
+    cursor:crosshair;}
+  .drawside{display:flex;flex-direction:column;gap:8px;flex:1;min-width:0;}
+  .drawside input,#askWhat{font:inherit;font-size:14px;padding:10px 12px;border-radius:9px;
+    border:1px solid var(--rule);background:var(--paper);color:var(--ink);}
+  #askWhat{width:100%;font-size:17px;padding:14px;}
+  .drawside button{justify-content:center;}
+  .prevbox{display:flex;align-items:center;gap:9px;font-size:11px;color:var(--muted);}
+  .prevbox .pv{width:34px;height:34px;border:1px solid var(--rule);border-radius:8px;
+    display:flex;align-items:center;justify-content:center;background:var(--paper);}
+  .askrow{display:flex;gap:14px;align-items:center;margin-top:12px;}
+  .askstate{font-size:12px;color:var(--muted);line-height:1.5;flex:1;}
+
   /* ---------- find panel ---------- */
   #findPop{width:376px;}
   .fgroup{padding:2px 10px 8px;}
@@ -412,7 +454,45 @@
   <div class="efoot" id="esvFoot"></div>
 </aside>
 
-<div id="writeSheet">
+
+<div id="drawSheet" class="sheet">
+  <div class="ws">
+    <div class="wslbl">Draw the symbol with your Pencil. Keep it simple — it will be shown
+      about 17&nbsp;pixels tall.</div>
+    <div class="drawrow">
+      <canvas id="drawPad" width="260" height="260"></canvas>
+      <div class="drawside">
+        <div class="prevbox"><div class="pv" id="drawPrev"></div><span>actual size</span></div>
+        <input type="text" id="drawName" placeholder="Name it" spellcheck="false">
+        <button id="drawUndo" class="ghost">Undo stroke</button>
+        <button id="drawClear" class="ghost">Clear</button>
+      </div>
+    </div>
+    <div class="wsbtns">
+      <button id="drawCancel">Cancel</button>
+      <button id="drawOk" class="act">✓ Save symbol</button>
+    </div>
+  </div>
+</div>
+
+<div id="askSheet" class="sheet">
+  <div class="ws">
+    <div class="wslbl">Describe a symbol and it will be drawn as a simple line glyph.</div>
+    <input type="text" id="askWhat" placeholder="a millstone · a broken cistern · a plumb line"
+           spellcheck="false" enterkeyhint="go">
+    <div class="askrow">
+      <div class="prevbox"><div class="pv" id="askPrev"></div><span>preview</span></div>
+      <div class="askstate" id="askState">Needs an API key — add one in <b>⋯ → Symbol generation</b>.</div>
+    </div>
+    <div class="wsbtns">
+      <button id="askCancel">Cancel</button>
+      <button id="askGo" class="ghost">Draw it</button>
+      <button id="askOk" class="act" disabled>✓ Save symbol</button>
+    </div>
+  </div>
+</div>
+
+<div id="writeSheet" class="sheet">
   <div class="ws">
     <div class="wslbl">Write the section title — use your Pencil, then tap ✓</div>
     <input type="text" id="writeIn" spellcheck="false" enterkeyhint="done"
@@ -533,6 +613,13 @@
            spellcheck="false"></div>
   <div class="foot" id="mgStatus">Nothing loaded — the built-in passage is hand-parsed.</div>
   <hr>
+  <h4>Symbol generation</h4>
+  <div class="fld"><label for="aiKey">API key</label>
+    <input type="text" id="aiKey" spellcheck="false" placeholder="optional"></div>
+  <div class="foot">Only needed for <b>Ask for one</b> in the symbol picker. Drawing your own
+    needs nothing. The key stays on this device, and whatever comes back is checked as plain
+    path data before it is drawn.</div>
+  <hr>
   <h4>English (ESV)</h4>
   <div class="fld"><label for="esvKey">API key</label>
     <input type="text" id="esvKey" spellcheck="false" placeholder="paste your key"></div>
@@ -601,7 +688,7 @@ const LINESTYLE = {
 
 const S = {
   key:"", chapter:"all", docs:{}, undo:[], redo:[],
-  hits:{}, marks:{}, markMode:"underline", findQ:"",
+  hits:{}, marks:{}, markMode:"underline", findQ:"", glyphs:[],
   words:[], lines:[], strokes:[], conns:[], sections:[],
   tool:"move", lastInk:"pen", ci:12, wheelOpen:false, lineStyle:"regular",
   pencilMode:true, sel:null, lemHi:{}, connFrom:null, curLine:null, dpr:1
@@ -643,6 +730,39 @@ const HUES = 12;   // outer ring count; the rest form the inner ring
 
 const LEXNAME = { BDAG:"BDAG lookup", CBDAG:"Concise BDAG", BrillDAG:"Brill lookup",
                   LSJ:"LSJ lookup", Thayers:"Thayer's" };
+
+/* ============================================================
+   SYMBOL LIBRARY
+   Vector glyphs on a 24x24 grid, stroked in the current colour so they
+   match the rest of your marking. Emoji were replaced because they cannot
+   be recoloured and differ between devices.
+   ============================================================ */
+const GLYPHS = [{"c":"Covenant & law","g":[{"id":"tablets","n":"Tablets","d":"M4.5 20V8.5a3.5 3.5 0 017 0V20zM12.5 20V8.5a3.5 3.5 0 017 0V20zM4.5 20h15"},{"id":"scroll","n":"Scroll","d":"M7.5 4.5h9v15h-9zM7.5 4.5a2 2 0 00-2 2v11a2 2 0 002 2M16.5 4.5a2 2 0 012 2v11a2 2 0 01-2 2"},{"id":"seal","n":"Seal","d":"M12 3.5a5 5 0 110 10 5 5 0 010-10zM9.2 13.2L8.2 21l3.8-2.2 3.8 2.2-1-7.8"},{"id":"ring","n":"Ring","d":"M12 20a5.5 5.5 0 110-11 5.5 5.5 0 010 11zM12 9V7M9.5 7h5l-2.5-3.2z"},{"id":"rainbow","n":"Rainbow","d":"M3 19a9 9 0 0118 0M6.5 19a5.5 5.5 0 0111 0M10 19a2 2 0 014 0"},{"id":"handclasp","n":"Promise","d":"M7 20.5v-7M7 13.5V7.2a1.3 1.3 0 012.6 0v4.8M9.6 12V5.6a1.3 1.3 0 012.6 0V12M12.2 12V6.4a1.3 1.3 0 012.6 0V12M14.8 12.6V9a1.3 1.3 0 012.6 0v6.5c0 3-2 5-5 5H7"}]},{"c":"Sacrifice & atonement","g":[{"id":"cross","n":"Cross","d":"M12 3v18M6.5 9h11"},{"id":"blood","n":"Drop of blood","d":"M12 3.2c0 0 6 7 6 10.8a6 6 0 11-12 0C6 10.2 12 3.2 12 3.2z","f":1},{"id":"lamb","n":"Lamb","d":"M6.5 14.5a4 4 0 018 0zM6.5 14.5h8M8 14.5V19M13 14.5V19M17 9.2a2.6 2.6 0 110 5.2 2.6 2.6 0 010-5.2M18.2 11.2v.01"},{"id":"altar","n":"Altar","d":"M4 20h16M6.5 20v-8h11v8M4.5 12h15M9 12V9h6v3M12 9V5"},{"id":"knife","n":"Knife","d":"M4 20.5l5.5-5.5M9.5 15L17 7.5l3 3-7.5 7.5zM9.5 15l3 3"},{"id":"ransom","n":"Coin / ransom","d":"M12 5.5a6.5 6.5 0 110 13 6.5 6.5 0 010-13zM9.5 12h5M12 9.5v5"}]},{"c":"Kingdom & rule","g":[{"id":"crown","n":"Crown","d":"M3.5 17.5l-1-9.5 5.5 4.2L12 5l4 7.2 5.5-4.2-1 9.5zM3.5 17.5h17"},{"id":"throne","n":"Throne","d":"M6.5 20V7.2A2.7 2.7 0 019.2 4.5h5.6A2.7 2.7 0 0117.5 7.2V20M6.5 13.5h11M4.5 20h15"},{"id":"sceptre","n":"Sceptre","d":"M12 8.5v12M12 8.5a2.75 2.75 0 110-5.5 2.75 2.75 0 010 5.5zM9 20h6"},{"id":"sword","n":"Sword","d":"M12 2.5v13M9 15.5h6M10.5 15.5V20h3v-4.5"},{"id":"key","n":"Key","d":"M9 9.5a3.5 3.5 0 110 7 3.5 3.5 0 010-7zM12.5 13H21M18 13v3M21 13v2.5"},{"id":"shield","n":"Shield","d":"M12 3l7 2.5v6c0 4.5-3 7.5-7 9.5-4-2-7-5-7-9.5v-6z"}]},{"c":"Spirit & presence","g":[{"id":"dove","n":"Dove","d":"M3.5 15.5c4-.5 6.8-2.8 8.5-6.5 1.2 3.6 3.8 5.8 7.5 6.3-2.6 3.2-6.2 4.9-9.8 4.9-3 0-5.2-1.6-6.2-4.7zM12 9V5.5M12 5.5c1.4-1.2 2.8-1.2 4-.5"},{"id":"flame","n":"Flame","d":"M12 3c3.2 4 5 6.2 5 9a5 5 0 01-10 0c0-2 .9-3.3 2.2-4.6"},{"id":"wind","n":"Wind","d":"M3 8h10a2.5 2.5 0 10-2.5-2.5M3 12h14a2.5 2.5 0 11-2.5 2.5M3 16h8"},{"id":"oil","n":"Anointing oil","d":"M9.5 3.5h5v3l2 3v8a2 2 0 01-2 2h-5a2 2 0 01-2-2v-8l2-3z"},{"id":"cloud","n":"Pillar of cloud","d":"M6.5 15a3.5 3.5 0 010-7 4.5 4.5 0 018.5-1.5 3.75 3.75 0 011.5 8.5zM8 19h9"},{"id":"hands","n":"Uplifted hands","d":"M8 20v-6l-2-2.5V6.5M8 14V4.5M12 14V3.5M16 14V4.5M16 20v-6l2-2.5V6.5"}]},{"c":"Creation & land","g":[{"id":"sun","n":"Sun","d":"M12 8a4 4 0 110 8 4 4 0 010-8zM12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.5 5.5l1.5 1.5M17 17l1.5 1.5M18.5 5.5L17 7M7 17l-1.5 1.5"},{"id":"moon","n":"Moon","d":"M18 14.5A7.5 7.5 0 019 5.2a7.5 7.5 0 109 9.3z"},{"id":"star","n":"Star","d":"M12 3l2.6 5.6 6 .8-4.4 4.2 1.1 6-5.3-3-5.3 3 1.1-6L3.4 9.4l6-.8z"},{"id":"mountain","n":"Mountain","d":"M2.5 19l6.5-10 4 5.5 3-4 5.5 8.5zM9 9l1.7 2.6"},{"id":"tree","n":"Tree","d":"M12 21v-6M12 15a5.5 5.5 0 01-1-10.9A4.5 4.5 0 0119 7a4 4 0 01-3 8z"},{"id":"seed","n":"Seed","d":"M12 20.5v-6M12 14.5c-3.4 0-5.5-2-5.5-5 3.4 0 5.5 2 5.5 5zM12 14.5c0-3.4 2-5.5 5-5.5 0 3.4-1.8 5.5-5 5.5z"},{"id":"earth","n":"Earth","d":"M12 3.5a8.5 8.5 0 010 17 8.5 8.5 0 010-17M3.5 12h17M12 3.5c3.2 4.6 3.2 12.4 0 17M12 3.5c-3.2 4.6-3.2 12.4 0 17"}]},{"c":"Harvest & vine","g":[{"id":"wheat","n":"Wheat","d":"M12 21V9M12 9L9 6l3-3 3 3zM12 13l-3.5-2.5M12 13l3.5-2.5M12 17l-3.5-2.5M12 17l3.5-2.5"},{"id":"grapes","n":"Grapes","d":"M12 5.5V9M12 5.5c1.5-1.5 3.5-2 4.5-1.5M9.5 11a2 2 0 110 4 2 2 0 010-4zM14.5 11a2 2 0 110 4 2 2 0 010-4zM12 15.5a2 2 0 110 4 2 2 0 010-4z"},{"id":"fig","n":"Fig","d":"M12 20.5c-3.4 0-6-2.5-6-5.7 0-3.4 2.6-5.8 6-5.8s6 2.4 6 5.8c0 3.2-2.6 5.7-6 5.7zM12 9V5.6M12 5.6c1.8-1.3 3.4-1.1 4.5-.4"},{"id":"sickle","n":"Sickle","d":"M5 20l4-4M9 16A9 9 0 0119 6.5M19 6.5l1-3M19 6.5l-3 1"},{"id":"sheaf","n":"Sheaf","d":"M12 21V8M8 21V9.5M16 21V9.5M5.5 14h13M12 8L9.5 4M12 8l2.5-4"},{"id":"basket","n":"Basket","d":"M4 10h16l-1.5 9.5h-13zM8 10a4 4 0 018 0"}]},{"c":"Shepherd & flock","g":[{"id":"sheep","n":"Sheep","d":"M6.5 14.5a4 4 0 018 0zM6.5 14.5h8M8 14.5V19M13 14.5V19M17 9.2a2.6 2.6 0 110 5.2 2.6 2.6 0 010-5.2M18.2 11.2v.01"},{"id":"crook","n":"Shepherd's crook","d":"M9 21V9.5a4.25 4.25 0 018.5 0"},{"id":"gate","n":"Gate","d":"M5 20V7l7-3 7 3v13M5 20h14M9 20v-6h6v6"},{"id":"fold","n":"Sheepfold","d":"M4 20V9l8-5 8 5v11zM4 20h16M9.5 20v-5h5v5"},{"id":"wolf","n":"Wolf","d":"M4 9l2-4 3 3h6l3-3 2 4v5c0 3-3 5.5-8 5.5S4 17 4 14zM9.5 12v1.5M14.5 12v1.5"}]},{"c":"Temple & worship","g":[{"id":"temple","n":"Temple","d":"M3 9l9-5.5L21 9M4.5 20V9M9 20V9M15 20V9M19.5 20V9M3 20h18"},{"id":"lampstand","n":"Lampstand","d":"M12 21V8M12 8V6M8 21h8M12 12c0-3-2.5-4-4.5-4M12 12c0-3 2.5-4 4.5-4M7.5 8V5.5M16.5 8V5.5M12 6V3.5"},{"id":"incense","n":"Incense","d":"M7 20h10l-1-6H8zM9.5 14V11M12 11c-1.5-1.5-1.5-3 0-4.5 1.5 1.5 1.5 3 0 4.5zM14.5 14V11"},{"id":"ark","n":"Ark of the covenant","d":"M5 10.5h14v6.5H5zM4 17h16M7.5 10.5v-2h9v2M6 8.5L4.8 6.5M18 8.5l1.2-2M9.5 8.5c0-2 1.1-3.2 2.5-3.2s2.5 1.2 2.5 3.2"},{"id":"veil","n":"Veil","d":"M4 4h16M6 4v16c2 0 3-1.5 3-4V4M18 4v16c-2 0-3-1.5-3-4V4"},{"id":"harp","n":"Harp","d":"M6 20V6c6 0 10 4.5 10 11M9 20V8.5M12 20v-8M15 20v-4"}]},{"c":"Journey & exodus","g":[{"id":"tent","n":"Tent","d":"M12 4L4 20h16zM12 4v16M12 20l-3.5-6M12 20l3.5-6"},{"id":"path","n":"Path","d":"M7 21c0-3.4 4-4 4-6.8 0-2.9-4-2.9-4-5.7 0-2.6 2.6-3.5 5.5-3.5M12.5 5v.01"},{"id":"footprints","n":"Footprints","d":"M8 5.5c1.4 0 2.2 1.4 2.2 3.2S9.4 12 8 12s-2.2-1.5-2.2-3.3S6.6 5.5 8 5.5M16 12c1.4 0 2.2 1.4 2.2 3.2s-.8 3.3-2.2 3.3-2.2-1.5-2.2-3.3S14.6 12 16 12"},{"id":"staff","n":"Staff","d":"M13 21L11 3M9 6.5l4-1.5"},{"id":"narrowgate","n":"Narrow gate","d":"M9 21V7a3 3 0 016 0v14M7 21h10M12 11v4"},{"id":"pillar","n":"Pillar of fire","d":"M12 21V13M8.5 21h7M12 13c2.5-2.5 3.5-4 3.5-6.5C15.5 4 12 2.5 12 2.5S8.5 4 8.5 6.5C8.5 9 9.5 10.5 12 13z"}]},{"c":"Judgement","g":[{"id":"scales","n":"Scales","d":"M12 4.5v15M8.5 19.5h7M4 8.5h16M4.6 8.5L2.8 13a2.9 2.9 0 005.6 0zM19.4 8.5L17.6 13a2.9 2.9 0 005.6 0zM12 4.6a1.4 1.4 0 010 2.8 1.4 1.4 0 010-2.8"},{"id":"trumpet","n":"Trumpet","d":"M4 10.5v3M4 12h9M13 7l6-3v16l-6-3zM6 13.5v3"},{"id":"fire","n":"Fire","d":"M12 21a6 6 0 01-6-6c0-4 4-6 4-10 3 2 4 4 4 6 1-1 1.5-2 1.5-3.5 2 2 2.5 4.5 2.5 7.5a6 6 0 01-6 6z"},{"id":"storm","n":"Storm","d":"M6.5 13a3.5 3.5 0 010-7 4.5 4.5 0 018.5-1.5A3.75 3.75 0 0116.5 13zM13 14l-3 4h4l-3 4"},{"id":"winnow","n":"Winnowing fork","d":"M12 21V11M8 11V5M12 11V4M16 11V5M7 11h10"}]},{"c":"Bondage & freedom","g":[{"id":"chain","n":"Chain","d":"M9.5 10.5l-2 2a3 3 0 004.2 4.2l2-2M14.5 13.5l2-2a3 3 0 00-4.2-4.2l-2 2"},{"id":"broken","n":"Broken chain","d":"M9 12l-1.5 1.5a3 3 0 004.2 4.2L13 16.5M15 12l1.5-1.5a3 3 0 00-4.2-4.2L11 7.5M4 4l3 3M20 20l-3-3"},{"id":"yoke","n":"Yoke","d":"M4 9h16M6.5 9v3a2 2 0 004 0V9M13.5 9v3a2 2 0 004 0V9M12 5v4"},{"id":"cage","n":"Open cage","d":"M4.5 20.5V8h7v12.5M4.5 20.5h7M8 8v12.5M14 12.5c2-2.6 4.6-3.7 7-3.7-.5 3.6-3 6.1-6 6.1-1.1 0-1.6-.6-1-2.4z"},{"id":"bird","n":"Bird set free","d":"M4 16.5c4-.6 6.8-2.8 8.5-6.4 1.2 3.5 3.8 5.7 7.5 6.2-2.6 3.2-6.2 4.8-9.8 4.8-3 0-5.2-1.5-6.2-4.6zM17 6.5l3-3"}]},{"c":"Word & witness","g":[{"id":"book","n":"Book","d":"M12 6.5C10 5 7.5 4.5 4 4.5v13c3.5 0 6 .5 8 2 2-1.5 4.5-2 8-2v-13c-3.5 0-6 .5-8 2zM12 6.5v13"},{"id":"speech","n":"Speech","d":"M4 5.5h16v11H12l-5 4v-4H4z"},{"id":"quill","n":"Quill","d":"M5 20.5c0-8 5.5-14.5 15-15.5-.5 9.5-6.5 15.5-15 15.5zM5 20.5l7-7M12.5 9.5c-1.6 1-3.1 2.5-4.2 4.2M16 8c-1.6.6-3.1 1.6-4.2 2.7"},{"id":"proclaim","n":"Proclaim","d":"M4 10v4M4 12h6l6-4.5v9L10 12M18 9.5a4 4 0 010 5"},{"id":"witness","n":"Witness","d":"M12 6.5c4.5 0 7.8 3.4 8.8 5.5-1 2.1-4.3 5.5-8.8 5.5S4.2 14.1 3.2 12c1-2.1 4.3-5.5 8.8-5.5zM12 9.5a2.5 2.5 0 010 5 2.5 2.5 0 010-5"}]},{"c":"Water & sea","g":[{"id":"waves","n":"Waves","d":"M3 9c2.5-2 4-2 6.5 0s4 2 6.5 0 4-2 5 -1M3 14c2.5-2 4-2 6.5 0s4 2 6.5 0 4-2 5-1M3 19c2.5-2 4-2 6.5 0s4 2 6.5 0"},{"id":"fish","n":"Fish","d":"M3 12c3-4 7-5.5 11-5.5 3 0 5 1.5 6 2.5-1 1.5-1 4.5 0 6-1 1-3 2.5-6 2.5-4 0-8-1.5-11-5.5zM16 10.5v.01"},{"id":"boat","n":"Boat","d":"M3 15h18l-2.5 5h-13zM12 15V4M12 6l6 3-6 2.5"},{"id":"net","n":"Net","d":"M4 6h16v9c0 2.5-3.6 4.5-8 4.5S4 17.5 4 15zM4 10.5h16M12 6v13.5M8 6.2v12.6M16 6.2v12.6"},{"id":"anchor","n":"Anchor","d":"M12 8v13M12 8a2.25 2.25 0 110-4.5A2.25 2.25 0 0112 8zM8 11h8M4 14a8 8 0 0016 0"},{"id":"well","n":"Well","d":"M6 10h12l-1.2 10.5H7.2zM4.5 10L12 5.2 19.5 10M12 5.2V3M9 20.5V10M15 20.5V10"}]},{"c":"Light & dark","g":[{"id":"lamp","n":"Lamp","d":"M8.5 4h7l1.5 5.5c0 3-2 5-5 5s-5-2-5-5zM12 14.5V20M8.5 20h7"},{"id":"candle","n":"Candle","d":"M9.5 9h5v11h-5zM12 9V6M12 6c1.5-1.5 1.5-3 0-4-1.5 1-1.5 2.5 0 4z"},{"id":"dawn","n":"Dawn","d":"M3 18h18M6 18a6 6 0 0112 0M12 4.5v3M5 8l2 2M19 8l-2 2"},{"id":"darkness","n":"Darkness","d":"M12 3.5a8.5 8.5 0 110 17 8.5 8.5 0 010-17zM12 3.5v17"}]},{"c":"Body & church","g":[{"id":"house","n":"House","d":"M3.5 11L12 4l8.5 7M6 10v10h12V10M10 20v-6h4v6"},{"id":"stones","n":"Living stones","d":"M3.5 15.5h7v4.5h-7zM13.5 15.5h7v4.5h-7zM8.5 10.5h7v4.5h-7zM3.5 5.5h7v4.5h-7zM13.5 5.5h7v4.5h-7z"},{"id":"bread","n":"Bread","d":"M4 12a8 4.5 0 0116 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2zM9 12v7M15 12v7"},{"id":"cup","n":"Cup","d":"M6 5h12l-1 7a5 5 0 01-10 0zM12 17v3M8.5 20h7"},{"id":"heart","n":"Heart","d":"M12 20.5S3.5 15 3.5 9.2A4.7 4.7 0 0112 6.6a4.7 4.7 0 018.5 2.6c0 5.8-8.5 11.3-8.5 11.3z"},{"id":"person","n":"Person","d":"M12 4.5a3.2 3.2 0 010 6.4 3.2 3.2 0 010-6.4M5.5 20.5c0-3.9 2.9-6.4 6.5-6.4s6.5 2.5 6.5 6.4"}]},{"c":"Structure & emphasis","g":[{"id":"question","n":"Question","d":"M9 8.5a3 3 0 114.5 2.6c-1 .7-1.5 1.3-1.5 2.6M12 18v.01"},{"id":"emphasis","n":"Emphasis","d":"M12 4v11M12 19v.01"},{"id":"therefore","n":"Therefore","d":"M12 6v.01M8 16v.01M16 16v.01"},{"id":"because","n":"Because","d":"M12 18v.01M8 8v.01M16 8v.01"},{"id":"contrast","n":"Contrast","d":"M4 9h11M11 5.5L14.5 9 11 12.5M20 15H9M13 11.5L9.5 15 13 18.5"},{"id":"repeat","n":"Repeat","d":"M5 11a7 7 0 0111.5-5.5M19 13a7 7 0 01-11.5 5.5M16.5 2.5v3h-3M7.5 21.5v-3h3"},{"id":"parallel","n":"Parallel","d":"M5 8h14M5 16h14"},{"id":"chiasm","n":"Chiasm","d":"M5 5h14M7 10l10 4M5 19h14M17 10L7 14"},{"id":"climax","n":"Climax","d":"M4 19l4-5 4 3 4-7 4 4"},{"id":"aside","n":"Aside","d":"M6 4v16M9 8h9M9 12h9M9 16h6"}]}];
+const GLYPH_BY_ID = {};
+GLYPHS.forEach(c => c.g.forEach(g => { GLYPH_BY_ID[g.id] = g; }));
+
+/* Custom glyphs the reader draws or generates. Same shape as the built-ins,
+   but `d` is an array of subpaths and the id is prefixed "u:". */
+function customById(id){ return (S.glyphs || []).find(g => g.id === id) || null; }
+function anyGlyph(id){ return GLYPH_BY_ID[id] || customById(id); }
+
+/* Only ever emit path data we have validated — a glyph may come from a
+   language model, and nothing but path commands should reach the DOM. */
+const PATH_OK = /^[MmLlHhVvCcSsQqTtAaZz0-9eE ,.\-+]*$/;
+function safePath(d){ return (typeof d === "string" && PATH_OK.test(d)) ? d : ""; }
+
+function glyphSVG(id, colour, px){
+  const g = anyGlyph(id);
+  if(!g) return null;
+  const ds = (Array.isArray(g.d) ? g.d : [g.d]).map(safePath).filter(Boolean);
+  if(!ds.length) return null;
+  const stroke = g.f ? "none" : "currentColor";
+  const fill   = g.f ? "currentColor" : "none";
+  const body = ds.map(d => `<path d="${d}" fill="${fill}" stroke="${stroke}" ` +
+    `stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>`).join("");
+  return `<svg viewBox="0 0 24 24" width="${px||17}" height="${px||17}" ` +
+         `style="color:${colour||"currentColor"};display:block">${body}</svg>`;
+}
 
 /* ============================================================
    MorphGNT LOADER
@@ -1088,8 +1208,11 @@ function render(){
           w._symEl.className = "sym";
           w.el.appendChild(w._symEl);          // child, so it travels with the word
         }
-        w._symEl.textContent = sym;
-        w._symEl.style.color = (mk && mk.sc) || "";
+        const col = (mk && mk.sc) || "";
+        const svg = glyphSVG(sym, col);
+        if(svg){ w._symEl.innerHTML = svg; w._symEl.style.color = ""; }
+        else { w._symEl.innerHTML = ""; w._symEl.textContent = sym; // legacy character
+               w._symEl.style.color = col; }
       }
       w._sym = sym;
     }
@@ -2292,6 +2415,7 @@ function paintMarkPop(){
   const pop = document.getElementById("markPop");
   const hue = COLORS[S.ci].hue;
   pop.innerHTML = "";
+
   const h = document.createElement("h4"); h.textContent = "Mark a word"; pop.appendChild(h);
 
   [["underline","Underline"],["box","Box"]].forEach(([v,label])=>{
@@ -2311,19 +2435,62 @@ function paintMarkPop(){
   });
 
   const lbl = document.createElement("h4"); lbl.textContent = "Or a symbol"; pop.appendChild(lbl);
-  const grid = document.createElement("div"); grid.className = "marksym";
-  MARKSYMS.forEach(sym=>{
+
+  const search = document.createElement("input");
+  search.className = "gsearch"; search.type = "text";
+  search.setAttribute("placeholder", "Search symbols — lamb, crown, water…");
+  search.setAttribute("spellcheck","false");
+  search.value = S.glyphQ || "";
+  search.addEventListener("input", ()=>{ S.glyphQ = search.value; drawGrid(); });
+  pop.appendChild(search);
+
+  const wrap = document.createElement("div"); wrap.className = "gwrap"; pop.appendChild(wrap);
+
+  function cell(g){
     const b = document.createElement("div");
-    b.className = "s" + (S.markMode === sym ? " on" : "");
-    b.textContent = sym;
-    b.onclick = ()=>{ S.markMode = sym; paintMarkPop(); };
-    grid.appendChild(b);
-  });
-  pop.appendChild(grid);
+    b.className = "s" + (S.markMode === g.id ? " on" : "");
+    b.setAttribute("title", g.n);
+    b.innerHTML = glyphSVG(g.id, hue, 22) || "";
+    b.onclick = ()=>{ S.markMode = g.id; paintMarkPop(); };
+    return b;
+  }
+
+  function drawGrid(){
+    wrap.innerHTML = "";
+    const q = (S.glyphQ || "").trim().toLowerCase();
+    const mine = (S.glyphs || []);
+    const cats = (mine.length ? [{c:"Your own", g:mine}] : []).concat(GLYPHS);
+    let shown = 0;
+    cats.forEach(cat=>{
+      const hits = cat.g.filter(g => !q || g.n.toLowerCase().includes(q) || g.id.includes(q));
+      if(!hits.length) return;
+      shown += hits.length;
+      const hd = document.createElement("div"); hd.className = "gcat"; hd.textContent = cat.c;
+      const grid = document.createElement("div"); grid.className = "ggrid";
+      hits.forEach(g => grid.appendChild(cell(g)));
+      wrap.appendChild(hd); wrap.appendChild(grid);
+    });
+    if(!shown){
+      const none = document.createElement("div");
+      none.className = "foot"; none.textContent = "Nothing matches “" + q + "”.";
+      wrap.appendChild(none);
+    }
+  }
+  drawGrid();
+
+  const acts = document.createElement("div"); acts.className = "gacts";
+  const drawBtn = document.createElement("button");
+  drawBtn.className = "ghost"; drawBtn.textContent = "✎ Draw your own";
+  drawBtn.onclick = ()=> openDrawSheet();
+  const aiBtn = document.createElement("button");
+  aiBtn.className = "ghost"; aiBtn.textContent = "✨ Ask for one";
+  aiBtn.onclick = ()=> openAskSheet();
+  acts.appendChild(drawBtn); acts.appendChild(aiBtn);
+  pop.appendChild(acts);
 
   const foot = document.createElement("div");
   foot.className = "foot";
-  foot.textContent = "Tap a word to apply, tap again to remove. Marks take the wheel's colour.";
+  foot.textContent = "Tap a word to apply, tap again to remove. Symbols take the wheel's colour.";
   pop.appendChild(foot);
 }
 
@@ -2345,6 +2512,176 @@ function markWord(w){
   if(!mk.u && !mk.b && !mk.s) delete S.marks[w.id];
   else S.marks[w.id] = mk;
   render(); saveSoon();
+}
+
+
+/* ============================================================
+   MAKING NEW SYMBOLS
+   Two routes. Drawing works offline and costs nothing; asking a model needs
+   the reader's own key. Either way the result is stored as plain SVG path
+   data and validated before it is ever rendered.
+   ============================================================ */
+let drawStrokes = [], drawing = null;
+
+function padCtx(){
+  const c = document.getElementById("drawPad");
+  return c.getContext ? c.getContext("2d") : null;
+}
+function repaintPad(){
+  const c = document.getElementById("drawPad"), ctx = padCtx();
+  if(!ctx) return;
+  ctx.clearRect(0,0,c.width,c.height);
+  ctx.strokeStyle = COLORS[S.ci].hue;
+  ctx.lineWidth = 9; ctx.lineCap = "round"; ctx.lineJoin = "round";
+  drawStrokes.forEach(st=>{
+    if(st.length < 2) return;
+    ctx.beginPath(); ctx.moveTo(st[0].x, st[0].y);
+    for(let i=1;i<st.length;i++) ctx.lineTo(st[i].x, st[i].y);
+    ctx.stroke();
+  });
+  const d = strokesToPaths();
+  if(d.length){
+    S.glyphs.push({ id:"__preview", n:"preview", d });
+    document.getElementById("drawPrev").innerHTML = glyphSVG("__preview", COLORS[S.ci].hue, 24) || "";
+    S.glyphs = S.glyphs.filter(g=>g.id !== "__preview");
+  } else document.getElementById("drawPrev").innerHTML = "";
+}
+
+/* Normalise the sketch into a 24x24 box, preserving aspect and centring it. */
+function strokesToPaths(){
+  const pts = drawStrokes.flat();
+  if(pts.length < 2) return [];
+  const xs = pts.map(p=>p.x), ys = pts.map(p=>p.y);
+  const minX = Math.min(...xs), maxX = Math.max(...xs);
+  const minY = Math.min(...ys), maxY = Math.max(...ys);
+  const w = Math.max(1, maxX-minX), h = Math.max(1, maxY-minY);
+  const sc = 18 / Math.max(w,h);
+  const ox = 12 - (minX + w/2)*sc, oy = 12 - (minY + h/2)*sc;
+  const r = n => Math.round(n*10)/10;
+  return drawStrokes.filter(st=>st.length>1).map(st=>{
+    let d = "M" + r(st[0].x*sc+ox) + " " + r(st[0].y*sc+oy);
+    let last = st[0];
+    st.slice(1).forEach(p=>{
+      if(Math.hypot(p.x-last.x, p.y-last.y) < 4) return;   // thin out
+      d += "L" + r(p.x*sc+ox) + " " + r(p.y*sc+oy); last = p;
+    });
+    return d;
+  });
+}
+
+function openDrawSheet(){
+  drawStrokes = [];
+  document.getElementById("drawName").value = "";
+  document.getElementById("drawSheet").classList.add("show");
+  repaintPad();
+}
+function closeDrawSheet(){ document.getElementById("drawSheet").classList.remove("show"); }
+
+(function wireDrawPad(){
+  const pad = document.getElementById("drawPad");
+  if(!pad.addEventListener) return;
+  const at = e =>{
+    const r = pad.getBoundingClientRect();
+    return { x:(e.clientX-r.left) * (pad.width/r.width),
+             y:(e.clientY-r.top)  * (pad.height/r.height) };
+  };
+  pad.addEventListener("pointerdown", e=>{
+    e.preventDefault(); drawing = [at(e)]; drawStrokes.push(drawing);
+    if(pad.setPointerCapture) pad.setPointerCapture(e.pointerId);
+  });
+  pad.addEventListener("pointermove", e=>{ if(drawing){ drawing.push(at(e)); repaintPad(); } });
+  pad.addEventListener("pointerup",   ()=>{ drawing = null; repaintPad(); });
+  pad.addEventListener("pointercancel",()=>{ drawing = null; });
+})();
+
+document.getElementById("drawUndo").onclick  = ()=>{ drawStrokes.pop(); repaintPad(); };
+document.getElementById("drawClear").onclick = ()=>{ drawStrokes = []; repaintPad(); };
+document.getElementById("drawCancel").onclick= ()=> closeDrawSheet();
+document.getElementById("drawOk").onclick    = ()=>{
+  const d = strokesToPaths();
+  if(!d.length) return;
+  const name = (document.getElementById("drawName").value || "").trim() || "My symbol";
+  saveGlyph(name, d);
+  closeDrawSheet();
+};
+
+/* ---- asking a model ---- */
+let askPaths = null;
+
+function openAskSheet(){
+  askPaths = null;
+  document.getElementById("askPrev").innerHTML = "";
+  document.getElementById("askOk").disabled = true;
+  const key = (document.getElementById("aiKey").value || "").trim();
+  document.getElementById("askState").innerHTML = key
+    ? "Describe it, then tap <b>Draw it</b>."
+    : "Needs an API key — add one in <b>⋯ → Symbol generation</b>.";
+  document.getElementById("askSheet").classList.add("show");
+  document.getElementById("askWhat").focus();
+}
+function closeAskSheet(){ document.getElementById("askSheet").classList.remove("show"); }
+
+async function askForGlyph(){
+  const key  = (document.getElementById("aiKey").value || "").trim();
+  const what = (document.getElementById("askWhat").value || "").trim();
+  const st   = document.getElementById("askState");
+  if(!key){ st.innerHTML = "Add an API key in <b>⋯ → Symbol generation</b> first."; return; }
+  if(!what){ st.textContent = "Describe the symbol first."; return; }
+  st.textContent = "Drawing…";
+  try{
+    const prompt = "Draw a simple monochrome line icon of: " + what +
+      ". Reply with ONLY a JSON array of SVG path 'd' strings, no prose, no code fence. " +
+      "Coordinates must sit inside a 24x24 box with a 2 unit margin. Use no more than 4 paths. " +
+      "It will be stroked, not filled, at about 17 pixels, so keep it bold and simple.";
+    const r = await fetch("https://api.anthropic.com/v1/messages", {
+      method:"POST",
+      headers:{ "content-type":"application/json", "x-api-key":key,
+                "anthropic-version":"2023-06-01",
+                "anthropic-dangerous-direct-browser-access":"true" },
+      body: JSON.stringify({ model:"claude-sonnet-5", max_tokens:400,
+                             messages:[{role:"user",content:prompt}] })
+    });
+    if(r.status === 401) throw new Error("that key was refused");
+    if(!r.ok) throw new Error("the service replied " + r.status);
+    const j = await r.json();
+    const txt = ((j.content||[]).map(c=>c.text||"").join("")).trim();
+    const m = txt.match(/\[[\s\S]*\]/);
+    if(!m) throw new Error("no drawing came back");
+    const raw = JSON.parse(m[0]);
+    const paths = raw.map(safePath).filter(Boolean).slice(0,4);   // validated, always
+    if(!paths.length) throw new Error("the drawing was not usable");
+    askPaths = paths;
+    S.glyphs.push({ id:"__ask", n:"preview", d:paths });
+    document.getElementById("askPrev").innerHTML = glyphSVG("__ask", COLORS[S.ci].hue, 24) || "";
+    S.glyphs = S.glyphs.filter(g=>g.id !== "__ask");
+    document.getElementById("askOk").disabled = false;
+    st.textContent = "If that looks right, save it. Otherwise try describing it differently.";
+  }catch(err){
+    askPaths = null;
+    document.getElementById("askOk").disabled = true;
+    st.textContent = "Could not draw it: " + (err.message || err) + ".";
+  }
+}
+document.getElementById("askGo").onclick     = askForGlyph;
+document.getElementById("askCancel").onclick = ()=> closeAskSheet();
+document.getElementById("askOk").onclick     = ()=>{
+  if(!askPaths) return;
+  const name = (document.getElementById("askWhat").value || "").trim() || "Symbol";
+  saveGlyph(name, askPaths);
+  closeAskSheet();
+};
+document.getElementById("askWhat").addEventListener("keydown", e=>{
+  if(e.key === "Enter"){ e.preventDefault(); askForGlyph(); }
+});
+
+/* ---- storing them ---- */
+function saveGlyph(name, paths){
+  S.glyphs = S.glyphs || [];
+  const id = "u:" + (++S.glyphSeq || (S.glyphSeq = 1));
+  S.glyphs.push({ id, n:name, d:paths.map(safePath).filter(Boolean) });
+  S.markMode = id;
+  kvSet("glyphs", { seq:S.glyphSeq, list:S.glyphs });
+  paintMarkPop();
 }
 
 /* ---- line-style menu, anchored under the Line button ---- */
@@ -2589,7 +2926,8 @@ function prefsSnapshot(){
     pencil:S.pencilMode, wheel:[WH.x, WH.y, S.wheelOpen],
     mods:[document.getElementById("mText").value, document.getElementById("mLex").value],
     abbr:document.getElementById("mgAbbr").value,
-    esvKey:document.getElementById("esvKey").value
+    esvKey:document.getElementById("esvKey").value,
+    aiKey:document.getElementById("aiKey").value
   };
 }
 
@@ -2601,6 +2939,7 @@ function applyPrefs(p){
   }
   if(p.abbr) document.getElementById("mgAbbr").value = p.abbr;
   if(p.esvKey) document.getElementById("esvKey").value = p.esvKey;
+  if(p.aiKey) document.getElementById("aiKey").value = p.aiKey;
   S.ci = (p.ci >= 0 && p.ci < COLORS.length) ? p.ci : 12;
   S.lineStyle = (LINESTYLE[p.ls] || p.ls === "thick") ? p.ls : "regular";
   S.tool = p.tool || "move";
@@ -2833,7 +3172,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-08-03c";
+const BUILD = "2026-08-04a";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file

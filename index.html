@@ -1475,7 +1475,10 @@ const INKTOOLS = new Set(["pen","highlight","line","rect"]);
 
 function activeTool(e){
   if(S.pencilMode && e.pointerType === "pen"){
-    return (S.tool === "erase") ? "erase" : S.lastInk;
+    // "Pencil draws" means the pencil inks INSTEAD OF MOVING things — it must
+    // not override a tool you deliberately chose. Picking Mark or Split and
+    // then tapping with the pencil should mark or split, not draw.
+    return (S.tool === "move") ? S.lastInk : S.tool;
   }
   // finger never inks while pencil mode is on; a mouse still does (desktop testing)
   if(S.pencilMode && e.pointerType === "touch" && INKTOOLS.has(S.tool)) return "move";
@@ -1679,6 +1682,11 @@ hit.addEventListener("pointerup", e=>{
   if(drag && drag.kind === "line"){
     showMergeHint(null);
     if(drag.merge){ pushUndo(); joinUp(S.lines.indexOf(drag.line)); }
+  }
+  // a tap with the pen leaves a single point, which never renders (drawing
+  // needs two) — drop it rather than accumulate invisible strokes
+  if(drag && drag.kind === "ink" && drag.s.pts.length < 2){
+    S.strokes.splice(S.strokes.indexOf(drag.s), 1); redraw();
   }
   // discard a shape that was only tapped, not dragged out
   if(drag && drag.kind === "shape"){
@@ -3162,7 +3170,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-08-04b";
+const BUILD = "2026-08-04c";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file

@@ -179,6 +179,25 @@
   #esv .ekey input:focus{outline:none;border-color:var(--accent);}
   #esv .ekey button{font-size:13px;padding:9px 14px;border-radius:9px;}
 
+  /* ---------- import mapping ---------- */
+  .impgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;}
+  .impgrid label{display:flex;flex-direction:column;gap:4px;font-size:10.5px;
+    text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600;}
+  .impgrid input,.impgrid select{font:inherit;font-size:13px;padding:8px 10px;
+    border:1px solid var(--rule);border-radius:9px;background:var(--paper);color:var(--ink);
+    text-transform:none;letter-spacing:0;font-weight:400;}
+  .implbl{font-size:9.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);
+    font-weight:700;margin:14px 0 6px;}
+  #impPreview{border:1px solid var(--rule);border-radius:10px;overflow:hidden;
+    max-height:180px;overflow-y:auto;}
+  #impPreview .prow{display:grid;grid-template-columns:64px 1fr 1fr 1.6fr;gap:8px;
+    padding:7px 10px;font-size:12px;align-items:baseline;}
+  #impPreview .prow:nth-child(odd){background:var(--chip);}
+  #impPreview .pref{color:var(--accent);font-weight:700;font-size:10.5px;}
+  #impPreview .pgk,#impPreview .plem{font-family:Cardo,serif;font-size:16px;}
+  #impPreview .plem{color:var(--muted);}
+  #impPreview .ppar{color:var(--muted);font-size:11px;line-height:1.4;}
+
   /* ---------- concordance ---------- */
   #conc{position:fixed;top:0;right:0;bottom:0;width:400px;max-width:92vw;background:var(--paper);
     border-left:1px solid var(--rule);box-shadow:-8px 0 28px rgba(0,0,0,.08);z-index:72;
@@ -533,6 +552,30 @@
   </div>
 </div>
 
+<div id="importSheet" class="sheet">
+  <div class="ws">
+    <div class="wslbl">This file isn't MorphGNT, so tell me which column is which.
+      I have guessed from the contents — correct anything wrong and check the preview.</div>
+    <div class="impgrid">
+      <label>Name<input type="text" id="impName" spellcheck="false"></label>
+      <label>Accordance ref<input type="text" id="impAbbr" spellcheck="false"
+             placeholder="e.g. Gen."></label>
+      <label>Reference<select id="impRef"></select></label>
+      <label>Greek word<select id="impSurface"></select></label>
+      <label>Lemma<select id="impLemma"></select></label>
+      <label>Part of speech<select id="impPos"></select></label>
+      <label>Morphology<select id="impCode"></select></label>
+    </div>
+    <div class="implbl">Preview</div>
+    <div id="impPreview"></div>
+    <div class="askstate" id="impState"></div>
+    <div class="wsbtns">
+      <button id="impCancel">Cancel</button>
+      <button id="impGo" class="act">✓ Import</button>
+    </div>
+  </div>
+</div>
+
 <div id="writeSheet" class="sheet">
   <div class="ws">
     <div class="wslbl">Write the section title with your Pencil — iPadOS turns the
@@ -663,7 +706,11 @@
   <div class="foot" style="padding-top:0">Drop GitHub's
     <b>sblgnt-master.zip</b> here for the whole New Testament — no need to unzip it.
     Individual <b>-morphgnt.txt</b> files work too, as many at once as you like.
-    Loaded books are remembered; you only do this once.</div>
+    Loaded books are remembered; you only do this once.<br><br>
+    <b>Another tagged text?</b> Drop a single <b>.txt</b> or <b>.tsv</b> file that isn't MorphGNT
+    — a Septuagint dataset, for instance — and you'll be asked which column is which. Note that
+    CATSS-derived LXX data carries its own conditions: you need to obtain it yourself and agree
+    to their user declaration. Nothing is downloaded for you.</div>
   <div class="fld"><label for="mgFile">Files</label>
     <input type="file" id="mgFile" multiple
            accept=".txt,.zip,.json,text/plain,application/zip,application/json"></div>
@@ -1006,6 +1053,22 @@ function firstBookKey(){
    Each book becomes its own passage under the key "nt:<stem>", so the
    existing chapter picker, refs and Accordance links all work unchanged. */
 S.corpusFiles = [];        // [{name, raw}] — kept verbatim so it can be re-saved
+
+/* An imported text is stored already parsed, since its source format is
+   whatever the reader happened to have. */
+function registerImported(file){
+  try{
+    const d = JSON.parse(file.raw);
+    if(!d || !Array.isArray(d.verses)) return null;
+    const words = d.verses.reduce((n,v)=>n+v[1].length, 0);
+    const chapters = [...new Set(d.verses.map(v=>v[0].split(":")[0]))].sort((a,b)=>a-b);
+    const key = "nt:import-" + String(d.name).toLowerCase().replace(/[^a-z0-9]+/g,"-");
+    PASSAGES[key] = { title:d.name, abbr:d.abbr, module:"NA28-T", verses:d.verses, words,
+                      chapters, byChapter:true, bad:0, key,
+                      order:100 + Object.keys(PASSAGES).length, _file:file.name, imported:true };
+    return PASSAGES[key];
+  }catch(e){ return null; }
+}
 
 function registerBook(file){
   const b = bookFromFilename(file.name);
@@ -2489,6 +2552,208 @@ document.getElementById("writeIn").addEventListener("keydown", e=>{
   if(e.key === "Escape") closeWriteSheet(false);
 });
 
+
+/* ============================================================
+   IMPORTING ANOTHER TAGGED TEXT  (Septuagint, and anything similar)
+   MorphGNT has one fixed shape, but LXX datasets do not: CATSS-derived
+   files vary in column order and use a different morphology scheme. So
+   rather than guess, the columns are sniffed, shown to the reader, and
+   corrected by hand if the guess is wrong.
+   ============================================================ */
+const GREEK = /[\u0370-\u03ff\u1f00-\u1fff]/;
+
+/* CATSS/LXXM part-of-speech tags. The first letter or two carry the class;
+   trailing declension/conjugation digits are ignored. */
+const LXX_POS = {
+  N:"Noun", A:"Adjective", RA:"Article", RD:"Demonstrative pronoun",
+  RI:"Interrogative/indefinite pronoun", RP:"Personal pronoun",
+  RR:"Relative pronoun", C:"Conjunction", P:"Preposition", D:"Adverb",
+  I:"Interjection", X:"Particle", V:"Verb", M:"Indeclinable numeral"
+};
+const L_T={P:"present",I:"imperfect",F:"future",A:"aorist",X:"perfect",Y:"pluperfect"};
+const L_V={A:"active",M:"middle",P:"passive"};
+const L_M={I:"indicative",D:"imperative",S:"subjunctive",O:"optative",
+           N:"infinitive",P:"participle"};
+const L_C={N:"nominative",G:"genitive",D:"dative",A:"accusative",V:"vocative"};
+const L_N={S:"singular",P:"plural",D:"dual"};
+const L_G={M:"masculine",F:"feminine",N:"neuter"};
+
+function lxxPos(tag){
+  const t = String(tag || "").toUpperCase().replace(/[0-9_\-]/g,"");
+  return LXX_POS[t] || LXX_POS[t.slice(0,2)] || LXX_POS[t.slice(0,1)] || (tag || "");
+}
+
+/* "AAI3S" → aorist active indicative, 3rd singular
+   "AAPNSM" → aorist active participle, nominative singular masculine
+   "DSF" → dative singular feminine */
+function lxxParse(code){
+  const c = String(code || "").toUpperCase().replace(/[^A-Z0-9]/g,"");
+  if(!c) return "";
+  if(L_C[c[0]] && c.length <= 3){
+    return [L_C[c[0]], L_N[c[1]], L_G[c[2]]].filter(Boolean).join(" ");
+  }
+  const t = L_T[c[0]], v = L_V[c[1]], md = L_M[c[2]];
+  if(t && v && md){
+    const verbal = t + " " + v + " " + md;
+    if(md === "participle"){
+      return verbal + ", " + [L_C[c[3]], L_N[c[4]], L_G[c[5]]].filter(Boolean).join(" ");
+    }
+    if(md === "infinitive") return verbal;
+    const person = /[123]/.test(c[3]) ? c[3] + (c[3]==="1"?"st":c[3]==="2"?"nd":"rd") : "";
+    const num = L_N[c[4]] || "";
+    const pn = [person, num].filter(Boolean).join(" ");
+    return pn ? verbal + ", " + pn : verbal;
+  }
+  return code;                        // unrecognised: show it as it came
+}
+
+/* Split a file into rows on tabs, or on runs of spaces if there are no tabs. */
+function splitRows(text){
+  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  const useTabs = lines.slice(0, 40).some(l => l.includes("\t"));
+  return lines.map(l => useTabs ? l.split("\t") : l.trim().split(/\s+/));
+}
+
+/* Score each column so the mapping starts from a sensible guess. */
+function sniffColumns(rows){
+  const sample = rows.slice(0, 300).filter(r => r.length > 1);
+  const n = Math.max(...sample.map(r => r.length));
+  const score = { ref:[], greek:[], code:[] };
+  for(let i = 0; i < n; i++){
+    const vals = sample.map(r => r[i] || "");
+    const greek = vals.filter(v => GREEK.test(v)).length / (vals.length || 1);
+    const ref = vals.filter(v => /^\d{6}$/.test(v) || /^[\w.]+\s*\d+[:.]\d+$/.test(v)
+                              || /^\d+[:.]\d+$/.test(v)).length / (vals.length || 1);
+    const code = vals.filter(v => /^[A-Z][A-Z0-9_\-]{0,7}$/.test(v)).length / (vals.length || 1);
+    score.ref.push(ref); score.greek.push(greek); score.code.push(code);
+  }
+  const best = a => a.indexOf(Math.max(...a));
+  const greekCols = score.greek.map((v,i)=>({v,i})).filter(x=>x.v>0.5).map(x=>x.i);
+  return {
+    cols: n,
+    ref: best(score.ref),
+    surface: greekCols[0] !== undefined ? greekCols[0] : 0,
+    // the lemma is usually the LAST Greek column, the surface the first
+    lemma: greekCols.length > 1 ? greekCols[greekCols.length-1] : (greekCols[0] || 0),
+    pos: best(score.code),
+    code: score.code.map((v,i)=>({v,i})).filter(x=>x.v>0.4).map(x=>x.i)[1]
+          ?? best(score.code)
+  };
+}
+
+/* Turn "Gen 1:1", "1:1" or "010101" into a "chapter:verse" label. */
+function normaliseRef(raw, carry){
+  const v = String(raw || "").trim();
+  let m = /^(\d{2})(\d{2})(\d{2})$/.exec(v);
+  if(m) return String(+m[2]) + ":" + String(+m[3]);
+  m = /(\d+)[:.](\d+)\s*$/.exec(v);
+  if(m) return String(+m[1]) + ":" + String(+m[2]);
+  return carry || "1:1";
+}
+
+let importRows = null, importMap = null;
+
+function openImport(text, filename){
+  importRows = splitRows(text);
+  if(importRows.length < 5){
+    document.getElementById("mgStatus").textContent = "That file has too few rows to read.";
+    return;
+  }
+  importMap = sniffColumns(importRows);
+  document.getElementById("impName").value =
+    filename.replace(/\.[^.]*$/,"").replace(/[_-]+/g," ").trim() || "Imported text";
+  document.getElementById("impAbbr").value = "";
+  paintImport();
+  document.getElementById("importSheet").classList.add("show");
+}
+
+function paintImport(){
+  const sel = ["impRef","impSurface","impLemma","impPos","impCode"];
+  const keys = ["ref","surface","lemma","pos","code"];
+  sel.forEach((id, k)=>{
+    const el = document.getElementById(id);
+    el.innerHTML = "";
+    const none = document.createElement("option");
+    none.value = "-1"; none.textContent = "— none —";
+    el.appendChild(none);
+    for(let i = 0; i < importMap.cols; i++){
+      const o = document.createElement("option");
+      o.value = String(i);
+      o.textContent = "Column " + (i+1) + ": " + String((importRows[0]||[])[i] || "").slice(0,18);
+      el.appendChild(o);
+    }
+    el.value = String(importMap[keys[k]] ?? -1);
+    el.onchange = ()=>{ importMap[keys[k]] = +el.value; paintPreview(); };
+  });
+  paintPreview();
+}
+
+function paintPreview(){
+  const box = document.getElementById("impPreview");
+  box.innerHTML = "";
+  const pick = (r,i) => (i >= 0 ? (r[i] || "") : "");
+  let carry = null;
+  importRows.slice(0, 6).forEach(r=>{
+    carry = normaliseRef(pick(r, importMap.ref), carry);
+    const d = document.createElement("div");
+    d.className = "prow";
+    d.innerHTML = `<span class="pref">${carry}</span>` +
+      `<span class="pgk">${pick(r, importMap.surface)}</span>` +
+      `<span class="plem">${pick(r, importMap.lemma)}</span>` +
+      `<span class="ppar">${lxxPos(pick(r, importMap.pos))} · ` +
+      `${lxxParse(pick(r, importMap.code))}</span>`;
+    box.appendChild(d);
+  });
+}
+
+function doImport(){
+  const name = (document.getElementById("impName").value || "Imported text").trim();
+  const abbr = (document.getElementById("impAbbr").value || name.replace(/\s+/g,"_")).trim();
+  const pick = (r,i) => (i >= 0 ? (r[i] || "") : "");
+  const verses = []; let cur = null, curRef = null, bad = 0;
+
+  importRows.forEach(r=>{
+    const sur = pick(r, importMap.surface);
+    if(!sur || !GREEK.test(sur)){ bad++; return; }
+    const ref = normaliseRef(pick(r, importMap.ref), curRef);
+    if(ref !== curRef){ curRef = ref; cur = []; verses.push([ref, cur]); }
+    cur.push([ sur, pick(r, importMap.lemma) || sur,
+               lxxPos(pick(r, importMap.pos)), lxxParse(pick(r, importMap.code)), "", "" ]);
+  });
+
+  if(!verses.length){
+    document.getElementById("impState").textContent =
+      "No Greek words found with that column mapping — try a different Greek column.";
+    return;
+  }
+
+  const words = verses.reduce((n,v)=>n+v[1].length, 0);
+  const chapters = [...new Set(verses.map(v=>v[0].split(":")[0]))].sort((a,b)=>a-b);
+  const key = "nt:import-" + name.toLowerCase().replace(/[^a-z0-9]+/g,"-");
+  PASSAGES[key] = { title:name, abbr, module:"NA28-T", verses, words, chapters,
+                    byChapter:true, bad, key, order: 100 + Object.keys(PASSAGES).length,
+                    _raw:null, _file:name, imported:true };
+
+  S.corpusFiles = S.corpusFiles.filter(f => f.name !== name + ".import");
+  S.corpusFiles.push({ name: name + ".import", raw: JSON.stringify({ v:1, name, abbr, verses }) });
+
+  refreshBookMenu();
+  S.key = key;
+  S.chapter = words > MAX_LAYOUT_WORDS && chapters.length ? chapters[0] : "all";
+  document.getElementById("passage").value = key;
+  refreshChapterMenu();
+  build(key); syncJoin();
+  saveCorpus(); saveNow();
+  document.getElementById("importSheet").classList.remove("show");
+  document.getElementById("mgStatus").textContent =
+    name + ": " + words.toLocaleString() + " words, " + chapters.length + " chapters imported";
+  closePops();
+}
+
+document.getElementById("impCancel").onclick = ()=>
+  document.getElementById("importSheet").classList.remove("show");
+document.getElementById("impGo").onclick = doImport;
+
 /* ---- corpus loading ----
    Accepts MorphGNT .txt files (any number at once), a repository .zip,
    or a saved workspace .json. */
@@ -2505,6 +2770,13 @@ async function handleFiles(list){
     }
     document.getElementById("mgStatus").textContent = "That JSON is not a Nous workspace.";
     return;
+  }
+  // a single text file that is not MorphGNT goes to the column mapper
+  if(files.length === 1 && /\.(txt|tsv|csv)$/i.test(files[0].name)){
+    const text = await files[0].text();
+    const looksMorphGNT = text.split(/\r?\n/).slice(0, 40)
+      .some(l => /^\d{6}[\t ]/.test(l.trim()));
+    if(!looksMorphGNT){ openImport(text, files[0].name); return; }
   }
   await loadFiles(files);
 }
@@ -3519,7 +3791,10 @@ async function loadSaved(){
     S.docs = docs || {};
     if(corpus && Array.isArray(corpus.files) && corpus.files.length){
       S.corpusFiles = corpus.files;
-      corpus.files.forEach(registerBook);
+      corpus.files.forEach(f=>{
+        if(/\.import$/.test(f.name)){ registerImported(f); return; }
+        registerBook(f);
+      });
       const books = refreshBookMenu();
       const total = books.reduce((n,p)=>n+p.words, 0);
       document.getElementById("mgStatus").textContent =
@@ -3644,7 +3919,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-08-05b";
+const BUILD = "2026-08-05c";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file

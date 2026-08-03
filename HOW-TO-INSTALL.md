@@ -1,4 +1,4 @@
-# Getting Kolon onto your iPad
+# Getting Nous onto your iPad
 
 There is no App Store build — that needs Xcode, a paid developer account and a
 native rewrite. What you can have today is an **installable web app**: a real
@@ -14,7 +14,7 @@ Pick one of the three routes below. **Route 1 is the one to use.**
 Gives you a permanent URL, proper storage, and offline support.
 
 1. On your Mac, go to **https://app.netlify.com/drop**
-2. Drag the whole **`kolon-app` folder** onto the page. Don't unzip anything
+2. Drag the whole **`nous-app` folder** onto the page. Don't unzip anything
    into it or drag the files individually — drag the folder itself.
 3. Wait a few seconds. You get a URL like
    `https://cheerful-marzipan-7f3a91.netlify.app`
@@ -30,7 +30,7 @@ Netlify account and the same drop page will let you password-protect it.
 
 **Then load the New Testament once:** download
 `https://github.com/morphgnt/sblgnt/archive/refs/heads/master.zip` on the iPad,
-open Kolon, tap **⋯ → Files**, and pick the zip from Downloads. All 27 books
+open Nous, tap **⋯ → Files**, and pick the zip from Downloads. All 27 books
 load in one go and are remembered from then on.
 
 ---
@@ -39,10 +39,10 @@ load in one go and are remembered from then on.
 
 Better if you want to keep editing it or keep it long-term.
 
-1. Create a new repository on GitHub, e.g. `kolon`.
-2. Upload the contents of `kolon-app` (the files, not the folder) to the root.
+1. Create a new repository on GitHub, e.g. `greekexegesis`.
+2. Upload the contents of `nous-app` (the files, not the folder) to the root.
 3. **Settings → Pages → Source: Deploy from a branch → main → / (root)** → Save.
-4. After a minute the site is at `https://<your-username>.github.io/kolon/`
+4. After a minute the site is at `https://<your-username>.github.io/<repo>/`
 5. Open on iPad in Safari → Share → **Add to Home Screen**.
 
 ---
@@ -64,7 +64,7 @@ work. If you go this way, use **⋯ → Save a copy as a file…** often.
 The app stores everything on the device in IndexedDB. That is durable for an
 installed Home Screen app, but it is still one device with no backup.
 
-- **⋯ → Save a copy as a file…** exports a single `kolon-workspace.json`
+- **⋯ → Save a copy as a file…** exports a single `nous-workspace.json`
   containing every book and every diagram.
 - Dropping that file back onto the app restores everything.
 - Put it in iCloud Drive and you can move between iPad and Mac.

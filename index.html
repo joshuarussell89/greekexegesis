@@ -6,12 +6,12 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="Kolon">
+<meta name="apple-mobile-web-app-title" content="Nous">
 <meta name="theme-color" content="#fffefb">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./icon-180.png">
 <link rel="icon" href="./icon-192.png">
-<title>Kolon — Greek NT Flow Diagrams</title>
+<title>Nous — Greek NT Flow Diagrams</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cardo:wght@400;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -48,7 +48,8 @@
     .brand em{display:none;}
   }
   .brand{font-size:13.5px;font-weight:600;letter-spacing:-.01em;margin-right:2px;}
-  .brand span{font-family:Cardo,serif;font-weight:400;color:var(--accent);font-size:16px;}
+  .brand .mark{width:17px;height:17px;color:var(--accent);vertical-align:-3px;
+    margin-right:1px;}
   .brand em{font-style:normal;font-weight:500;font-size:10px;color:var(--muted);
     letter-spacing:.04em;margin-left:2px;}
   .spacer{flex:1 1 auto;}
@@ -142,8 +143,7 @@
   #empty.show{display:flex;}
   #empty .card{max-width:440px;text-align:center;padding:34px 32px;background:var(--paper);
     border:1px solid var(--rule);border-radius:16px;box-shadow:0 10px 34px rgba(0,0,0,.08);}
-  #empty .glyph{font-family:Cardo,serif;font-size:52px;color:var(--accent);line-height:1;
-    margin-bottom:10px;}
+  #empty .glyph{width:56px;height:56px;color:var(--accent);display:block;margin:0 auto 12px;}
   #empty h2{margin:0 0 10px;font-size:19px;font-weight:600;letter-spacing:-.01em;}
   #empty p{margin:0 0 18px;font-size:13px;line-height:1.6;color:var(--muted);}
   #empty p.alt{margin:16px 0 0;font-size:11.5px;}
@@ -321,7 +321,12 @@
 <div id="app">
   <header>
     <div class="tier">
-      <div class="brand"><span>κ</span> Kolon <em id="buildTag"></em></div>
+      <div class="brand"><svg class="mark" viewBox="0 0 100 100" aria-hidden="true">
+        <path d="M19 24.6 28.5 21.4 40 24.8 54.8 59.6 65.5 24.8 73.5 21.6 81.2 24.4'
+        ' 55.3 84.8 50.3 89.2 45.2 84.8Z" fill="currentColor"/>
+        <circle cx="50.3" cy="69" r="4" fill="var(--paper)"/>
+        <path d="M48.4 69h3.8l-1.3 17.6h-1.2Z" fill="var(--paper)"/>
+      </svg> Nous <em id="buildTag"></em></div>
       <select id="passage"><option value="">No book loaded</option></select>
       <select id="chapter" title="Which part of the loaded book to lay out"
               style="display:none"></select>
@@ -375,7 +380,12 @@
       <div id="hit"></div>
       <div id="empty">
         <div class="card">
-          <div class="glyph">κ</div>
+          <svg class="glyph" viewBox="0 0 100 100" aria-hidden="true">
+            <path d="M19 24.6 28.5 21.4 40 24.8 54.8 59.6 65.5 24.8 73.5 21.6 81.2 24.4'
+            ' 55.3 84.8 50.3 89.2 45.2 84.8Z" fill="currentColor"/>
+            <circle cx="50.3" cy="69" r="4" fill="var(--paper)"/>
+            <path d="M48.4 69h3.8l-1.3 17.6h-1.2Z" fill="var(--paper)"/>
+          </svg>
           <h2>Install the Greek New Testament</h2>
           <p>All 27 books with full morphological parsing, from the MorphGNT
              edition of the SBL Greek New Testament. About 8&nbsp;MB, fetched once
@@ -2151,7 +2161,7 @@ async function handleFiles(list){
     if(snap && (snap.v === 1 || snap.v === 2)){
       if(openWorkspace(snap)){ closePops(); return; }
     }
-    document.getElementById("mgStatus").textContent = "That JSON is not a Kolon workspace.";
+    document.getElementById("mgStatus").textContent = "That JSON is not a Nous workspace.";
     return;
   }
   await loadFiles(files);
@@ -2447,6 +2457,9 @@ window.addEventListener("resize", resizeCanvas);
    IndexedDB holds them, since the whole NT is far past what localStorage
    allows; localStorage is a fallback for the small records only.
    ============================================================ */
+/* The storage keys keep the old name deliberately. They are invisible to the
+   reader, and renaming them would orphan every book and diagram already saved
+   on the device — a rename is not worth losing someone's work over. */
 const DB_NAME = "kolon", DB_VER = 1;
 let dbPromise = null, storageOK = true, saveTimer = null;
 
@@ -2763,7 +2776,7 @@ function saveProjectFile(){
   const blob = new Blob([JSON.stringify(payload)], {type:"application/json"});
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
-  a.download = "kolon-workspace.json";
+  a.download = "nous-workspace.json";
   document.body.appendChild(a); a.click();
   setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 0);
   closePops();
@@ -2820,7 +2833,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-08-03b";
+const BUILD = "2026-08-03c";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file

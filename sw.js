@@ -1,4 +1,4 @@
-/* Kolon service worker.
+/* Nous service worker.
 
    The page itself is fetched NETWORK-FIRST: when there is a connection you
    always get the current build, and the cached copy is only used as an offline
@@ -9,8 +9,8 @@
    having instantly.
 
    Books and diagrams live in IndexedDB and are never touched here. */
-const VERSION = "2026-08-03b";
-const CACHE   = "kolon-" + VERSION;
+const VERSION = "2026-08-03c";
+const CACHE   = "nous-" + VERSION;
 const SHELL = [
   "./",
   "./index.html",

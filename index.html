@@ -171,6 +171,13 @@
   #esv .efoot{flex:0 0 auto;padding:10px 16px 14px;border-top:1px solid var(--rule2);
     font-size:10.5px;color:var(--muted);line-height:1.5;}
   #esv .efoot a{color:var(--accent);}
+  #esv .efoot .chg{color:var(--accent);cursor:pointer;text-decoration:underline;
+    display:inline-block;margin-top:6px;}
+  #esv .ekey{display:flex;gap:6px;margin-top:12px;}
+  #esv .ekey input{flex:1 1 auto;min-width:0;font:inherit;font-size:13px;padding:9px 11px;
+    border:1px solid var(--rule);border-radius:9px;background:var(--paper);color:var(--ink);}
+  #esv .ekey input:focus{outline:none;border-color:var(--accent);}
+  #esv .ekey button{font-size:13px;padding:9px 14px;border-radius:9px;}
 
   /* ---------- handwriting sheet ---------- */
   #writeSheet{position:fixed;inset:0;z-index:200;display:none;align-items:flex-end;
@@ -1997,21 +2004,70 @@ function esvReference(){
   return book + " " + S.words[0].verse + "-" + S.words[S.words.length-1].verse.split(":")[1];
 }
 
+/* Ask for the key in the panel itself, so it can be pasted where it is needed
+   rather than hunted for in a settings menu. It is written to the same field
+   the settings panel uses, so there is still only one place it is stored. */
+function esvKeyPrompt(body){
+  body.innerHTML = "";
+  const note = document.createElement("div");
+  note.className = "enote";
+  note.innerHTML = "Paste your free ESV API key to show the English alongside the Greek. " +
+    "Keys are issued at <b>api.esv.org</b>. It is kept on this device only — never in the " +
+    "repository, and never in an exported workspace.";
+
+  const row = document.createElement("div");
+  row.className = "ekey";
+  const inp = document.createElement("input");
+  inp.type = "text";
+  inp.setAttribute("placeholder", "Paste key");
+  inp.setAttribute("spellcheck", "false");
+  inp.setAttribute("autocapitalize", "off");
+  inp.setAttribute("autocorrect", "off");
+  const btn = document.createElement("button");
+  btn.className = "act";
+  btn.textContent = "Save";
+
+  const save = ()=>{
+    // tolerate a whole header being pasted, e.g. "Authorization: Token abc123"
+    const v = inp.value.trim().replace(/^authorization\s*:\s*/i, "").replace(/^token\s+/i, "").trim();
+    if(!v) return;
+    document.getElementById("esvKey").value = v;
+    esvCache = {};
+    saveNow();
+    loadESV();
+  };
+  btn.onclick = save;
+  inp.addEventListener("keydown", e=>{ if(e.key === "Enter"){ e.preventDefault(); save(); } });
+
+  row.appendChild(inp); row.appendChild(btn);
+  body.appendChild(note); body.appendChild(row);
+  inp.focus();
+}
+
 async function loadESV(){
   const key = (document.getElementById("esvKey").value || "").trim();
   const body = document.getElementById("esvBody");
   const ref  = esvReference();
   document.getElementById("esvRef").textContent = ref || "—";
-  document.getElementById("esvFoot").innerHTML =
+  const foot = document.getElementById("esvFoot");
+  foot.innerHTML =
     'Scripture quotations are from the ESV® Bible, copyright © 2001 by Crossway. ' +
     'Used by permission. All rights reserved. <a href="https://www.esv.org" ' +
     'target="_blank" rel="noopener">esv.org</a>';
-
-  if(!key){
-    body.innerHTML = '<div class="enote">Add your free ESV API key in <b>⋯ → English (ESV)</b>. ' +
-      'Keys are issued at <b>api.esv.org</b> and stay on this device.</div>';
-    return;
+  if(key){
+    const chg = document.createElement("div");
+    chg.className = "chg";
+    chg.textContent = "Change API key";
+    chg.onclick = ()=>{
+      document.getElementById("esvKey").value = "";
+      esvCache = {};
+      saveNow();
+      loadESV();
+    };
+    foot.appendChild(chg);
   }
+
+  if(!key){ esvKeyPrompt(body); return; }
   if(!ref){ body.innerHTML = '<div class="enote">Load a book first.</div>'; return; }
   if(esvCache[ref]){ body.textContent = esvCache[ref]; return; }
 
@@ -2764,7 +2820,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-08-03a";
+const BUILD = "2026-08-03b";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file

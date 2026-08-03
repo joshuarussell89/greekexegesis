@@ -113,6 +113,37 @@
     transition:box-shadow .12s;}
   .w.sel{background:rgba(194,65,12,.12);box-shadow:0 0 0 1.5px var(--sel);}
   .w.lem{box-shadow:inset 0 -2px 0 rgba(0,0,0,.10);}
+  /* a marked word carries its symbol as a child, so it moves with the word */
+  .w .sym{position:absolute;left:50%;top:-16px;transform:translateX(-50%);
+    font-size:15px;line-height:1;pointer-events:none;white-space:nowrap;
+    font-family:Inter,-apple-system,"Apple Color Emoji",sans-serif;}
+
+  /* ---------- find panel ---------- */
+  #findPop{width:376px;}
+  .fgroup{padding:2px 10px 8px;}
+  .fgroup .lbl2{font-size:9.5px;text-transform:uppercase;letter-spacing:.1em;
+    color:var(--muted);font-weight:700;padding:6px 2px 5px;}
+  .chips{display:flex;flex-wrap:wrap;gap:5px;}
+  .chip{font-size:12px;padding:5px 10px;border-radius:20px;border:1px solid var(--rule);
+    background:var(--paper);cursor:pointer;color:var(--ink);line-height:1.2;}
+  .chip:hover{background:var(--chip);}
+  .chip.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600;}
+  #findQ{width:100%;font:inherit;font-size:13px;padding:9px 11px;border:1px solid var(--rule);
+    border-radius:9px;background:var(--paper);color:var(--ink);}
+  #findCount{font-size:12px;color:var(--muted);padding:8px 12px 4px;}
+  #findCount b{color:var(--ink);}
+  .fapply{display:flex;gap:6px;padding:4px 10px 10px;flex-wrap:wrap;}
+  .fapply button{font-size:12px;padding:7px 11px;border-radius:8px;border:1px solid var(--rule);}
+  .fapply button.act{border-color:var(--accent);}
+
+  /* ---------- mark menu ---------- */
+  .marksym{display:flex;flex-wrap:wrap;gap:5px;padding:2px 10px 10px;}
+  .marksym .s{width:36px;height:36px;border-radius:9px;border:1px solid var(--rule);
+    background:var(--paper);cursor:pointer;font-size:17px;line-height:1;display:flex;
+    align-items:center;justify-content:center;
+    font-family:Inter,-apple-system,"Apple Color Emoji",sans-serif;}
+  .marksym .s:hover{background:var(--chip);}
+  .marksym .s.on{border-color:var(--accent);box-shadow:0 0 0 2px rgba(138,90,43,.22);}
   .lemsw{display:flex;gap:5px;align-items:center;margin-top:10px;padding-top:10px;
     border-top:1px solid var(--rule);flex-wrap:wrap;}
   .lemsw .k{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);
@@ -245,6 +276,9 @@
       <div class="spacer"></div>
       <label class="toggle"><input type="checkbox" id="pmode" checked>
         Pencil draws, finger moves</label>
+      <button id="findBtn" class="ghost" title="Find words by grammar, lemma or gloss">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"
+             stroke-linecap="round"><circle cx="9" cy="9" r="5.4"/><path d="M13 13l3.5 3.5"/></svg>Find</button>
       <button id="helpBtn" class="ghost" title="Show the key">
         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"
              stroke-linecap="round"><circle cx="10" cy="10" r="7.2"/>
@@ -295,6 +329,11 @@
         <button data-tool="rect" title="Rectangle, drag corner to corner">
           <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"
                stroke-linejoin="round"><rect x="3.5" y="5.5" width="13" height="9" rx="1.2"/></svg>Box</button>
+        <button data-tool="mark" id="markBtn" title="Underline, box or badge a word — tap for options">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"
+               stroke-linecap="round" stroke-linejoin="round"><path d="M5 4v6a5 5 0 0010 0V4"/>
+          <path d="M4 17h12"/></svg>Mark<svg class="car" viewBox="0 0 10 6" fill="none"
+               stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M1 1l4 4 4-4"/></svg></button>
         <button data-tool="erase" title="Erase whole strokes">
           <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"
                stroke-linecap="round" stroke-linejoin="round"><path
@@ -333,6 +372,24 @@
 <div id="wheel"></div>
 
 <div class="pop anchored" id="linePop"></div>
+<div class="pop anchored" id="markPop"></div>
+
+<div class="pop" id="findPop">
+  <h4>Find in this passage</h4>
+  <div class="fgroup"><input type="text" id="findQ" spellcheck="false"
+    placeholder="imperative · aorist passive · λυπέω · comfort" enterkeyhint="search"></div>
+  <div class="fgroup"><div class="lbl2">Mood</div><div class="chips" data-set="mood"></div></div>
+  <div class="fgroup"><div class="lbl2">Tense</div><div class="chips" data-set="tense"></div></div>
+  <div class="fgroup"><div class="lbl2">Voice</div><div class="chips" data-set="voice"></div></div>
+  <div class="fgroup"><div class="lbl2">Case</div><div class="chips" data-set="case"></div></div>
+  <div id="findCount">Type or tap a grammar chip.</div>
+  <div class="fapply">
+    <button id="fHi" class="act">Highlight</button>
+    <button id="fUnd">Underline</button>
+    <button id="fBox">Box</button>
+    <button id="fClear">Clear all</button>
+  </div>
+</div>
 
 <div class="pop" id="help">
   <h4>Building the diagram</h4>
@@ -360,6 +417,17 @@
     title to fill in. Tap the same boundary again to remove it.</div></div>
   <div class="item"><div class="kbd">Colour</div><div>Tap the floating puck to open the wheel;
     drag the hub to move it. 18 colours, shown as tints while the highlighter is active.</div></div>
+  <hr>
+  <h4>Finding and marking</h4>
+  <div class="item"><div class="kbd">Find</div><div>Search the parsing itself. Tap
+    <b>Imperative</b> to light up every imperative in the passage; add <b>Aorist</b> to narrow it
+    to aorist imperatives. Chips combine, and the box accepts a lemma or an English gloss.
+    Accents are ignored, so <b>λυπεω</b> finds λυπέω.</div></div>
+  <div class="item"><div class="kbd">Apply</div><div>Highlight, Underline or Box every match at
+    once, in the wheel's current colour.</div></div>
+  <div class="item"><div class="kbd">Mark</div><div>Underline a word, box it, or put a small
+    badge above it — ♥, 🩸, ✝, ★ and others. Tap a word to apply, tap again to remove. Marks are
+    attached to the word, so they move with it.</div></div>
   <hr>
   <h4>Lexical</h4>
   <div class="item"><div class="kbd">Tap a word</div><div>Lemma, full parsing, gloss, and a
@@ -1084,6 +1152,7 @@ const LINESTYLE = {
 
 const S = {
   key:"c2_112", chapter:"all", docs:{}, undo:[], redo:[],
+  hits:{}, marks:{}, markMode:"underline", findQ:"",
   words:[], lines:[], strokes:[], conns:[], sections:[],
   tool:"move", lastInk:"pen", ci:12, wheelOpen:false, lineStyle:"regular",
   pencilMode:true, sel:null, lemHi:{}, connFrom:null, curLine:null, dpr:1
@@ -1401,6 +1470,7 @@ async function loadFiles(files){
 function build(key){
   S.key = key; S.words = []; S.lines = []; S.strokes = []; S.conns = []; S.sections = [];
   S.sel = null; S.lemHi = {}; S.connFrom = null; S.curLine = null;
+  S.hits = {}; S.marks = {}; S._hits = [];
 
   // undo history belongs to one diagram: snapshots refer to that passage's
   // word ids, so carrying them across passages would corrupt the page
@@ -1512,7 +1582,8 @@ function render(){
     if(w._wx !== x){ w.el.style.left = x + "px"; w._wx = x; }
     if(w._wy !== y){ w.el.style.top  = y + "px"; w._wy = y; }
 
-    const lc = S.lemHi[w.lemma] || "";        // per-lemma highlight colour, if any
+    // a search hit wins over a lemma highlight, which wins over nothing
+    const lc = S.hits[w.id] || S.lemHi[w.lemma] || "";
     if(w._wbg !== lc){ w.el.style.background = lc; w._wbg = lc; }   // beats .sel/.float
 
     const cls = "w"
@@ -1520,6 +1591,36 @@ function render(){
       + (lc ? " lem" : "")
       + (w.fx !== null ? " float" : "");
     if(w._wcls !== cls){ w.el.className = cls; w._wcls = cls; }
+
+    // underline / box / symbol. Outline is used for the box so it does not
+    // collide with the selection ring, which is a box-shadow.
+    const mk  = S.marks[w.id] || null;
+    const und = mk && mk.u ? mk.u : "";
+    const box = mk && mk.b ? mk.b : "";
+    const sym = mk && mk.s ? mk.s : "";
+    if(w._und !== und){
+      w.el.style.borderBottom = und ? "2.5px solid " + und : "";
+      w._und = und;
+    }
+    if(w._box !== box){
+      w.el.style.outline = box ? "2px solid " + box : "";
+      w.el.style.outlineOffset = box ? "1px" : "";
+      w._box = box;
+    }
+    if(w._sym !== sym){
+      if(!sym){
+        if(w._symEl){ w._symEl.remove(); w._symEl = null; }
+      } else {
+        if(!w._symEl){
+          w._symEl = document.createElement("span");
+          w._symEl.className = "sym";
+          w.el.appendChild(w._symEl);          // child, so it travels with the word
+        }
+        w._symEl.textContent = sym;
+        w._symEl.style.color = (mk && mk.sc) || "";
+      }
+      w._sym = sym;
+    }
   });
 }
 
@@ -1877,6 +1978,12 @@ hit.addEventListener("pointerdown", e=>{
   if(t === "join"){
     const w = wordAt(p.x, p.y);
     if(w){ pushUndo(); joinWordLine(w); }
+    return;
+  }
+
+  if(t === "mark"){
+    const w = wordAt(p.x, p.y);
+    if(w) markWord(w);
     return;
   }
 
@@ -2261,6 +2368,7 @@ function pickColor(i){
   S.ci = i;
   // the style menu previews in the live colour, so refresh it if it is open
   if(linePop.classList.contains("show")) paintLinePop();
+  if(document.getElementById("markPop").classList.contains("show")) paintMarkPop();
   saveSoon();
   // recolour a highlighted lemma live if its word is open in the inspector
   if(S.sel !== null){
@@ -2302,6 +2410,8 @@ document.querySelectorAll("[data-tool]").forEach(b=>{
     document.querySelectorAll("[data-tool]").forEach(x=>x.classList.toggle("on", x === b));
     // selecting Line opens its style menu; any other tool closes it
     if(S.tool === "line"){ paintLinePop(); placeLinePop(); openPop(linePop); }
+    else if(S.tool === "mark"){ paintMarkPop(); placeMarkPop();
+                                openPop(document.getElementById("markPop")); }
     else closePops();
     paintWheel(); drawConns();   // wheel previews tints vs hues per tool
   };
@@ -2311,7 +2421,8 @@ document.querySelectorAll("[data-tool]").forEach(b=>{
 const helpPop = document.getElementById("help");
 const setPop  = document.getElementById("settings");
 
-const ALLPOPS = ()=> [helpPop, setPop, document.getElementById("linePop")];
+const ALLPOPS = ()=> [helpPop, setPop, document.getElementById("linePop"),
+                      document.getElementById("markPop"), document.getElementById("findPop")];
 
 function openPop(pop){
   const opening = !pop.classList.contains("show");
@@ -2331,8 +2442,8 @@ function closePops(){
 // tapping the page dismisses them, but not taps inside a panel or on its button
 document.addEventListener("pointerdown", e=>{
   const t = e.target;
-  if(t.closest && (t.closest(".pop") || t.closest("#helpBtn") ||
-                   t.closest("#setBtn") || t.closest("#lineBtn"))) return;
+  if(t.closest && (t.closest(".pop") || t.closest("#helpBtn") || t.closest("#setBtn") ||
+                   t.closest("#lineBtn") || t.closest("#markBtn") || t.closest("#findBtn"))) return;
   closePops();
 }, true);
 
@@ -2377,6 +2488,168 @@ document.getElementById("chapter").onchange = e =>{
   S.chapter = e.target.value;
   build(S.key); syncJoin(); saveNow();
 };
+
+/* ============================================================
+   FIND
+   Every word already carries a readable parsing ("aorist active imperative,
+   2nd plural"), so grammatical search is substring matching over that plus
+   lemma, surface form and gloss. Accents are stripped, so typing λυπεω
+   finds λυπέω.
+   ============================================================ */
+const FINDSETS = {
+  mood:  ["imperative","subjunctive","optative","participle","infinitive","indicative"],
+  tense: ["present","imperfect","aorist","perfect","future","pluperfect"],
+  voice: ["active","middle","passive"],
+  case:  ["nominative","genitive","dative","accusative","vocative"]
+};
+
+const deaccent = s => String(s || "").normalize("NFD")
+  .replace(/[̀-ͯ͂-ͅ᾽-῿]/g, "")
+  .replace(/[ʼ’']/g, "").toLowerCase();
+
+/* Space-separated terms are ANDed: "aorist imperative" finds only those. */
+function findMatches(q){
+  const terms = deaccent(q).split(/\s+/).filter(Boolean);
+  if(!terms.length) return [];
+  return S.words.filter(w=>{
+    const hay = deaccent([w.parse, w.pos, w.lemma, w.surface, w.gloss].join(" "));
+    return terms.every(t => hay.includes(t));
+  });
+}
+
+function paintFindChips(){
+  Object.keys(FINDSETS).forEach(set=>{
+    const box = document.querySelector('.chips[data-set="' + set + '"]');
+    if(!box) return;
+    box.innerHTML = "";
+    FINDSETS[set].forEach(term=>{
+      const b = document.createElement("button");
+      b.className = "chip" + (deaccent(S.findQ).split(/\s+/).includes(term) ? " on" : "");
+      b.textContent = term.charAt(0).toUpperCase() + term.slice(1);
+      b.onclick = ()=>{
+        // chips toggle, and combine: Aorist + Imperative narrows the search
+        const parts = S.findQ.split(/\s+/).filter(Boolean);
+        const at = parts.indexOf(term);
+        if(at >= 0) parts.splice(at, 1); else parts.push(term);
+        S.findQ = parts.join(" ");
+        document.getElementById("findQ").value = S.findQ;
+        runFind();
+      };
+      box.appendChild(b);
+    });
+  });
+}
+
+function runFind(){
+  const hits = findMatches(S.findQ);
+  S._hits = hits;
+  const el = document.getElementById("findCount");
+  const q = S.findQ.trim();
+  if(!q) el.textContent = "Type or tap a grammar chip.";
+  else if(!hits.length) el.textContent = "No matches for “" + q + "”.";
+  else {
+    const lemmas = new Set(hits.map(w=>w.lemma)).size;
+    el.innerHTML = "<b>" + hits.length + "</b> word" + (hits.length>1?"s":"") +
+                   " · " + lemmas + " lemma" + (lemmas>1?"s":"");
+  }
+  paintFindChips();
+}
+
+function applyFind(kind){
+  const hits = S._hits || [];
+  if(!hits.length) return;
+  pushUndo();
+  const c = COLORS[S.ci];
+  hits.forEach(w=>{
+    if(kind === "highlight") S.hits[w.id] = c.tint;
+    else {
+      const mk = S.marks[w.id] || (S.marks[w.id] = {});
+      if(kind === "underline") mk.u = c.hue;
+      if(kind === "box")       mk.b = c.hue;
+    }
+  });
+  render(); saveSoon();
+}
+
+document.getElementById("findQ").addEventListener("input", e=>{
+  S.findQ = e.target.value; runFind();
+});
+document.getElementById("fHi").onclick    = ()=> applyFind("highlight");
+document.getElementById("fUnd").onclick   = ()=> applyFind("underline");
+document.getElementById("fBox").onclick   = ()=> applyFind("box");
+document.getElementById("fClear").onclick = ()=>{
+  pushUndo();
+  S.hits = {}; S.marks = {};
+  render(); saveSoon();
+};
+document.getElementById("findBtn").onclick = ()=>{
+  openPop(document.getElementById("findPop"));
+  paintFindChips(); runFind();
+};
+
+/* ============================================================
+   MARKS — underline, box, or a small badge above a word
+   ============================================================ */
+const MARKSYMS = ["♥","🩸","✝","★","✓","✗","!","?","→","↑","☾","✿","☞","※","🔥","👑"];
+
+function paintMarkPop(){
+  const pop = document.getElementById("markPop");
+  const hue = COLORS[S.ci].hue;
+  pop.innerHTML = "";
+  const h = document.createElement("h4"); h.textContent = "Mark a word"; pop.appendChild(h);
+
+  [["underline","Underline"],["box","Box"]].forEach(([v,label])=>{
+    const b = document.createElement("button");
+    b.className = "styleopt" + (S.markMode === v ? " on" : "");
+    b.innerHTML =
+      (v === "underline"
+        ? `<svg class="prev" viewBox="0 0 62 16"><text x="4" y="12" font-family="Cardo,serif"
+             font-size="13" fill="${hue}">λόγος</text><path d="M3 14.5h34" stroke="${hue}"
+             stroke-width="2.5" stroke-linecap="round"/></svg>`
+        : `<svg class="prev" viewBox="0 0 62 16"><text x="6" y="12" font-family="Cardo,serif"
+             font-size="13" fill="${hue}">λόγος</text><rect x="3" y="1.5" width="36" height="13"
+             rx="2" fill="none" stroke="${hue}" stroke-width="2"/></svg>`) +
+      `<span class="txt"><span class="nm">${label}</span></span><span class="tick">✓</span>`;
+    b.onclick = ()=>{ S.markMode = v; paintMarkPop(); };
+    pop.appendChild(b);
+  });
+
+  const lbl = document.createElement("h4"); lbl.textContent = "Or a symbol"; pop.appendChild(lbl);
+  const grid = document.createElement("div"); grid.className = "marksym";
+  MARKSYMS.forEach(sym=>{
+    const b = document.createElement("div");
+    b.className = "s" + (S.markMode === sym ? " on" : "");
+    b.textContent = sym;
+    b.onclick = ()=>{ S.markMode = sym; paintMarkPop(); };
+    grid.appendChild(b);
+  });
+  pop.appendChild(grid);
+
+  const foot = document.createElement("div");
+  foot.className = "foot";
+  foot.textContent = "Tap a word to apply, tap again to remove. Marks take the wheel's colour.";
+  pop.appendChild(foot);
+}
+
+function placeMarkPop(){
+  const pop = document.getElementById("markPop");
+  const r = document.getElementById("markBtn").getBoundingClientRect();
+  pop.style.top = (r.bottom + 8) + "px";
+  pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - 272)) + "px";
+}
+
+/* Toggle the current mark on a word. */
+function markWord(w){
+  pushUndo();
+  const mk = S.marks[w.id] || {};
+  const c = COLORS[S.ci];
+  if(S.markMode === "underline")  mk.u = mk.u ? null : c.hue;
+  else if(S.markMode === "box")   mk.b = mk.b ? null : c.hue;
+  else { mk.s = (mk.s === S.markMode) ? null : S.markMode; mk.sc = c.hue; }
+  if(!mk.u && !mk.b && !mk.s) delete S.marks[w.id];
+  else S.marks[w.id] = mk;
+  render(); saveSoon();
+}
 
 /* ---- line-style menu, anchored under the Line button ---- */
 const linePop = document.getElementById("linePop");
@@ -2553,7 +2826,10 @@ function docSnapshot(){
     })),
     conns:   S.conns.map(c => [c.a, c.b]),
     sections:S.sections.map(s => ({ w:s.beforeWord, t:s.title, ci:s.ci })),
-    lem: Object.assign({}, S.lemHi)
+    lem: Object.assign({}, S.lemHi),
+    hits: Object.assign({}, S.hits),
+    marks: JSON.parse(JSON.stringify(S.marks)),
+    findQ: S.findQ
   };
 }
 
@@ -2591,6 +2867,13 @@ function applyDoc(d){
     .map((s,i) => ({ id:i+1, beforeWord:s.w, title:s.t || "", ci:s.ci || 0 }));
   S.secSeq = S.sections.length;
   S.lemHi = Object.assign({}, d.lem || {});
+  S.hits  = Object.assign({}, d.hits || {});
+  S.marks = JSON.parse(JSON.stringify(d.marks || {}));
+  // drop anything pointing at a word this passage no longer has
+  Object.keys(S.hits).forEach(id =>{ if(!S.words[id]) delete S.hits[id]; });
+  Object.keys(S.marks).forEach(id =>{ if(!S.words[id]) delete S.marks[id]; });
+  S.findQ = d.findQ || "";
+  const fq = document.getElementById("findQ"); if(fq) fq.value = S.findQ;
   return true;
 }
 
@@ -2854,7 +3137,7 @@ async function boot(){
   booted = true;
   await loadSaved();          // books, diagrams and settings from last time
   build(S.key); syncJoin(); syncUndo();
-  paintWheel(); paintLinePop();
+  paintWheel(); paintLinePop(); paintMarkPop(); paintFindChips();
   reportStorage();
 }
 
@@ -2876,6 +3159,7 @@ document.addEventListener("visibilitychange", ()=>{
 window.addEventListener("resize", ()=>{
   place();
   if(linePop.classList.contains("show")) placeLinePop();
+  if(document.getElementById("markPop").classList.contains("show")) placeMarkPop();
 });
 boot();
 </script>

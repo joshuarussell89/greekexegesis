@@ -2,7 +2,7 @@
    Cache-first for the shell, with a background refresh so a new version
    is picked up on the next launch. Your books and diagrams live in
    IndexedDB and are never touched by this. */
-const CACHE = "kolon-v2";
+const CACHE = "kolon-v3";
 const SHELL = [
   "./",
   "./index.html",

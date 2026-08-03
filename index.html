@@ -665,6 +665,7 @@ const PASSAGES = {};
    STATE
    ============================================================ */
 const INDENT = 36, ROW = 44, MARGIN = 78, TOP = 30, GAPW = 9, WRAP = 1075;
+const MAX_LAYOUT_WORDS = 2600;   // about a long chapter
 const SECGAP = 46;          // vertical space a section break opens up
 
 /* The four drawable line weights. "thick" is deliberately absent: choosing it
@@ -969,7 +970,10 @@ function refreshChapterMenu(){
   ch.innerHTML = "";
   const all = document.createElement("option");
   all.value = "all";
-  all.textContent = "Whole book (" + p.words.toLocaleString() + " words)";
+  all.textContent = p.words > MAX_LAYOUT_WORDS
+    ? "Whole book — too large to lay out (" + p.words.toLocaleString() + " words)"
+    : "Whole book (" + p.words.toLocaleString() + " words)";
+  all.disabled = p.words > MAX_LAYOUT_WORDS;
   ch.appendChild(all);
   p.chapters.forEach(c=>{
     const o = document.createElement("option");
@@ -1062,10 +1066,24 @@ function buildPassage(key){
   const p = PASSAGES[key];
   board.querySelectorAll(".w,.vn,.lh,.secbreak").forEach(n=>n.remove());
 
-  // a loaded book can be laid out whole or one chapter at a time
+  // A loaded book can be laid out whole or one chapter at a time — but only
+  // up to a point. A whole Gospel is ~18,000 words, which makes a page some
+  // 120,000px tall and an ink canvas of ~139 million pixels. iOS Safari caps a
+  // canvas near 16.7 million, so past that the ink layer is invalid and the
+  // page stops responding to touch altogether. Fall back to one chapter.
   let verses = p.verses;
   if(p.byChapter && S.chapter && S.chapter !== "all")
     verses = verses.filter(([ref]) => String(ref).split(":")[0] === String(S.chapter));
+
+  let capped = 0;
+  const count = vs => vs.reduce((n,v)=>n+v[1].length, 0);
+  if(count(verses) > MAX_LAYOUT_WORDS && p.chapters && p.chapters.length > 1){
+    capped = count(verses);
+    S.chapter = p.chapters[0];
+    verses = p.verses.filter(([ref]) => String(ref).split(":")[0] === String(S.chapter));
+    const ch = document.getElementById("chapter");
+    if(ch) ch.value = S.chapter;
+  }
 
   verses.forEach(([vn, toks])=>{
     // a verse key is either a bare number (chapter comes from p.ch) or "ch:v"
@@ -1089,6 +1107,10 @@ function buildPassage(key){
   S.words.forEach(w=>{ const r = w.el.getBoundingClientRect(); w.w = r.width; w.h = r.height; });
   const wc = document.getElementById("wcount");
   wc.textContent = S.words.length > 500 ? S.words.length.toLocaleString() + " words" : "";
+  if(capped){
+    wc.textContent = "showing chapter " + S.chapter + " — " +
+      capped.toLocaleString() + " words is too many for one page";
+  }
 
   // restore whatever diagram was last made for this passage and chapter
   if(S.docs && S.docs[docKey()]) applyDoc(S.docs[docKey()]);
@@ -1212,12 +1234,31 @@ function render(){
 /* ============================================================
    CANVAS / INK
    ============================================================ */
+const CANVAS_BUDGET = 12e6;    // safely under iOS Safari's ~16.7M pixel ceiling
+const CANVAS_MAXDIM = 8192;    // and under the per-dimension texture limit
+
 function resizeCanvas(){
-  S.dpr = Math.min(window.devicePixelRatio || 1, 2);
-  cv.width  = board.offsetWidth  * S.dpr;
-  cv.height = board.offsetHeight * S.dpr;
-  cv.style.width  = board.offsetWidth  + "px";
-  cv.style.height = board.offsetHeight + "px";
+  const w = board.offsetWidth, h = board.offsetHeight;
+  // Drop resolution before exceeding the budget: a blurry ink layer is far
+  // better than an invalid one, which silently kills the whole canvas.
+  let dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const area = Math.max(1, w * h);
+  if(area * dpr * dpr > CANVAS_BUDGET) dpr = Math.sqrt(CANVAS_BUDGET / area);
+  let cw = Math.max(1, Math.floor(w * dpr)), chh = Math.max(1, Math.floor(h * dpr));
+  // last resort: WebKit also caps a single dimension, so clamp both. The
+  // layout cap should mean we never reach here, but an invalid canvas is a
+  // silent, total failure and is worth guarding twice.
+  if(cw > CANVAS_MAXDIM || chh > CANVAS_MAXDIM){
+    const k = Math.min(CANVAS_MAXDIM / cw, CANVAS_MAXDIM / chh);
+    cw = Math.max(1, Math.floor(cw * k));
+    chh = Math.max(1, Math.floor(chh * k));
+    dpr *= k;
+  }
+  S.dpr = dpr;
+  cv.width  = cw;
+  cv.height = chh;
+  cv.style.width  = w + "px";
+  cv.style.height = h + "px";
   redraw();
 }
 
@@ -1688,6 +1729,28 @@ window.addEventListener("pointermove", e=>{
   lastPointerAt = Date.now();
   const p = active.get(e.pointerId);
   if(p) p.t = lastPointerAt;
+}, true);
+
+/* Diagnostic. Records every pointerdown anywhere on the page, and asks the
+   browser what element is actually topmost at that point. If touches on the
+   text are being swallowed, this names the culprit instead of leaving us to
+   guess at z-order. */
+function describeEl(el){
+  if(!el) return "nothing";
+  const id = el.id ? "#" + el.id : "";
+  const cls = (typeof el.className === "string" && el.className)
+    ? "." + el.className.trim().split(/\s+/).join(".") : "";
+  return (el.tagName || "?") + id + cls;
+}
+window.addEventListener("pointerdown", e=>{
+  S._anyCount = (S._anyCount || 0) + 1;
+  S._anyType = e.pointerType;
+  try{
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    S._anyTarget = describeEl(el);
+    S._anyEvTarget = describeEl(e.target);
+    S._anyXY = Math.round(e.clientX) + "," + Math.round(e.clientY);
+  }catch(err){ S._anyTarget = "could not test"; }
 }, true);
 hit.addEventListener("pointerup", e=>{
   if(drag && drag.kind === "word" && !drag.moved && Date.now() - drag.t0 < 450){
@@ -2770,7 +2833,9 @@ document.getElementById("pmode").onchange = e => S.pencilMode = e.target.checked
 document.getElementById("passage").onchange = e =>{
   saveNow();                       // bank the diagram we are leaving
   S.key = e.target.value;
-  S.chapter = "all";
+  const np = PASSAGES[S.key];
+  S.chapter = (np && np.words > MAX_LAYOUT_WORDS && np.chapters && np.chapters.length)
+    ? np.chapters[0] : "all";
   refreshChapterMenu();
   build(S.key); syncJoin(); saveNow();
   if(esvPanel.classList.contains("show")) loadESV();
@@ -3117,10 +3182,16 @@ async function reportStorage(){
   bits.push(window.matchMedia && window.matchMedia("(display-mode: standalone)").matches
     ? "running as an installed app" : "running in the browser tab");
   bits.push("build " + BUILD);
+  bits.push(S._anyCount
+    ? `${S._anyCount} touch(es) anywhere on the page, last was ${S._anyType}`
+    : "NO touches anywhere on the page");
   bits.push(S._inputCount
-    ? `last input on the page: ${S._lastInput} (${S._inputCount} so far)`
-    : "the page has received no touches yet");
+    ? `${S._inputCount} of those reached the text area`
+    : "NONE reached the text area");
+  if(S._anyTarget) bits.push(`last touch landed on ${S._anyTarget} at ${S._anyXY}` +
+    (S._anyEvTarget && S._anyEvTarget !== S._anyTarget ? ` (event went to ${S._anyEvTarget})` : ""));
   bits.push(S.words.length ? S.words.length + " words on screen" : "no passage loaded");
+  bits.push("pencil mode " + (S.pencilMode ? "on" : "off") + ", tool " + S.tool);
   el.textContent = bits.join(" · ");
 }
 
@@ -3188,7 +3259,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-08-04d";
+const BUILD = "2026-08-04f";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file

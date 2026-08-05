@@ -179,6 +179,10 @@
   #esv .ekey input:focus{outline:none;border-color:var(--accent);}
   #esv .ekey button{font-size:13px;padding:9px 14px;border-radius:9px;}
 
+  .outopts{display:flex;flex-direction:column;gap:10px;padding:4px 2px 2px;}
+  .outopts label{display:flex;align-items:center;gap:9px;font-size:13.5px;cursor:pointer;}
+  .outopts input{accent-color:var(--accent);width:16px;height:16px;}
+
   /* ---------- import mapping ---------- */
   .impgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;}
   .impgrid label{display:flex;flex-direction:column;gap:4px;font-size:10.5px;
@@ -552,6 +556,23 @@
   </div>
 </div>
 
+<div id="outlineSheet" class="sheet">
+  <div class="ws">
+    <div class="wslbl">Your section titles become numbered headings in a Word document —
+      a sermon outline built from the diagram.</div>
+    <div class="outopts">
+      <label><input type="checkbox" id="outRefs" checked> Verse range under each heading</label>
+      <label><input type="checkbox" id="outGreek"> The Greek text of each section</label>
+      <label><input type="checkbox" id="outNotes" checked> Your notes, as bullet points</label>
+    </div>
+    <div class="askstate" id="outState"></div>
+    <div class="wsbtns">
+      <button id="outCancel">Cancel</button>
+      <button id="outGo" class="act">✓ Create the document</button>
+    </div>
+  </div>
+</div>
+
 <div id="importSheet" class="sheet">
   <div class="ws">
     <div class="wslbl">This file isn't MorphGNT, so tell me which column is which.
@@ -681,6 +702,9 @@
     — no connection needed.</div></div>
   <div class="item"><div class="kbd">Export</div><div><b>⋯ → Export</b> saves the page as an
     image, or prints it, which on an iPad gives you a PDF via Save to Files.</div></div>
+  <div class="item"><div class="kbd">Outline</div><div>Section titles become numbered headings in
+    a Word document, with the verse range and your notes underneath — the diagram turned into a
+    sermon skeleton.</div></div>
   <hr>
   <h4>Lexical</h4>
   <div class="item"><div class="kbd">Tap a word</div><div>Lemma, full parsing, gloss, and a
@@ -761,11 +785,13 @@
   <button class="rowbtn" id="forget">Forget saved work</button>
   <hr>
   <h4>Export</h4>
+  <button class="rowbtn" id="exportOutline">Sermon outline as a Word document…</button>
   <button class="rowbtn" id="exportPng">Save this page as an image…</button>
   <button class="rowbtn" id="exportPrint">Print / Save as PDF…</button>
-  <div class="foot">The image is exactly what you see: text, ink, boxes, arrows, section
-    breaks and marks. Printing uses the iPad's own share sheet, where "Save to Files"
-    produces a PDF.</div>
+  <div class="foot">The outline turns each section title into a numbered heading, with the
+    verse range and your notes beneath it. The image is exactly what you see: text, ink, boxes,
+    arrows, section breaks and marks. Printing uses the iPad's own share sheet, where
+    "Save to Files" produces a PDF.</div>
   <hr>
   <h4>Page</h4>
   <button class="rowbtn" id="reset">Reset layout — keep ink and sections</button>
@@ -3411,7 +3437,206 @@ function exportPNG(){
 }
 
 document.getElementById("exportPng").onclick = exportPNG;
+document.getElementById("exportOutline").onclick = ()=>{ closePops(); openOutline(); };
 document.getElementById("exportPrint").onclick = ()=>{ closePops(); setTimeout(()=>window.print(), 60); };
+
+
+/* ============================================================
+   SERMON OUTLINE  →  WORD DOCUMENT
+   A .docx is a zip of XML parts. There is no zip writer in the browser, so
+   here is a small one: entries are STORED (uncompressed), which Word accepts
+   and which avoids needing a deflate implementation.
+   ============================================================ */
+const CRC_TABLE = (()=>{
+  const t = new Uint32Array(256);
+  for(let n = 0; n < 256; n++){
+    let c = n;
+    for(let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+function crc32(bytes){
+  let c = 0xFFFFFFFF;
+  for(let i = 0; i < bytes.length; i++) c = CRC_TABLE[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+
+function zipStored(files){
+  const enc = new TextEncoder();
+  const parts = [], central = [];
+  let offset = 0;
+  const u16 = n => [n & 255, (n >>> 8) & 255];
+  const u32 = n => [n & 255, (n >>> 8) & 255, (n >>> 16) & 255, (n >>> 24) & 255];
+
+  files.forEach(f=>{
+    const name = enc.encode(f.name);
+    const data = enc.encode(f.data);
+    const crc = crc32(data);
+    const local = [].concat(
+      u32(0x04034b50), u16(20), u16(0x0800), u16(0),   // UTF-8 names, stored
+      u16(0), u16(0), u32(crc), u32(data.length), u32(data.length),
+      u16(name.length), u16(0));
+    parts.push(new Uint8Array(local), name, data);
+    central.push([].concat(
+      u32(0x02014b50), u16(20), u16(20), u16(0x0800), u16(0),
+      u16(0), u16(0), u32(crc), u32(data.length), u32(data.length),
+      u16(name.length), u16(0), u16(0), u16(0), u16(0), u32(0), u32(offset)));
+    central[central.length - 1]._name = name;
+    offset += local.length + name.length + data.length;
+  });
+
+  const cdStart = offset;
+  central.forEach(c=>{ parts.push(new Uint8Array(c), c._name); offset += c.length + c._name.length; });
+  parts.push(new Uint8Array([].concat(
+    u32(0x06054b50), u16(0), u16(0), u16(files.length), u16(files.length),
+    u32(offset - cdStart), u32(cdStart), u16(0))));
+
+  let total = 0; parts.forEach(p => total += p.length);
+  const out = new Uint8Array(total);
+  let at = 0; parts.forEach(p=>{ out.set(p, at); at += p.length; });
+  return out;
+}
+
+const xmlEsc = t => String(t == null ? "" : t)
+  .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+  .replace(/"/g,"&quot;").replace(/'/g,"&apos;");
+
+/* Group the page into an introduction plus one bucket per section break,
+   in the order they appear down the page. */
+function buildOutline(){
+  const secs = sectionsByLine();
+  const buckets = [{ title:null, words:[], sec:null }];
+  S.lines.forEach(line=>{
+    const sec = secs[line.id];
+    if(sec) buckets.push({ title: sec.title || "", words:[], sec });
+    line.ids.forEach(id => buckets[buckets.length-1].words.push(S.words[id]));
+  });
+  if(!buckets[0].words.length) buckets.shift();     // no text before the first break
+  return buckets.map(b=>{
+    const refs = b.words.map(w => w.verse);
+    const notes = b.words.filter(w => S.notes[w.id])
+                         .map(w => ({ ref:w.verse, surface:w.surface, text:S.notes[w.id] }));
+    return {
+      title: b.title,
+      numbered: !!b.sec,
+      from: refs[0] || "", to: refs[refs.length-1] || "",
+      greek: b.words.map(w => w.surface).join(" "),
+      notes
+    };
+  });
+}
+
+function docxParagraph(text, style, opts){
+  const o = opts || {};
+  const rpr = o.greek ? '<w:rPr><w:rFonts w:ascii="Cardo" w:hAnsi="Cardo"/><w:sz w:val="26"/></w:rPr>'
+            : (o.small ? '<w:rPr><w:sz w:val="18"/><w:color w:val="7C756A"/></w:rPr>' : "");
+  return '<w:p><w:pPr>' + (style ? '<w:pStyle w:val="' + style + '"/>' : "") +
+         (o.bullet ? '<w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr>' : "") +
+         '</w:pPr><w:r>' + rpr + '<w:t xml:space="preserve">' + xmlEsc(text) + '</w:t></w:r></w:p>';
+}
+
+function exportOutline(){
+  const inc = id => document.getElementById(id).checked;
+  const withGreek = inc("outGreek"), withNotes = inc("outNotes"), withRefs = inc("outRefs");
+  const p = PASSAGES[S.key];
+  const heading = (p ? p.title : "Passage") + (S.chapter && S.chapter !== "all" ? " " + S.chapter : "");
+  const outline = buildOutline();
+
+  let body = docxParagraph(heading, "Title");
+  let n = 0;
+  outline.forEach(b=>{
+    if(b.numbered){
+      n++;
+      body += docxParagraph(n + ". " + (b.title || "(untitled section)"), "Heading1");
+    } else if(outline.length > 1){
+      body += docxParagraph("Introduction", "Heading1");
+    }
+    if(withRefs && b.from){
+      body += docxParagraph(b.from === b.to ? b.from : b.from + "–" + b.to, null, {small:true});
+    }
+    if(withGreek && b.greek) body += docxParagraph(b.greek, null, {greek:true});
+    if(withNotes) b.notes.forEach(nt=>{
+      body += docxParagraph(nt.surface + " (" + nt.ref + ") — " + nt.text, null, {bullet:true});
+    });
+    body += docxParagraph("");
+  });
+
+  const doc = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
+    '<w:body>' + body + '</w:body></w:document>';
+
+  // docDefaults and an explicit Normal style: without them a paragraph with no
+  // pStyle has no resolvable style at all, which trips stricter readers even
+  // though Word itself copes
+  const styles = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
+    '<w:docDefaults><w:rPrDefault><w:rPr>' +
+    '<w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/><w:sz w:val="22"/>' +
+    '</w:rPr></w:rPrDefault><w:pPrDefault><w:pPr>' +
+    '<w:spacing w:after="120" w:line="276" w:lineRule="auto"/>' +
+    '</w:pPr></w:pPrDefault></w:docDefaults>' +
+    '<w:style w:type="paragraph" w:default="1" w:styleId="Normal">' +
+    '<w:name w:val="Normal"/><w:qFormat/></w:style>' +
+    '<w:style w:type="paragraph" w:styleId="Title"><w:name w:val="Title"/>' +
+    '<w:pPr><w:spacing w:after="240"/></w:pPr>' +
+    '<w:rPr><w:b/><w:sz w:val="40"/></w:rPr></w:style>' +
+    '<w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/>' +
+    '<w:pPr><w:outlineLvl w:val="0"/><w:spacing w:before="240" w:after="120"/></w:pPr>' +
+    '<w:rPr><w:b/><w:sz w:val="30"/></w:rPr></w:style>' +
+    '</w:styles>';
+
+  const numbering = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<w:numbering xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
+    '<w:abstractNum w:abstractNumId="0"><w:lvl w:ilvl="0"><w:numFmt w:val="bullet"/>' +
+    '<w:lvlText w:val="•"/><w:pPr><w:ind w:left="720" w:hanging="360"/></w:pPr></w:lvl>' +
+    '</w:abstractNum><w:num w:numId="1"><w:abstractNumId w:val="0"/></w:num></w:numbering>';
+
+  const files = [
+    { name:"[Content_Types].xml", data:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+      '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+      '<Default Extension="xml" ContentType="application/xml"/>' +
+      '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>' +
+      '<Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>' +
+      '<Override PartName="/word/numbering.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"/>' +
+      '</Types>' },
+    { name:"_rels/.rels", data:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+      '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>' +
+      '</Relationships>' },
+    { name:"word/_rels/document.xml.rels", data:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+      '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>' +
+      '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering" Target="numbering.xml"/>' +
+      '</Relationships>' },
+    { name:"word/document.xml",  data:doc },
+    { name:"word/styles.xml",    data:styles },
+    { name:"word/numbering.xml", data:numbering }
+  ];
+
+  const bytes = zipStored(files);
+  const blob = new Blob([bytes],
+    {type:"application/vnd.openxmlformats-officedocument.wordprocessingml.document"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = heading.replace(/\s+/g,"-").toLowerCase() + "-outline.docx";
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 0);
+  document.getElementById("outlineSheet").classList.remove("show");
+}
+
+function openOutline(){
+  const outline = buildOutline();
+  const named = outline.filter(b => b.numbered).length;
+  document.getElementById("outState").textContent = named
+    ? named + " section" + (named === 1 ? "" : "s") + " will become numbered headings."
+    : "No section breaks yet — add them with the Line tool set to Extra thick, and title each one.";
+  document.getElementById("outlineSheet").classList.add("show");
+}
+document.getElementById("outCancel").onclick = ()=>
+  document.getElementById("outlineSheet").classList.remove("show");
+document.getElementById("outGo").onclick = exportOutline;
 
 /* ---- line-style menu, anchored under the Line button ---- */
 const linePop = document.getElementById("linePop");
@@ -3919,7 +4144,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-08-05c";
+const BUILD = "2026-08-06a";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file

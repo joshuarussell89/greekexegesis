@@ -80,7 +80,14 @@
     background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23857d70' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E");
     background-repeat:no-repeat;background-position:right 9px center;}
   select:hover{border-color:#d5cec0;}
-  #passage{font-weight:500;min-width:120px;max-width:34vw;flex-shrink:1;}
+  .refwrap{display:flex;align-items:center;gap:4px;flex-shrink:1;min-width:0;}
+  #refBox{font:inherit;font-size:13px;padding:7px 10px;border:1px solid var(--rule);
+    border-radius:8px;background:var(--paper);color:var(--ink);width:210px;max-width:38vw;
+    min-width:110px;transition:border-color .15s;}
+  #refBox:focus{outline:none;border-color:var(--accent);}
+  #refBox.bad{border-color:var(--sel);background:#fff5f2;}
+  #refGo{padding:7px 8px;border:1px solid var(--rule);border-radius:8px;}
+  #passage{font-weight:500;min-width:110px;max-width:26vw;flex-shrink:1;}
   #chapter{max-width:26vw;}
 
   .sw{width:24px;height:24px;border-radius:50%;cursor:pointer;border:2px solid transparent;
@@ -429,6 +436,14 @@
   <header>
     <div class="tier">
       <div class="brand"><svg class="mark" viewBox="0 0 100 100" aria-hidden="true"><path d="M29.2 22.8C41.5 19.4 58.5 19.4 70.8 22.8C74.2 47.8 62.8 78.6 50.0 91.8C37.2 78.6 25.8 47.8 29.2 22.8Z" fill="currentColor"/><circle cx="50" cy="45.2" r="5.5" fill="var(--paper)"/><path d="M47.3 45.2L52.7 45.2L50.5 90.5L49.5 90.5Z" fill="var(--paper)"/><path d="M35.2 29.4C32.0 47.4 37.2 65.6 44.8 77.4" fill="none" stroke="var(--paper)" stroke-width="1.7" stroke-linecap="round"/><path d="M64.8 29.4C68.0 47.4 62.8 65.6 55.2 77.4" fill="none" stroke="var(--paper)" stroke-width="1.7" stroke-linecap="round"/><path d="M44.4 37.6C47.0 34.2 53.0 34.2 55.6 37.6" fill="none" stroke="var(--paper)" stroke-width="1.6" stroke-linecap="round"/><path d="M38.6 26.8C44.0 25.0 56.0 25.0 61.4 26.8" fill="none" stroke="var(--paper)" stroke-width="1.6" stroke-linecap="round"/></svg> Nous <em id="buildTag"></em></div>
+      <div class="refwrap">
+        <input type="text" id="refBox" spellcheck="false" autocapitalize="words"
+               enterkeyhint="go" placeholder="2 Corinthians 1:12–2:4">
+        <button id="refGo" title="Go to this passage">
+          <svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.7"
+               stroke-linecap="round" stroke-linejoin="round"><path d="M4 11h13"/>
+          <path d="M12 6l5 5-5 5"/></svg></button>
+      </div>
       <select id="passage"><option value="">No book loaded</option></select>
       <select id="chapter" title="Which part of the loaded book to lay out"
               style="display:none"></select>
@@ -693,6 +708,14 @@
   <div class="item"><div class="kbd">Mark</div><div>Underline a word, box it, or put a small
     badge above it — ♥, 🩸, ✝, ★ and others. Tap a word to apply, tap again to remove. Marks are
     attached to the word, so they move with it.</div></div>
+  <hr>
+  <h4>Finding a passage</h4>
+  <div class="item"><div class="kbd">Reference</div><div>Type it in the box at the top left:
+    <b>2 Corinthians 1:12–2:4</b>, <b>Rom 8:1-17</b>, <b>1 Jn 2</b>, <b>Phlm 4-7</b>. Ranges may
+    cross a chapter break, which chapters alone cannot. Abbreviations and <b>2 Cor</b> style
+    both work.</div></div>
+  <div class="item"><div class="kbd">Its own page</div><div>Each range keeps its own diagram,
+    ink and notes, so 1:12–2:4 and chapter 1 are separate pieces of work.</div></div>
   <hr>
   <h4>Notes and concordance</h4>
   <div class="item"><div class="kbd">Note</div><div>Tap a word and type in the Note box. Words
@@ -1145,6 +1168,13 @@ function refreshChapterMenu(){
     o.value = c; o.textContent = "Chapter " + c;
     ch.appendChild(o);
   });
+  // a typed range is not one of the chapter options, so show it as its own entry
+  if(S.chapter && S.chapter !== "all" && !/^\d+$/.test(S.chapter)){
+    const o = document.createElement("option");
+    o.value = S.chapter;
+    o.textContent = rangeLabel(S.chapter);
+    ch.insertBefore(o, ch.children[1] || null);
+  }
   ch.style.display = "";
   ch.value = S.chapter;
 }
@@ -1238,14 +1268,14 @@ function buildPassage(key){
   // page stops responding to touch altogether. Fall back to one chapter.
   let verses = p.verses;
   if(p.byChapter && S.chapter && S.chapter !== "all")
-    verses = verses.filter(([ref]) => String(ref).split(":")[0] === String(S.chapter));
+    verses = verses.filter(([ref]) => inRange(ref, String(S.chapter)));
 
   let capped = 0;
   const count = vs => vs.reduce((n,v)=>n+v[1].length, 0);
   if(count(verses) > MAX_LAYOUT_WORDS && p.chapters && p.chapters.length > 1){
     capped = count(verses);
     S.chapter = p.chapters[0];
-    verses = p.verses.filter(([ref]) => String(ref).split(":")[0] === String(S.chapter));
+    verses = p.verses.filter(([ref]) => inRange(ref, String(S.chapter)));
     const ch = document.getElementById("chapter");
     if(ch) ch.value = S.chapter;
   }
@@ -1272,6 +1302,11 @@ function buildPassage(key){
   S.words.forEach(w=>{ const r = w.el.getBoundingClientRect(); w.w = r.width; w.h = r.height; });
   const wc = document.getElementById("wcount");
   wc.textContent = S.words.length > 500 ? S.words.length.toLocaleString() + " words" : "";
+  const rb = document.getElementById("refBox");
+  if(rb && document.activeElement !== rb && PASSAGES[key]){
+    rb.value = PASSAGES[key].title +
+      (S.chapter && S.chapter !== "all" ? " " + rangeLabel(S.chapter).replace("chapter ","") : "");
+  }
   if(capped){
     wc.textContent = "showing chapter " + S.chapter + " — " +
       capped.toLocaleString() + " words is too many for one page";
@@ -2439,7 +2474,8 @@ function esvReference(){
   const p = PASSAGES[S.key];
   if(!p) return "";
   const book = p.title;
-  if(S.chapter && S.chapter !== "all") return book + " " + S.chapter;
+  if(S.chapter && S.chapter !== "all")
+    return book + " " + rangeLabel(S.chapter).replace("chapter ","").replace("\u2013","-");
   // whole book selected: ask for the range actually on screen
   if(!S.words.length) return book;
   return book + " " + S.words[0].verse + "-" + S.words[S.words.length-1].verse.split(":")[1];
@@ -2779,6 +2815,123 @@ function doImport(){
 document.getElementById("impCancel").onclick = ()=>
   document.getElementById("importSheet").classList.remove("show");
 document.getElementById("impGo").onclick = doImport;
+
+
+/* ============================================================
+   REFERENCE LOOKUP
+   A chapter is the wrong unit for preaching: sense units cross chapter
+   breaks all the time. S.chapter therefore holds "all", a bare chapter
+   number, or a range like "1:12-2:4" — which means the existing per-passage
+   saving and undo scoping keep working, since they key off that string.
+   ============================================================ */
+const NUMERALS = { i:"1", ii:"2", iii:"3", first:"1", second:"2", third:"3" };
+
+function normBook(str){
+  return String(str || "").toLowerCase()
+    .replace(/[.\u2019']/g, "")
+    .replace(/\s+/g, "");
+}
+
+/* Split "2 Corinthians 1:12-2:4" into its book part and its numbers. */
+function splitRef(input){
+  const t = String(input || "").trim().replace(/[\u2010-\u2015]/g, "-");
+  const m = /^\s*((?:[1-3]|i{1,3})\s*\.?\s*)?([A-Za-z][A-Za-z.\s]*?)\s*([\d:\-\s]*)$/i.exec(t);
+  if(!m) return null;
+  let prefix = (m[1] || "").trim().toLowerCase().replace(/\./g,"");
+  if(NUMERALS[prefix]) prefix = NUMERALS[prefix];
+  return { book: normBook(prefix + m[2]), nums: (m[3] || "").trim() };
+}
+
+function findBookKey(norm){
+  if(!norm) return null;
+  const keys = Object.keys(PASSAGES).filter(k => k.startsWith("nt:"));
+  let best = null;
+  keys.forEach(k=>{
+    const p = PASSAGES[k];
+    const title = normBook(p.title);
+    const b = BOOKS.find(x => x.name === p.title);
+    const ids = b ? b.ids : [];
+    const hit = title === norm || title.startsWith(norm) ||
+                ids.some(id => id === norm || id.startsWith(norm) || norm.startsWith(id));
+    if(hit && (!best || title.length < normBook(PASSAGES[best].title).length)) best = k;
+  });
+  return best;
+}
+
+/* Turn the numeric part into the range string build() understands. */
+function parseNums(nums, chapters){
+  const one = (chapters || []).length === 1;
+  if(!nums) return "all";
+  let m;
+  if((m = /^(\d+):(\d+)\s*-\s*(\d+):(\d+)$/.exec(nums)))
+    return `${+m[1]}:${+m[2]}-${+m[3]}:${+m[4]}`;
+  if((m = /^(\d+):(\d+)\s*-\s*(\d+)$/.exec(nums)))       // 8:1-17 stays in chapter 8
+    return `${+m[1]}:${+m[2]}-${+m[1]}:${+m[3]}`;
+  if((m = /^(\d+):(\d+)$/.exec(nums)))                    // a single verse
+    return `${+m[1]}:${+m[2]}-${+m[1]}:${+m[2]}`;
+  if((m = /^(\d+)\s*-\s*(\d+)$/.exec(nums)))
+    // in a one-chapter book these are verses; elsewhere they are chapters
+    return one ? `1:${+m[1]}-1:${+m[2]}` : `${+m[1]}:1-${+m[2]}:999`;
+  if((m = /^(\d+)$/.exec(nums))) return one ? `1:${+m[1]}-1:${+m[1]}` : m[1];
+  return "all";
+}
+
+function lookupRef(input){
+  const sp = splitRef(input);
+  if(!sp || !sp.book) return { error:"Type something like “2 Corinthians 1:12–2:4”." };
+  const key = findBookKey(sp.book);
+  if(!key) return { error:"No loaded book matches “" + input.trim() + "”." };
+  return { key, range: parseNums(sp.nums, PASSAGES[key].chapters) };
+}
+
+function verseKey(ref){
+  const a = String(ref).split(":");
+  return (+a[0] || 0) * 1000 + (+a[1] || 0);
+}
+
+/* Which verses a range string selects. */
+function inRange(ref, range){
+  if(!range || range === "all") return true;
+  if(/^\d+$/.test(range)) return String(ref).split(":")[0] === range;
+  const m = /^(\d+):(\d+)-(\d+):(\d+)$/.exec(range);
+  if(!m) return true;
+  const k = verseKey(ref);
+  return k >= (+m[1]*1000 + +m[2]) && k <= (+m[3]*1000 + +m[4]);
+}
+
+/* "1:12-2:4" → "1:12–2:4" for display; a bare chapter stays as it is. */
+function rangeLabel(range){
+  if(!range || range === "all") return "whole book";
+  if(/^\d+$/.test(range)) return "chapter " + range;
+  const m = /^(\d+):(\d+)-(\d+):(\d+)$/.exec(range);
+  if(!m) return range;
+  if(m[1] === m[3]) return m[1] + ":" + m[2] + (m[2] === m[4] ? "" : "\u2013" + m[4]);
+  return m[1] + ":" + m[2] + "\u2013" + m[3] + ":" + m[4];
+}
+
+function goToRef(input){
+  const r = lookupRef(input);
+  const box = document.getElementById("refBox");
+  if(r.error){
+    box.classList.add("bad");
+    document.getElementById("wcount").textContent = r.error;
+    setTimeout(()=> box.classList.remove("bad"), 1600);
+    return false;
+  }
+  saveNow();
+  S.key = r.key; S.chapter = r.range;
+  document.getElementById("passage").value = r.key;
+  refreshChapterMenu();
+  build(S.key); syncJoin(); saveNow();
+  if(esvPanel.classList.contains("show")) loadESV();
+  box.value = PASSAGES[r.key].title + " " + rangeLabel(r.range).replace("chapter ", "");
+  return true;
+}
+
+document.getElementById("refGo").onclick = ()=> goToRef(document.getElementById("refBox").value);
+document.getElementById("refBox").addEventListener("keydown", e=>{
+  if(e.key === "Enter"){ e.preventDefault(); goToRef(e.target.value); }
+});
 
 /* ---- corpus loading ----
    Accepts MorphGNT .txt files (any number at once), a repository .zip,
@@ -3425,7 +3578,8 @@ function exportPNG(){
 
   const p = PASSAGES[S.key];
   const name = ((p && p.title) || "nous").replace(/\s+/g,"-").toLowerCase() +
-               (S.chapter && S.chapter !== "all" ? "-" + S.chapter : "") + ".png";
+               (S.chapter && S.chapter !== "all"
+                  ? "-" + String(S.chapter).replace(/[:\s]/g,"-") : "") + ".png";
   c.toBlob(blob=>{
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
@@ -3540,7 +3694,8 @@ function exportOutline(){
   const inc = id => document.getElementById(id).checked;
   const withGreek = inc("outGreek"), withNotes = inc("outNotes"), withRefs = inc("outRefs");
   const p = PASSAGES[S.key];
-  const heading = (p ? p.title : "Passage") + (S.chapter && S.chapter !== "all" ? " " + S.chapter : "");
+  const heading = (p ? p.title : "Passage") +
+    (S.chapter && S.chapter !== "all" ? " " + rangeLabel(S.chapter).replace("chapter ","") : "");
   const outline = buildOutline();
 
   let body = docxParagraph(heading, "Title");
@@ -4144,7 +4299,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-08-06a";
+const BUILD = "2026-08-06b";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file

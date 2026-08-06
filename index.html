@@ -851,6 +851,7 @@ const LINESTYLE = {
 
 const S = {
   key:"", chapter:"all", docs:{}, undo:[], redo:[],
+  lineStarts:{}, floats:{}, byUid:{},
   hits:{}, marks:{}, notes:{}, markMode:"underline", findQ:"", glyphs:[],
   words:[], lines:[], strokes:[], conns:[], sections:[],
   tool:"move", lastInk:"pen", ci:12, wheelOpen:false, lineStyle:"regular",
@@ -1249,23 +1250,22 @@ function build(key){
 }
 
 function buildPassage(key){
-  S.key = key; S.words = []; S.lines = []; S.strokes = []; S.conns = []; S.sections = [];
-  S.sel = null; S.lemHi = {}; S.connFrom = null; S.curLine = null;
-  S.hits = {}; S.marks = {}; S.notes = {}; S._hits = [];
+  S.key = key; S.words = []; S.lines = [];
+  S.sel = null; S.connFrom = null; S.curLine = null; S._hits = [];
 
-  // undo history belongs to one diagram: snapshots refer to that passage's
-  // word ids, so carrying them across passages would corrupt the page
-  const dk = key + "|" + (S.chapter || "all");
-  if(dk !== S._lastDocKey){ S.undo.length = 0; S.redo.length = 0; S._lastDocKey = dk; }
+  // Undo belongs to a book, not to a window onto it.
+  if(key !== S._lastDocKey){ S.undo.length = 0; S.redo.length = 0; S._lastDocKey = key; }
 
   const p = PASSAGES[key];
   board.querySelectorAll(".w,.vn,.lh,.secbreak").forEach(n=>n.remove());
 
-  // A loaded book can be laid out whole or one chapter at a time — but only
-  // up to a point. A whole Gospel is ~18,000 words, which makes a page some
-  // 120,000px tall and an ink canvas of ~139 million pixels. iOS Safari caps a
-  // canvas near 16.7 million, so past that the ink layer is invalid and the
-  // page stops responding to touch altogether. Fall back to one chapter.
+  // Load this book's work before deciding what to show — the annotations
+  // belong to the text and are independent of the range on screen.
+  loadBookDoc(key, p);
+
+  // A whole Gospel is ~18,000 words, which makes a page some 120,000px tall
+  // and an ink canvas of ~139 million pixels. iOS Safari caps a canvas near
+  // 16.7 million, past which it stops responding to touch. Fall back.
   let verses = p.verses;
   if(p.byChapter && S.chapter && S.chapter !== "all")
     verses = verses.filter(([ref]) => inRange(ref, String(S.chapter)));
@@ -1280,23 +1280,33 @@ function buildPassage(key){
     if(ch) ch.value = S.chapter;
   }
 
+  S.byUid = {};
   verses.forEach(([vn, toks])=>{
-    // a verse key is either a bare number (chapter comes from p.ch) or "ch:v"
     const label = (typeof vn === "number") ? p.ch + ":" + vn : String(vn);
-    const line = { id:S.lines.length, indent:0, ids:[], verse:label, y:0, x:0, h:ROW };
-    toks.forEach(t=>{
+    toks.forEach((t, i)=>{
+      // A word is identified by where it sits in the BOOK, not in the view,
+      // so a mark made while reading chapter 2 is still on that word when
+      // you come back to it through 2:5-17.
+      const uid = label + "#" + i;
       const w = {
-        id:S.words.length, surface:t[0], lemma:t[1], pos:t[2], parse:t[3],
-        strongs:t[4], gloss:t[5], verse:label, line:line.id,
+        id:S.words.length, uid, surface:t[0], lemma:t[1], pos:t[2], parse:t[3],
+        strongs:t[4], gloss:t[5], verse:label, line:0,
         lx:0, ly:0, fx:null, fy:null, w:0, h:0, el:null
       };
       const el = document.createElement("div");
       el.className = "w"; el.textContent = t[0]; el.dataset.id = w.id;
       board.appendChild(el); w.el = el;
-      S.words.push(w); line.ids.push(w.id);
+      S.words.push(w); S.byUid[uid] = w;
     });
-    S.lines.push(line);
   });
+
+  // floated positions saved earlier
+  S.words.forEach(w=>{
+    const f = S.floats[w.uid];
+    if(f){ w.fx = f[0]; w.fy = f[1]; }
+  });
+
+  rebuildLines();
 
   // measure
   S.words.forEach(w=>{ const r = w.el.getBoundingClientRect(); w.w = r.width; w.h = r.height; });
@@ -1311,9 +1321,6 @@ function buildPassage(key){
     wc.textContent = "showing chapter " + S.chapter + " — " +
       capped.toLocaleString() + " words is too many for one page";
   }
-
-  // restore whatever diagram was last made for this passage and chapter
-  if(S.docs && S.docs[docKey()]) applyDoc(S.docs[docKey()]);
 
   syncUndo();
   layout(); resizeCanvas();
@@ -1387,19 +1394,19 @@ function render(){
     if(w._wy !== y){ w.el.style.top  = y + "px"; w._wy = y; }
 
     // a search hit wins over a lemma highlight, which wins over nothing
-    const lc = S.hits[w.id] || S.lemHi[w.lemma] || "";
+    const lc = S.hits[w.uid] || S.lemHi[w.lemma] || "";
     if(w._wbg !== lc){ w.el.style.background = lc; w._wbg = lc; }   // beats .sel/.float
 
     const cls = "w"
       + (S.sel === w.id ? " sel" : "")
       + (lc ? " lem" : "")
-      + (S.notes[w.id] ? " hasnote" : "")
+      + (S.notes[w.uid] ? " hasnote" : "")
       + (w.fx !== null ? " float" : "");
     if(w._wcls !== cls){ w.el.className = cls; w._wcls = cls; }
 
     // underline / box / symbol. Outline is used for the box so it does not
     // collide with the selection ring, which is a box-shadow.
-    const mk  = S.marks[w.id] || null;
+    const mk  = S.marks[w.uid] || null;
     const und = mk && mk.u ? mk.u : "";
     const box = mk && mk.b ? mk.b : "";
     const sym = mk && mk.s ? mk.s : "";
@@ -1465,8 +1472,8 @@ function resizeCanvas(){
 
 // a stroke's points are stored relative to its anchor word's render origin
 function strokePoints(s){
-  if(s.anchor === null) return s.pts;
-  const w = S.words[s.anchor];
+  const w = s.anchor == null ? null : wordOf(s.anchor);
+  if(!w) return s.anchor == null ? s.pts : [];   // anchored outside this window
   const ox = px(w), oy = py(w);
   return s.pts.map(p=>({x:p.x+ox, y:p.y+oy, p:p.p}));
 }
@@ -1548,6 +1555,40 @@ function hitPoints(s){
   return out;
 }
 
+
+/* ============================================================
+   ONE TEXT, MANY WINDOWS
+   Annotations are stored against a word's place in the BOOK, so any range
+   you open shows the work already done on those words. The line structure
+   is stored the same way: as the set of words that begin a line, which
+   survives being viewed through a smaller window.
+   ============================================================ */
+function defaultLineStarts(p){
+  const st = {};
+  (p.verses || []).forEach(([ref, toks])=>{ if(toks.length) st[String(ref) + "#0"] = 0; });
+  return st;
+}
+
+/* Build the visible lines from the stored starts. */
+function rebuildLines(){
+  S.lines = [];
+  let cur = null;
+  S.words.forEach((w, i)=>{
+    const starts = (i === 0) || (S.lineStarts[w.uid] !== undefined);
+    if(starts || !cur){
+      cur = { id:S.lines.length, indent:S.lineStarts[w.uid] || 0, ids:[],
+              verse:w.verse, y:0, x:0, h:ROW };
+      S.lines.push(cur);
+    }
+    w.line = cur.id;
+    cur.ids.push(w.id);
+  });
+  if(!S.lines.length) S.lines = [];
+}
+
+const uidOf = id => (S.words[id] ? S.words[id].uid : null);
+const wordOf = uid => S.byUid[uid] || null;
+
 /* ============================================================
    SECTION BREAKS
    Structure, not ink: a break is anchored to a word id (stable across
@@ -1559,9 +1600,10 @@ function hitPoints(s){
 function sectionsByLine(){
   const byLine = {}, keep = [];
   S.sections.forEach(sec=>{
-    const line = S.lines.find(l => l.ids.includes(sec.beforeWord));
-    if(!line) return;                       // its word vanished; drop it
-    sec.beforeWord = line.ids[0];           // snap to the head of the line
+    const w = wordOf(sec.beforeWord);
+    const line = w ? S.lines.find(l => l.ids.includes(w.id)) : null;
+    if(!line) { keep.push(sec); return; }   // belongs to a part of the book not on screen
+    sec.beforeWord = uidOf(line.ids[0]);    // snap to the head of the line
     if(byLine[line.id]) return;             // one break per line
     byLine[line.id] = sec; keep.push(sec);
   });
@@ -1574,7 +1616,7 @@ function toggleSection(boardY){
   if(!S.lines.length) return null;
   let best = S.lines[0], bd = Infinity;
   S.lines.forEach(l=>{ const d = Math.abs(boardY - l.y); if(d < bd){ bd = d; best = l; } });
-  const head = best.ids[0];
+  const head = uidOf(best.ids[0]);
   const at = S.sections.findIndex(s => s.beforeWord === head);
   if(at >= 0){ S.sections.splice(at, 1); layout(); return null; }
   const sec = { id: (S.secSeq = (S.secSeq||0)+1), beforeWord: head, title:"", ci: S.ci };
@@ -1690,7 +1732,8 @@ function drawConns(){
       markerWidth="6" markerHeight="6" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="#8a5a2b"/></marker></defs>`;
   S.conns.forEach(c=>{
-    const a = S.words[c.a], b = S.words[c.b];
+    const a = wordOf(c.a), b = wordOf(c.b);
+    if(!a || !b) return;                 // the other end is outside this window
     const ax = cx(a), ay = py(a) + a.h, bx = cx(b), by = py(b) + b.h;
     const dip = Math.max(26, Math.abs(bx-ax)*0.18 + Math.abs(by-ay)*0.35);
     const mx = (ax+bx)/2, my = Math.max(ay,by) + dip;
@@ -1699,7 +1742,8 @@ function drawConns(){
       marker-end="url(#ah)"/>`;
   });
   if(S.connFrom !== null){
-    const a = S.words[S.connFrom];
+    const a = wordOf(S.connFrom);
+    if(a)
     out += `<circle cx="${cx(a)}" cy="${py(a)+a.h+4}" r="5" fill="#8a5a2b"/>`;
   }
   svg.innerHTML = out;
@@ -1801,11 +1845,12 @@ hit.addEventListener("pointerdown", e=>{
   if(INKTOOLS.has(t)){
     pushUndo();
     const anchor = nearestWord(p.x, p.y, 110);
-    const ox = anchor !== null ? px(S.words[anchor]) : 0;
-    const oy = anchor !== null ? py(S.words[anchor]) : 0;
+    const aw = anchor !== null ? S.words[anchor] : null;
+    const ox = aw ? px(aw) : 0;
+    const oy = aw ? py(aw) : 0;
     const start = {x:p.x-ox, y:p.y-oy, p:e.pressure || 0.5};
     const s = {
-      mode: t, anchor,
+      mode: t, anchor: aw ? aw.uid : null,
       color: COLORS[S.ci].hue,   // highlighter renders the same hue at low alpha
       style: S.lineStyle,        // only meaningful for mode === "line"
       // shapes keep exactly two points: origin and the live corner/endpoint
@@ -1821,8 +1866,8 @@ hit.addEventListener("pointerdown", e=>{
   if(t === "connect"){
     const w = wordAt(p.x, p.y);
     if(w){
-      if(S.connFrom === null) S.connFrom = w.id;
-      else if(S.connFrom !== w.id){ pushUndo(); S.conns.push({a:S.connFrom, b:w.id}); S.connFrom = null; }
+      if(S.connFrom === null) S.connFrom = w.uid;
+      else if(S.connFrom !== w.uid){ pushUndo(); S.conns.push({a:S.connFrom, b:w.uid}); S.connFrom = null; }
       else S.connFrom = null;
       drawConns();
     }
@@ -1899,7 +1944,10 @@ hit.addEventListener("pointermove", e=>{
     const ni = Math.max(0, Math.min(10, drag.i0 + Math.round(dx/INDENT)));
     if(ni !== drag.line.indent){
       if(!drag.undone){ drag.undone = true; pushUndo(); }
-      drag.line.indent = ni; layout();
+      drag.line.indent = ni;
+      const head = uidOf(drag.line.ids[0]);
+      if(head != null) S.lineStarts[head] = ni;
+      layout();
     }
     // dragged up past the halfway point of the row above → offer to merge
     const li = S.lines.indexOf(drag.line);
@@ -1915,6 +1963,7 @@ hit.addEventListener("pointermove", e=>{
     }
     if(drag.moved){
       drag.w.fx = drag.ox + dx; drag.w.fy = drag.oy + dy;
+      S.floats[drag.w.uid] = [Math.round(drag.w.fx), Math.round(drag.w.fy)];
       render(); drawConns(); redraw();
     }
   }
@@ -2003,7 +2052,7 @@ function showMergeHint(line){
 /* Points along a connector's curve, so an arrow can be erased by crossing it
    rather than only by clearing every arrow at once. */
 function connPoints(c){
-  const a = S.words[c.a], b = S.words[c.b];
+  const a = wordOf(c.a), b = wordOf(c.b);
   if(!a || !b) return [];
   const ax = cx(a), ay = py(a) + a.h, bx = cx(b), by = py(b) + b.h;
   const dip = Math.max(26, Math.abs(bx-ax)*0.18 + Math.abs(by-ay)*0.35);
@@ -2036,8 +2085,8 @@ function eraseAt(p){
   // marks sit on the word, so erase by touching the word itself
   const w = wordAt(p.x, p.y) || nearWordFor(p);
   if(w){
-    if(S.marks[w.id]){ delete S.marks[w.id]; changed = true; }
-    if(S.hits[w.id]){ delete S.hits[w.id]; changed = true; }
+    if(S.marks[w.uid]){ delete S.marks[w.uid]; changed = true; }
+    if(S.hits[w.uid]){ delete S.hits[w.uid]; changed = true; }
   }
   if(changed){ render(); redraw(); saveSoon(); }
 }
@@ -2046,7 +2095,7 @@ function eraseAt(p){
 function nearWordFor(p){
   let best = null, bd = 26;
   S.words.forEach(w=>{
-    if(!S.marks[w.id] && !S.hits[w.id]) return;
+    if(!S.marks[w.uid] && !S.hits[w.uid]) return;
     const x = px(w), y = py(w);
     const dx = Math.max(x - p.x, 0, p.x - (x + w.w));
     const dy = Math.max(y - 18 - p.y, 0, p.y - (y + w.h));
@@ -2060,30 +2109,26 @@ function nearWordFor(p){
    SPLIT / AUTO-SPLIT
    ============================================================ */
 function splitBefore(w){
-  const li = S.lines.findIndex(l => l.id === w.line);
-  const line = S.lines[li];
-  const at = line.ids.indexOf(w.id);
-  if(at <= 0) return;
-  const tail = line.ids.splice(at);
-  const nl = { id: Math.max(...S.lines.map(l=>l.id))+1, indent: line.indent+1,
-               ids: tail, verse: S.words[tail[0]].verse, y:0, x:0, h:ROW };
-  tail.forEach(id => S.words[id].line = nl.id);
-  S.lines.splice(li+1, 0, nl);
-  S.curLine = nl.id;
+  const line = S.lines[S.lines.findIndex(l => l.id === w.line)];
+  if(!line || line.ids[0] === w.id) return;      // already the start of a line
+  S.lineStarts[w.uid] = (line.indent || 0) + 1;
+  rebuildLines();
+  S.curLine = S.lines.findIndex(l => l.ids[0] === w.id);
   layout(); syncJoin();
 }
 
 /* Rejoin: merge the line at index li into the one above it. */
 function joinUp(li){
   if(li <= 0 || li >= S.lines.length) return false;
-  const prev = S.lines[li-1], line = S.lines[li];
-  line.ids.forEach(id => {
-    S.words[id].line = prev.id;
-    S.words[id].fx = null; S.words[id].fy = null;   // un-float, back into flow
+  const first = S.words[S.lines[li].ids[0]];
+  if(!first) return false;
+  delete S.lineStarts[first.uid];                 // no longer begins a line
+  S.lines[li].ids.forEach(id=>{
+    const w = S.words[id];
+    if(w){ w.fx = null; w.fy = null; delete S.floats[w.uid]; }
   });
-  prev.ids = prev.ids.concat(line.ids);
-  S.lines.splice(li, 1);
-  S.curLine = prev.id;
+  rebuildLines();
+  S.curLine = Math.max(0, li - 1);
   layout(); syncJoin();
   return true;
 }
@@ -2179,10 +2224,10 @@ function select(w){
     render(); syncLemBtn(w); paintLemSwatches(w);
   };
   const note = document.getElementById("i-note");
-  note.value = S.notes[w.id] || "";
+  note.value = S.notes[w.uid] || "";
   note.oninput = ()=>{
     const t = note.value.trim();
-    if(t) S.notes[w.id] = t; else delete S.notes[w.id];
+    if(t) S.notes[w.uid] = t; else delete S.notes[w.uid];
     render(); saveSoon();
   };
   const cb = document.getElementById("i-conc");
@@ -3050,9 +3095,9 @@ function applyFind(kind){
   pushUndo();
   const c = COLORS[S.ci];
   hits.forEach(w=>{
-    if(kind === "highlight") S.hits[w.id] = c.tint;
+    if(kind === "highlight") S.hits[w.uid] = c.tint;
     else {
-      const mk = S.marks[w.id] || (S.marks[w.id] = {});
+      const mk = S.marks[w.uid] || (S.marks[w.uid] = {});
       if(kind === "underline") mk.u = c.hue;
       if(kind === "box")       mk.b = c.hue;
     }
@@ -3174,13 +3219,13 @@ function placeMarkPop(){
 /* Toggle the current mark on a word. */
 function markWord(w){
   pushUndo();
-  const mk = S.marks[w.id] || {};
+  const mk = S.marks[w.uid] || {};
   const c = COLORS[S.ci];
   if(S.markMode === "underline")  mk.u = mk.u ? null : c.hue;
   else if(S.markMode === "box")   mk.b = mk.b ? null : c.hue;
   else { mk.s = (mk.s === S.markMode) ? null : S.markMode; mk.sc = c.hue; }
-  if(!mk.u && !mk.b && !mk.s) delete S.marks[w.id];
-  else S.marks[w.id] = mk;
+  if(!mk.u && !mk.b && !mk.s) delete S.marks[w.uid];
+  else S.marks[w.uid] = mk;
   render(); saveSoon();
 }
 
@@ -3513,9 +3558,9 @@ function exportPNG(){
   // words, with their highlights and marks
   S.words.forEach(wd=>{
     const x = px(wd), y = py(wd);
-    const bg = S.hits[wd.id] || S.lemHi[wd.lemma];
+    const bg = S.hits[wd.uid] || S.lemHi[wd.lemma];
     if(bg){ g.fillStyle = bg; g.fillRect(x, y, wd.w, wd.h); }
-    const mk = S.marks[wd.id];
+    const mk = S.marks[wd.uid];
     if(mk && mk.b){ g.strokeStyle = mk.b; g.lineWidth = 2;
                     g.strokeRect(x - 1, y - 1, wd.w + 2, wd.h + 2); }
     if(mk && mk.u){ g.strokeStyle = mk.u; g.lineWidth = 2.5;
@@ -3669,8 +3714,8 @@ function buildOutline(){
   if(!buckets[0].words.length) buckets.shift();     // no text before the first break
   return buckets.map(b=>{
     const refs = b.words.map(w => w.verse);
-    const notes = b.words.filter(w => S.notes[w.id])
-                         .map(w => ({ ref:w.verse, surface:w.surface, text:S.notes[w.id] }));
+    const notes = b.words.filter(w => S.notes[w.uid])
+                         .map(w => ({ ref:w.verse, surface:w.surface, text:S.notes[w.uid] }));
     return {
       title: b.title,
       numbered: !!b.sec,
@@ -3961,18 +4006,18 @@ async function kvSet(key, val){
   }
 }
 
-/* Which diagram we are looking at: passage plus chapter selection. */
-function docKey(){ return S.key + "|" + (S.chapter || "all"); }
+/* One document per BOOK. The range on screen is only a window, so it must
+   not appear in the key — otherwise opening 2:5-17 would look like a blank
+   page beside the work already done on chapter 2. */
+function docKey(){ return S.key; }
 
-/* ---- one diagram ---- */
+/* ---- one book's work ---- */
 function docSnapshot(){
   const r1 = n => Math.round(n * 10) / 10;
   return {
     at: Date.now(),
-    // ids and lemHi must be COPIED: splitBefore/joinUp splice the live arrays,
-    // and a snapshot holding references would mutate along with them
-    lines:  S.lines.map(l => ({ i:l.indent, ids:l.ids.slice() })),
-    floats: S.words.filter(w => w.fx !== null).map(w => [w.id, Math.round(w.fx), Math.round(w.fy)]),
+    lineStarts: Object.assign({}, S.lineStarts),
+    floats: Object.assign({}, S.floats),
     strokes:S.strokes.map(s => ({
       m:s.mode, a:s.anchor, c:s.color, st:s.style,
       p:s.pts.map(q => [r1(q.x), r1(q.y), Math.round((q.p == null ? .5 : q.p) * 100) / 100])
@@ -3987,50 +4032,35 @@ function docSnapshot(){
   };
 }
 
-/* Apply a saved diagram onto the freshly built words for this passage.
-   Structure is only reapplied if it still accounts for every word exactly
-   once, so a changed corpus cannot produce a mangled page. */
-function applyDoc(d){
-  if(!d) return false;
-  // clear anything the snapshot does not mention, so undo genuinely reverses
-  // a word move rather than leaving it floated
-  S.words.forEach(w=>{ w.fx = null; w.fy = null; });
-  if(Array.isArray(d.lines) && d.lines.length){
-    const flat = d.lines.flatMap(l => l.ids);
-    const intact = flat.length === S.words.length &&
-                   new Set(flat).size === flat.length &&
-                   flat.every(id => id >= 0 && id < S.words.length);
-    if(intact){
-      S.lines = d.lines.map((l, i) => ({
-        id:i, indent:l.i || 0, ids:l.ids.slice(),
-        verse:S.words[l.ids[0]].verse, y:0, x:0, h:ROW
-      }));
-      S.lines.forEach(l => l.ids.forEach(id => S.words[id].line = l.id));
-    }
-  }
-  (d.floats || []).forEach(([id, x, y])=>{
-    if(S.words[id]){ S.words[id].fx = x; S.words[id].fy = y; }
-  });
-  S.strokes = (d.strokes || []).map(s => ({
+/* Bring a book's work into memory. Nothing is filtered to the current
+   window: a stroke anchored outside it simply is not drawn. */
+function applyDoc(d, p){
+  S.lineStarts = Object.assign({}, (d && d.lineStarts) || {});
+  if(!Object.keys(S.lineStarts).length && p) S.lineStarts = defaultLineStarts(p);
+  S.floats  = Object.assign({}, (d && d.floats) || {});
+  S.strokes = ((d && d.strokes) || []).map(s => ({
     mode:s.m, anchor:(s.a == null ? null : s.a), color:s.c, style:s.st,
     pts:(s.p || []).map(q => ({ x:q[0], y:q[1], p:q[2] }))
-  })).filter(s => s.pts.length && (s.anchor === null || S.words[s.anchor]));
-  S.conns = (d.conns || []).filter(([a,b]) => S.words[a] && S.words[b])
-                           .map(([a,b]) => ({ a, b }));
-  S.sections = (d.sections || []).filter(s => S.words[s.w])
+  })).filter(s => s.pts.length);
+  S.conns = ((d && d.conns) || []).map(([a,b]) => ({ a, b }));
+  S.sections = ((d && d.sections) || [])
     .map((s,i) => ({ id:i+1, beforeWord:s.w, title:s.t || "", ci:s.ci || 0 }));
   S.secSeq = S.sections.length;
-  S.lemHi = Object.assign({}, d.lem || {});
-  S.hits  = Object.assign({}, d.hits || {});
-  S.notes = Object.assign({}, d.notes || {});
-  Object.keys(S.notes).forEach(id =>{ if(!S.words[id]) delete S.notes[id]; });
-  S.marks = JSON.parse(JSON.stringify(d.marks || {}));
-  // drop anything pointing at a word this passage no longer has
-  Object.keys(S.hits).forEach(id =>{ if(!S.words[id]) delete S.hits[id]; });
-  Object.keys(S.marks).forEach(id =>{ if(!S.words[id]) delete S.marks[id]; });
-  S.findQ = d.findQ || "";
+  S.lemHi = Object.assign({}, (d && d.lem) || {});
+  S.notes = Object.assign({}, (d && d.notes) || {});
+  S.hits  = Object.assign({}, (d && d.hits) || {});
+  S.marks = JSON.parse(JSON.stringify((d && d.marks) || {}));
+  S.findQ = (d && d.findQ) || "";
   const fq = document.getElementById("findQ"); if(fq) fq.value = S.findQ;
   return true;
+}
+
+/* Called from build(): load this book's document, once per book. */
+function loadBookDoc(key, p){
+  if(S._loadedBook === key) return;      // already in memory, keep live edits
+  if(S._loadedBook) S.docs[S._loadedBook] = docSnapshot();
+  applyDoc(S.docs[key], p);
+  S._loadedBook = key;
 }
 
 /* ---- settings ---- */
@@ -4085,7 +4115,9 @@ function pushUndo(){
 
 function applySnap(d){
   S._restoring = true;
-  try{ applyDoc(d); }finally{ S._restoring = false; }
+  try{ applyDoc(d, PASSAGES[S.key]); }finally{ S._restoring = false; }
+  rebuildLines();
+  S.words.forEach(w=>{ const f = S.floats[w.uid]; w.fx = f ? f[0] : null; w.fy = f ? f[1] : null; });
   layout(); syncJoin(); syncUndo(); saveNow();
 }
 
@@ -4116,7 +4148,7 @@ function saveSoon(){
 
 function saveNow(){
   if(S._restoring || !storageOK) return;
-  S.docs[docKey()] = docSnapshot();
+  if(S.key) S.docs[docKey()] = docSnapshot();
   kvSet("docs", S.docs);
   kvSet("prefs", prefsSnapshot());
   mirrorSync();
@@ -4147,6 +4179,51 @@ function stampSaved(t){
     (n ? " · " + n + " diagram" + (n>1?"s":"") : "");
 }
 
+
+/* Work saved before annotations were tied to the text was filed under
+   "book|range" with ids that were positions in that window. Rebuild the word
+   order for each old range so those ids can be translated, then merge every
+   range of a book into that book's single document. */
+function migrateDocs(docs){
+  const out = {}, legacy = [];
+  Object.keys(docs).forEach(k=>{ if(k.includes("|")) legacy.push(k); else out[k] = docs[k]; });
+  if(!legacy.length) return out;
+
+  legacy.sort((a,b) => (docs[a].at || 0) - (docs[b].at || 0));
+  legacy.forEach(k=>{
+    const bar = k.indexOf("|");
+    const key = k.slice(0, bar), range = k.slice(bar + 1);
+    const p = PASSAGES[key];
+    const d = docs[k];
+    if(!p || !Array.isArray(p.verses) || !d) return;
+
+    const uids = [];
+    p.verses.forEach(([ref, toks])=>{
+      if(range && range !== "all" && !inRange(ref, range)) return;
+      toks.forEach((t,i)=> uids.push(String(ref) + "#" + i));
+    });
+    const u = i => uids[i] ?? null;
+    const tgt = out[key] || (out[key] = { lineStarts:{}, floats:{}, strokes:[], conns:[],
+                                          sections:[], lem:{}, notes:{}, hits:{}, marks:{} });
+
+    (d.lines || []).forEach(l=>{ const head = u((l.ids || [])[0]); if(head != null) tgt.lineStarts[head] = l.i || 0; });
+    (d.floats || []).forEach(([id,x,y])=>{ const uu = u(id); if(uu) tgt.floats[uu] = [x,y]; });
+    (d.strokes || []).forEach(st=>{
+      const a = st.a == null ? null : u(st.a);
+      if(st.a != null && a == null) return;
+      tgt.strokes.push(Object.assign({}, st, { a }));
+    });
+    (d.conns || []).forEach(([a,b])=>{ const ua = u(a), ub = u(b); if(ua && ub) tgt.conns.push([ua,ub]); });
+    (d.sections || []).forEach(sc=>{ const uu = u(sc.w); if(uu) tgt.sections.push(Object.assign({}, sc, { w:uu })); });
+    Object.keys(d.notes || {}).forEach(id=>{ const uu = u(+id); if(uu) tgt.notes[uu] = d.notes[id]; });
+    Object.keys(d.marks || {}).forEach(id=>{ const uu = u(+id); if(uu) tgt.marks[uu] = d.marks[id]; });
+    Object.keys(d.hits  || {}).forEach(id=>{ const uu = u(+id); if(uu) tgt.hits[uu]  = d.hits[id]; });
+    Object.assign(tgt.lem, d.lem || {});
+    tgt.at = Math.max(tgt.at || 0, d.at || 0);
+  });
+  return out;
+}
+
 /* ---- opening ---- */
 async function loadSaved(){
   // read first: the guard flag must not span an await, or every save made
@@ -4168,7 +4245,6 @@ async function loadSaved(){
 
   S._restoring = true;
   try{
-    S.docs = docs || {};
     if(corpus && Array.isArray(corpus.files) && corpus.files.length){
       S.corpusFiles = corpus.files;
       corpus.files.forEach(f=>{
@@ -4181,6 +4257,7 @@ async function loadSaved(){
         books.length + " book" + (books.length>1?"s":"") + " loaded · " +
         total.toLocaleString() + " words";
     }
+    S.docs = migrateDocs(docs || {});
     applyPrefs(prefs);
     if(!PASSAGES[S.key]) S.key = firstBookKey();
     document.getElementById("passage").value = S.key;
@@ -4256,7 +4333,8 @@ function openWorkspace(snap){
       S.corpusFiles = (snap.corpus && snap.corpus.files) || [];
       S.corpusFiles.forEach(registerBook);
       refreshBookMenu();
-      S.docs = snap.docs || {};
+      S.docs = migrateDocs(snap.docs || {});   // after registerBook: needs PASSAGES
+      S._loadedBook = null;
       applyPrefs(snap.prefs);
     } else if(snap.v === 1){
       // older single-document file
@@ -4268,8 +4346,10 @@ function openWorkspace(snap){
       S.docs = {};
       applyPrefs({ key:S.key, chapter:snap.chapter, ci:snap.ci, ls:snap.ls,
                    tool:snap.tool, pencil:snap.pencil, wheel:snap.wheel, mods:snap.mods });
-      S.docs[docKey()] = { lines:snap.lines, floats:snap.floats, strokes:snap.strokes,
-                           conns:snap.conns, sections:snap.sections, lem:snap.lem };
+      S.docs = migrateDocs({ [S.key + "|" + (snap.chapter || "all")]:
+        { lines:snap.lines, floats:snap.floats, strokes:snap.strokes,
+          conns:snap.conns, sections:snap.sections, lem:snap.lem } });
+      S._loadedBook = null;
     } else return false;
   }finally{
     S._restoring = false;
@@ -4284,7 +4364,7 @@ function openWorkspace(snap){
 
 document.getElementById("saveFile").onclick = saveProjectFile;
 document.getElementById("forget").onclick = ()=>{
-  S.docs = {}; S.corpusFiles = [];
+  S.docs = {}; S.corpusFiles = []; S._loadedBook = null;
   Object.keys(PASSAGES).filter(k=>k.startsWith("nt:")).forEach(k=>delete PASSAGES[k]);
   kvSet("docs", {}); kvSet("corpus", {files:[]}); kvSet("prefs", {});
   refreshBookMenu();
@@ -4299,7 +4379,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-08-06b";
+const BUILD = "2026-08-07a";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file

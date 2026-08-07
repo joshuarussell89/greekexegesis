@@ -387,6 +387,13 @@
   #board .secbreak .del:hover{color:var(--sel);background:var(--chip);}
   /* ---------- line-style menu, anchored under the Line button ---------- */
   button svg.car{width:9px;height:6px;flex:0 0 9px;opacity:.5;margin-left:-1px;}
+  .syncdot{width:8px;height:8px;border-radius:50%;background:#b9b2a6;align-self:center;
+    margin:0 4px;flex:0 0 auto;transition:background .3s;}
+  .syncdot.ok{background:#5c8a5c;}
+  .syncdot.busy{background:#c9a227;animation:syncpulse 1.1s ease-in-out infinite;}
+  .syncdot.offline{background:#b9b2a6;}
+  .syncdot.error{background:#b4553f;}
+  @keyframes syncpulse{0%,100%{opacity:1}50%{opacity:.35}}
   .pop.anchored{right:auto;width:264px;padding:5px;}
   .styleopt{display:flex;align-items:center;gap:11px;width:100%;text-align:left;
     padding:8px 10px;border-radius:9px;}
@@ -460,6 +467,7 @@
       <button id="esvBtn" class="ghost" title="Show the English (ESV) beside the Greek"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.6 4.6h6a2.4 2.4 0 012.4 2.4v10.4a2 2 0 00-2-2h-6.4z"/><path d="M18.4 4.6h-6A2.4 2.4 0 0010 7v10.4a2 2 0 012-2h6.4z"/></svg><span class="lbl-hide">ESV</span></button>
         <button id="findBtn" class="ghost" title="Find words by grammar, lemma or gloss"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="9.6" cy="9.6" r="5.8"/><path d="M13.9 13.9l4 4"/><path d="M7.4 9.6h4.4M9.6 7.4v4.4" stroke-width="1.3"/></svg><span class="lbl-hide">Find</span></button>
       <button id="helpBtn" class="ghost" title="Show the key"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4.2h8.6l3.4 3.4v10.2H5z"/><path d="M13.6 4.2v3.4H17"/><path d="M8.4 11.4h5.2M8.4 14.4h3.4" stroke-width="1.3"/></svg><span class="lbl-hide">Key</span></button>
+      <span id="syncDot" class="syncdot off" style="display:none" title="Sync"></span>
       <button id="setBtn" class="ghost" title="Accordance links and page actions"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="4.8" r="1.6"/><circle cx="11" cy="11" r="1.6"/><circle cx="11" cy="17.2" r="1.6"/></svg></button>
       </div>
     </div>
@@ -806,6 +814,36 @@
   <div class="foot" id="storeInfo" style="padding-top:0">Checking storage…</div>
   <button class="rowbtn" id="saveFile">Save a copy as a file…</button>
   <button class="rowbtn" id="forget">Forget saved work</button>
+  <hr>
+  <h4>Sync between devices</h4>
+  <div class="foot" style="padding-top:0">Keeps your work the same on the iPad and the
+    Mac through a <b>private</b> GitHub repository — not the public one your app is
+    served from. Work done in both places is combined rather than overwritten.
+    <a href="#" id="syncHelpLink">How do I set this up?</a></div>
+  <div class="fld"><label for="syncRepo">Repository</label>
+    <input type="text" id="syncRepo" spellcheck="false" placeholder="yourname/nous-work"></div>
+  <div class="fld"><label for="syncToken">Token</label>
+    <input type="password" id="syncToken" spellcheck="false" placeholder="github_pat_…"></div>
+  <div class="fld"><label for="syncOn">Turn it on</label>
+    <input type="checkbox" id="syncOn"></div>
+  <div class="foot" id="syncState" style="padding-top:0">Off.</div>
+  <button class="rowbtn" id="syncNow">Sync now</button>
+  <div class="foot" id="syncHelp" style="display:none">
+    <b>Once, on a computer:</b><br>
+    1. At <b>github.com/new</b> make a repository called <b>nous-work</b> and set it to
+       <b>Private</b>. Nothing else — no README needed.<br>
+    2. Go to <b>Settings → Developer settings → Personal access tokens → Fine-grained
+       tokens → Generate new token</b>.<br>
+    3. Give it a name, set the expiry as long as you're comfortable with, and under
+       <b>Repository access</b> choose <b>Only select repositories</b> → <b>nous-work</b>.<br>
+    4. Under <b>Permissions → Repository permissions</b> set <b>Contents</b> to
+       <b>Read and write</b>. Leave everything else alone.<br>
+    5. Generate it and copy the token — GitHub shows it once.<br><br>
+    <b>Then on each device:</b> type the repository as <b>yourname/nous-work</b>, paste the
+    token, and tick <b>Turn it on</b>. Do the Mac first and let it finish, then the iPad.<br><br>
+    The token is kept on the device you typed it on and is sent only to GitHub. If you ever
+    lose a device, delete the token on GitHub and it stops working. When it expires, Nous
+    will tell you here and your work carries on being saved locally in the meantime.</div>
   <hr>
   <h4>Export</h4>
   <button class="rowbtn" id="exportOutline">Sermon outline as a Word document…</button>
@@ -1850,6 +1888,7 @@ hit.addEventListener("pointerdown", e=>{
     const oy = aw ? py(aw) : 0;
     const start = {x:p.x-ox, y:p.y-oy, p:e.pressure || 0.5};
     const s = {
+      sid: newSid(),
       mode: t, anchor: aw ? aw.uid : null,
       color: COLORS[S.ci].hue,   // highlighter renders the same hue at low alpha
       style: S.lineStyle,        // only meaningful for mode === "line"
@@ -4015,10 +4054,11 @@ function docKey(){ return S.key; }
 function docSnapshot(){
   const r1 = n => Math.round(n * 10) / 10;
   return {
-    at: Date.now(),
+    v: 3, at: Date.now(), dev: deviceId(),
     lineStarts: Object.assign({}, S.lineStarts),
     floats: Object.assign({}, S.floats),
     strokes:S.strokes.map(s => ({
+      id:s.sid || (s.sid = newSid()),
       m:s.mode, a:s.anchor, c:s.color, st:s.style,
       p:s.pts.map(q => [r1(q.x), r1(q.y), Math.round((q.p == null ? .5 : q.p) * 100) / 100])
     })),
@@ -4039,6 +4079,7 @@ function applyDoc(d, p){
   if(!Object.keys(S.lineStarts).length && p) S.lineStarts = defaultLineStarts(p);
   S.floats  = Object.assign({}, (d && d.floats) || {});
   S.strokes = ((d && d.strokes) || []).map(s => ({
+    sid:s.id || newSid(),
     mode:s.m, anchor:(s.a == null ? null : s.a), color:s.c, style:s.st,
     pts:(s.p || []).map(q => ({ x:q[0], y:q[1], p:q[2] }))
   })).filter(s => s.pts.length);
@@ -4055,10 +4096,22 @@ function applyDoc(d, p){
   return true;
 }
 
+/* The book as it stands right now. If nothing has actually changed since the
+   last save, the old timestamp is kept: "the newer one wins" should mean the
+   newer piece of work, not merely the more recent closing of the lid. */
+function currentDoc(key){
+  const prev = S.docs[key] || null;
+  if(S._loadedBook !== key) return prev;
+  const next = docSnapshot();
+  if(prev && JSON.stringify(docParts(prev)) === JSON.stringify(docParts(next)))
+    next.at = prev.at;
+  return next;
+}
+
 /* Called from build(): load this book's document, once per book. */
 function loadBookDoc(key, p){
   if(S._loadedBook === key) return;      // already in memory, keep live edits
-  if(S._loadedBook) S.docs[S._loadedBook] = docSnapshot();
+  if(S._loadedBook) S.docs[S._loadedBook] = currentDoc(S._loadedBook);
   applyDoc(S.docs[key], p);
   S._loadedBook = key;
 }
@@ -4144,11 +4197,12 @@ function saveSoon(){
   if(S._restoring) return;
   clearTimeout(saveTimer);
   saveTimer = setTimeout(saveNow, 600);
+  syncSoon(S.key);
 }
 
 function saveNow(){
   if(S._restoring || !storageOK) return;
-  if(S.key) S.docs[docKey()] = docSnapshot();
+  if(S.key) S.docs[docKey()] = currentDoc(S.key);
   kvSet("docs", S.docs);
   kvSet("prefs", prefsSnapshot());
   mirrorSync();
@@ -4222,6 +4276,398 @@ function migrateDocs(docs){
     tgt.at = Math.max(tgt.at || 0, d.at || 0);
   });
   return out;
+}
+
+
+/* ---- merging two devices ---- */
+
+/* This device needs a name so that a stroke drawn on the iPad and a stroke
+   drawn on the MacBook are never mistaken for the same stroke. */
+function deviceId(){
+  let d = null;
+  try{ d = localStorage.getItem("nous.dev"); }catch(e){}
+  if(!d){
+    d = Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-4);
+    try{ localStorage.setItem("nous.dev", d); }catch(e){}
+  }
+  return d;
+}
+let sidSeq = 0;
+function newSid(){ return deviceId() + "." + (Date.now().toString(36)) + "." + (++sidSeq); }
+
+/* A short fingerprint of a value, so "has this changed since we last synced?"
+   can be answered without keeping a second copy of everything. */
+function fingerprint(v){
+  const s = JSON.stringify(v === undefined ? null : v);
+  let h = 0x811c9dc5;
+  for(let i = 0; i < s.length; i++){
+    h ^= s.charCodeAt(i);
+    h = (h + ((h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24))) >>> 0;
+  }
+  return h.toString(36);
+}
+
+/* The document, seen as a set of independently-owned entries. Marks belong to
+   a word, ink belongs to a stroke, an arrow belongs to its pair of words. Two
+   people can touch different entries without disagreeing about anything. */
+function docParts(d){
+  d = d || {};
+  const byId = (arr, k) => {
+    const o = {};
+    (arr || []).forEach(x => { const id = k(x); if(id != null) o[id] = x; });
+    return o;
+  };
+  return {
+    marks: d.marks || {}, hits: d.hits || {}, notes: d.notes || {},
+    lem: d.lem || {}, lineStarts: d.lineStarts || {}, floats: d.floats || {},
+    strokes: byId(d.strokes, s => s.id),
+    conns:   byId(d.conns, c => c[0] + ">" + c[1]),
+    sections:byId(d.sections, x => x.w)
+  };
+}
+
+function partsToDoc(parts, at, dev){
+  return {
+    v:3, at: at || Date.now(), dev: dev || deviceId(),
+    marks:parts.marks, hits:parts.hits, notes:parts.notes, lem:parts.lem,
+    lineStarts:parts.lineStarts, floats:parts.floats,
+    strokes: Object.keys(parts.strokes).map(k => parts.strokes[k]),
+    conns:   Object.keys(parts.conns).map(k => parts.conns[k]),
+    sections:Object.keys(parts.sections).map(k => parts.sections[k])
+  };
+}
+
+/* Fingerprints of the document as it stood at the last successful sync. This
+   is what lets a deletion be told apart from a thing the other device simply
+   hasn't seen yet. */
+function docPrints(d){
+  const parts = docParts(d), out = {};
+  Object.keys(parts).forEach(group=>{
+    const g = out[group] = {};
+    Object.keys(parts[group]).forEach(k => g[k] = fingerprint(parts[group][k]));
+  });
+  return out;
+}
+
+/* Three-way merge, entry by entry.
+     changed here only      → keep ours
+     changed there only     → take theirs
+     gone on one side       → honour the deletion
+     both changed the same entry → the newer document wins, and only for that
+                                   entry; everything else on both sides stands */
+function mergeDocs(base, mine, theirs){
+  const P = docParts(mine), Q = docParts(theirs);
+  const B = base || {};
+  const theirsNewer = (theirs && theirs.at || 0) > (mine && mine.at || 0);
+  const out = {};
+
+  Object.keys(P).forEach(group=>{
+    const bp = (B[group] || {});
+    const a = P[group], b = Q[group], g = out[group] = {};
+    const keys = new Set(Object.keys(a).concat(Object.keys(b)));
+    keys.forEach(k=>{
+      const av = a[k], bv = b[k];
+      const bh = bp[k];
+      const ah = av === undefined ? undefined : fingerprint(av);
+      const th = bv === undefined ? undefined : fingerprint(bv);
+      const aChanged = ah !== bh, bChanged = th !== bh;
+      let win;
+      if(aChanged && bChanged) win = theirsNewer ? bv : av;   // a real clash
+      else if(aChanged)        win = av;
+      else if(bChanged)        win = bv;
+      else                     win = av !== undefined ? av : bv;
+      if(win !== undefined) g[k] = win;
+    });
+  });
+
+  const merged = partsToDoc(out, Math.max(mine && mine.at || 0, theirs && theirs.at || 0));
+  merged.findQ = (mine && mine.findQ) || (theirs && theirs.findQ) || "";
+  return merged;
+}
+
+/* How much of the other device's work was new to us — used only to tell you
+   what happened, in words rather than numbers. */
+function mergeReport(mine, merged){
+  const A = docParts(mine), M = docParts(merged);
+  let added = 0, changed = 0;
+  Object.keys(M).forEach(group=>{
+    Object.keys(M[group]).forEach(k=>{
+      if(A[group][k] === undefined) added++;
+      else if(fingerprint(A[group][k]) !== fingerprint(M[group][k])) changed++;
+    });
+  });
+  return { added, changed };
+}
+
+
+/* ---- syncing through a private GitHub repository ---- */
+/* One file per book, committed through the Contents API. No server to run and
+   nothing to pay for; the commit history is also a last-resort undo. The token
+   is typed in on each device and never leaves it. */
+
+const SYNC = {
+  on:false, owner:"", repo:"", branch:"main", token:"",
+  base:{},          // fingerprints of each book as it stood at the last sync
+  shas:{},          // the blob sha we last saw, for detecting a moved file
+  busy:false, queue:new Set(), timer:null,
+  state:"off", detail:"", at:0
+};
+
+const ghPath = key => "nous/" + String(key).replace(/[^A-Za-z0-9._-]+/g, "-") + ".json";
+const ghKeyFromPath = name => String(name).replace(/\.json$/, "").replace(/^(nt|lxx|imp)-/, "$1:");
+
+function b64encode(str){
+  const bytes = new TextEncoder().encode(str);
+  let bin = "";
+  for(let i = 0; i < bytes.length; i += 0x8000)
+    bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  return btoa(bin);
+}
+function b64decode(b64){
+  const bin = atob(String(b64).replace(/\s+/g, ""));
+  const bytes = new Uint8Array(bin.length);
+  for(let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new TextDecoder().decode(bytes);
+}
+
+async function gh(path, opts){
+  opts = opts || {};
+  const r = await fetch("https://api.github.com/repos/" + SYNC.owner + "/" + SYNC.repo + path, {
+    method: opts.method || "GET",
+    headers: {
+      "Authorization": "Bearer " + SYNC.token,
+      "Accept": "application/vnd.github+json",
+      "X-GitHub-Api-Version": "2022-11-28",
+      "Content-Type": "application/json"
+    },
+    body: opts.body ? JSON.stringify(opts.body) : undefined
+  });
+  if(r.status === 404) return { missing:true, status:404 };
+  if(r.status === 409 || r.status === 412) return { stale:true, status:r.status };
+  if(r.status === 401 || r.status === 403){
+    const left = r.headers.get("x-ratelimit-remaining");
+    throw new Error(left === "0"
+      ? "GitHub is rate-limiting this token; it will clear within the hour."
+      : "GitHub refused the token. Check it hasn't expired and that it has Contents write on this repository.");
+  }
+  if(!r.ok){
+    let msg = "GitHub returned " + r.status;
+    try{ const j = await r.json(); if(j && j.message) msg += " — " + j.message; }catch(e){}
+    throw new Error(msg);
+  }
+  return { ok:true, data: await r.json(), status:r.status };
+}
+
+async function ghRead(key){
+  const r = await gh("/contents/" + ghPath(key) + "?ref=" + encodeURIComponent(SYNC.branch));
+  if(r.missing) return { doc:null, sha:null };
+  let doc = null;
+  try{ doc = JSON.parse(b64decode(r.data.content || "")); }catch(e){ doc = null; }
+  return { doc, sha:r.data.sha };
+}
+
+async function ghWrite(key, doc, sha){
+  const body = {
+    message: "Nous · " + key + " · " + new Date().toISOString().slice(0, 16).replace("T", " "),
+    content: b64encode(JSON.stringify(doc)),
+    branch: SYNC.branch
+  };
+  if(sha) body.sha = sha;
+  const r = await gh("/contents/" + ghPath(key), { method:"PUT", body });
+  if(r.stale || r.missing) return null;               // someone moved first
+  return r.data.content.sha;
+}
+
+/* Which books the repository knows about, so a device that has never opened a
+   book still picks up the work done on it elsewhere. */
+async function ghList(){
+  const r = await gh("/contents/nous?ref=" + encodeURIComponent(SYNC.branch));
+  if(r.missing || !Array.isArray(r.data)) return [];
+  return r.data.filter(f => f.type === "file" && /\.json$/.test(f.name))
+               .map(f => ghKeyFromPath(f.name));
+}
+
+/* Bring one book into line on both sides. Reads, merges against what we had at
+   the last sync, writes back only if the result differs from theirs. */
+async function syncBook(key){
+  const live = currentDoc(key);
+  const { doc: theirs, sha } = await ghRead(key);
+
+  if(!theirs){                                  // first time this book goes up
+    if(!live) return { skipped:true };
+    const newSha = await ghWrite(key, live, sha);
+    if(newSha){ SYNC.shas[key] = newSha; SYNC.base[key] = docPrints(live); }
+    return { pushed:true, added:0, changed:0 };
+  }
+
+  const merged = mergeDocs(SYNC.base[key], live || { at:0 }, theirs);
+  const report = mergeReport(live || {}, merged);
+
+  // take the merge locally
+  S.docs[key] = merged;
+  if(S._loadedBook === key){
+    S._restoring = true;
+    try{ applyDoc(merged, PASSAGES[key]); }finally{ S._restoring = false; }
+    rebuildLines();
+    S.words.forEach(w=>{ const f = S.floats[w.uid]; w.fx = f ? f[0] : null; w.fy = f ? f[1] : null; });
+    layout(); syncJoin();
+  }
+
+  // and push it back, unless theirs already says the same thing
+  const same = JSON.stringify(docParts(merged)) === JSON.stringify(docParts(theirs));
+  if(!same){
+    const newSha = await ghWrite(key, merged, sha);
+    if(!newSha) return { retry:true };           // moved under us; try again
+    SYNC.shas[key] = newSha;
+  } else {
+    SYNC.shas[key] = sha;
+  }
+  SYNC.base[key] = docPrints(merged);
+  return report;
+}
+
+async function syncAll(opts){
+  opts = opts || {};
+  if(!SYNC.on || SYNC.busy) return;
+  if(!navigator.onLine){ setSyncState("offline", "No connection — your work is safe on this device."); return; }
+  SYNC.busy = true;
+  setSyncState("busy", "Syncing…");
+  let added = 0, changed = 0, books = 0, pushed = 0;
+  try{
+    let keys = Array.from(SYNC.queue);
+    SYNC.queue.clear();
+    if(opts.full || !keys.length){
+      const remote = await ghList();
+      keys = Array.from(new Set(Object.keys(S.docs).concat(remote, S.key ? [S.key] : [])));
+    }
+    for(const key of keys){
+      if(!key) continue;
+      let r = await syncBook(key);
+      if(r && r.retry) r = await syncBook(key);    // one retry after a clash
+      if(r && !r.skipped){ books++; added += r.added || 0; changed += r.changed || 0;
+                           if(r.pushed) pushed++; }
+    }
+    saveNow();
+    kvSet("sync", { base:SYNC.base, shas:SYNC.shas, at:Date.now() });
+    SYNC.at = Date.now();
+    const what = added || changed
+      ? "Brought in " + (added ? added + " new " + (added === 1 ? "mark" : "marks") : "") +
+        (added && changed ? " and " : "") +
+        (changed ? changed + " change" + (changed === 1 ? "" : "s") : "") + " from your other device."
+      : pushed
+        ? "Sent " + pushed + " book" + (pushed === 1 ? "" : "s") + " up for the first time."
+        : "Everything matches.";
+    setSyncState("ok", what);
+  }catch(err){
+    setSyncState("error", err.message || String(err));
+  }finally{
+    SYNC.busy = false;
+  }
+}
+
+/* Work is pushed a little after you stop, not on every stroke. */
+function syncSoon(key){
+  if(!SYNC.on) return;
+  if(key) SYNC.queue.add(key);
+  clearTimeout(SYNC.timer);
+  SYNC.timer = setTimeout(()=>syncAll(), 20000);
+}
+
+
+/* ---- the sync panel ---- */
+function setSyncState(state, detail){
+  SYNC.state = state; SYNC.detail = detail || "";
+  const el = document.getElementById("syncState");
+  if(!el) return;
+  const when = SYNC.at ? " · " + new Date(SYNC.at).toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"}) : "";
+  const lead = { off:"Off.", busy:"Syncing…", ok:"In step" + when + ".",
+                 offline:"Offline.", error:"Sync stopped." }[state] || "";
+  el.textContent = lead + (detail ? " " + detail : "");
+  el.style.color = state === "error" ? "#a33" : "";
+  const hdr = document.getElementById("syncDot");
+  if(hdr){
+    hdr.style.display = SYNC.on ? "" : "none";
+    hdr.className = "syncdot " + state;
+    hdr.title = lead + (detail ? " " + detail : "");
+  }
+}
+
+function syncPrefs(){
+  return { on:SYNC.on, owner:SYNC.owner, repo:SYNC.repo, branch:SYNC.branch };
+}
+
+function readSyncFields(){
+  const r = (document.getElementById("syncRepo").value || "").trim()
+              .replace(/^https?:\/\/github\.com\//i, "").replace(/\.git$/, "").replace(/\/+$/, "");
+  const bits = r.split("/");
+  SYNC.owner = (bits[0] || "").trim();
+  SYNC.repo  = (bits[1] || "").trim();
+  SYNC.token = (document.getElementById("syncToken").value || "").trim();
+}
+
+function saveSyncSettings(){
+  try{
+    localStorage.setItem("nous.sync", JSON.stringify(syncPrefs()));
+    localStorage.setItem("nous.synctoken", SYNC.token);   // this device only
+  }catch(e){}
+}
+
+function loadSyncSettings(){
+  let p = null;
+  try{ p = JSON.parse(localStorage.getItem("nous.sync") || "null"); }catch(e){}
+  try{ SYNC.token = localStorage.getItem("nous.synctoken") || ""; }catch(e){}
+  if(p){ SYNC.on = !!p.on; SYNC.owner = p.owner || ""; SYNC.repo = p.repo || ""; SYNC.branch = p.branch || "main"; }
+  const rf = document.getElementById("syncRepo"), tf = document.getElementById("syncToken"),
+        of = document.getElementById("syncOn");
+  if(rf) rf.value = SYNC.owner && SYNC.repo ? SYNC.owner + "/" + SYNC.repo : "";
+  if(tf) tf.value = SYNC.token;
+  if(of) of.checked = SYNC.on;
+  setSyncState(SYNC.on ? "ok" : "off", SYNC.on ? "" : "");
+}
+
+function wireSync(){
+  const rf = document.getElementById("syncRepo"), tf = document.getElementById("syncToken"),
+        of = document.getElementById("syncOn"), now = document.getElementById("syncNow"),
+        help = document.getElementById("syncHelp"), link = document.getElementById("syncHelpLink");
+
+  if(link) link.onclick = e=>{
+    e.preventDefault();
+    help.style.display = help.style.display === "none" ? "" : "none";
+  };
+
+  const settle = ()=>{ readSyncFields(); saveSyncSettings(); };
+  if(rf) rf.onchange = settle;
+  if(tf) tf.onchange = settle;
+
+  if(of) of.onchange = async ()=>{
+    readSyncFields();
+    if(of.checked && (!SYNC.owner || !SYNC.repo || !SYNC.token)){
+      of.checked = false; SYNC.on = false; saveSyncSettings();
+      setSyncState("error", "Fill in the repository and the token first.");
+      return;
+    }
+    SYNC.on = of.checked;
+    saveSyncSettings();
+    if(!SYNC.on){ setSyncState("off", ""); return; }
+    setSyncState("busy", "Checking the repository…");
+    try{
+      const r = await gh("");
+      if(r.missing) throw new Error("No such repository. Check the spelling, and that the token can see it.");
+      if(r.data && r.data.default_branch) SYNC.branch = r.data.default_branch;
+      if(r.data && r.data.private === false)
+        setSyncState("error", "That repository is public — anyone could read your work. Make it private in its GitHub settings.");
+      saveSyncSettings();
+      await syncAll({ full:true });
+    }catch(err){
+      setSyncState("error", err.message || String(err));
+    }
+  };
+
+  if(now) now.onclick = ()=>{
+    readSyncFields();
+    if(!SYNC.on){ setSyncState("off", "Tick 'Turn it on' first."); return; }
+    syncAll({ full:true });
+  };
 }
 
 /* ---- opening ---- */
@@ -4379,7 +4825,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-08-07a";
+const BUILD = "2026-08-07b";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file
@@ -4417,6 +4863,13 @@ async function boot(){
   build(S.key); syncJoin(); syncUndo();
   paintWheel(); paintLinePop(); paintMarkPop(); paintFindChips();
   reportStorage();
+
+  loadSyncSettings(); wireSync();
+  try{
+    const st = await kvGet("sync");
+    if(st){ SYNC.base = st.base || {}; SYNC.shas = st.shas || {}; }
+  }catch(e){}
+  if(SYNC.on) syncAll({ full:true });
 }
 
 /* Word widths are measured from the DOM. If Cardo arrives after the first
@@ -4432,8 +4885,15 @@ document.fonts.ready.then(()=> booted ? remeasure() : boot());
   clearTimeout(saveTimer); saveNow();
 }));
 document.addEventListener("visibilitychange", ()=>{
-  if(document.visibilityState === "hidden"){ clearTimeout(saveTimer); saveNow(); }
+  if(document.visibilityState === "hidden"){
+    clearTimeout(saveTimer); saveNow();
+    if(SYNC.on) syncAll();                 // push before the iPad suspends us
+  } else if(SYNC.on && Date.now() - SYNC.at > 20000){
+    syncAll({ full:true });                // and pull whatever happened elsewhere
+  }
 });
+window.addEventListener("online",  ()=>{ if(SYNC.on) syncAll({ full:true }); });
+window.addEventListener("offline", ()=>{ if(SYNC.on) setSyncState("offline", "No connection — your work is safe on this device."); });
 window.addEventListener("resize", ()=>{
   place();
   if(linePop.classList.contains("show")) placeLinePop();

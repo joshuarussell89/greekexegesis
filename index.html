@@ -4774,10 +4774,6 @@ document.getElementById("passage").onchange = e =>{
   build(S.key); syncJoin(); saveNow();
 };
 document.getElementById("auto").onclick  = ()=>{ pushUndo(); autoSplit(); };
-document.getElementById("joinUp").onclick = ()=>{
-  pushUndo();
-  joinUp(S.lines.findIndex(l => l.id === S.curLine));
-};
 document.getElementById("reset").onclick = ()=>{
   pushUndo();
   const ink = S.strokes, cn = S.conns, sec = S.sections;
@@ -5685,7 +5681,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-08-08e";
+const BUILD = "2026-08-08f";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file

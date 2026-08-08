@@ -14,11 +14,11 @@
 <title>Nous — Greek NT Flow Diagrams</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cardo:wght@400;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cardo:wght@400;700&family=Inter:wght@400;500;600&family=Noto+Serif+Hebrew:wght@400;600&display=swap" rel="stylesheet">
 <style>
   :root{
     --bg:#eeeae1; --paper:#fffefb; --ink:#211d18; --muted:#857d70;
-    --sym:34px; --symink:.42;
+    --symink:.42;
     --rule:#e6e1d6; --rule2:#f0ece3; --accent:#8a5a2b; --accent2:#a9713b;
     --sel:#c2410c; --chip:#f4f1e9;
   }
@@ -147,8 +147,12 @@
   #svg{pointer-events:none;z-index:2;}
   #ink{z-index:3;pointer-events:none;}
   #hit{z-index:10;touch-action:none;}
-  .w.heb{font-family:"SBL Hebrew","Ezra SIL SR","Ezra SIL",Cardo,"Times New Roman",serif;
-    font-size:30px;line-height:1.35;direction:rtl;unicode-bidi:isolate;}
+  /* SBL Hebrew if the device has it, otherwise a webfont — so the vowels and
+     accents are never assembled out of two different faces, which is what makes
+     the spacing wander. */
+  .w.heb{font-family:"SBL Hebrew","Ezra SIL SR","Ezra SIL","Noto Serif Hebrew",Cardo,serif;
+    font-size:29px;line-height:1.62;direction:rtl;unicode-bidi:isolate;
+    font-feature-settings:"kern" 1;padding:3px 5px;}
   .w{position:absolute;font-family:Cardo,Georgia,serif;font-size:27px;line-height:1.15;
     padding:2px 4px;border-radius:4px;white-space:nowrap;z-index:1;
     transition:box-shadow .12s;}
@@ -157,9 +161,8 @@
   /* A marked word carries its symbol as a child, so it moves with the word.
      The symbol lies over the word rather than above it, and is see-through
      like highlighter ink so the Greek reads straight through it. */
-  .w.heb .sym{font-size:calc(var(--sym) * 1.05);}
   .w .sym{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
-    font-size:var(--sym);line-height:0;pointer-events:none;white-space:nowrap;
+    line-height:0;pointer-events:none;white-space:nowrap;
     opacity:var(--symink);
     font-family:Inter,-apple-system,"Apple Color Emoji",sans-serif;}
 
@@ -405,7 +408,7 @@
   #insp .hd{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;
     padding-bottom:11px;}
   #insp .grk{font-family:Cardo,serif;font-size:33px;line-height:1.05;letter-spacing:-.01em;}
-  #insp .grk.heb,.row .v .gk.heb{font-family:"SBL Hebrew","Ezra SIL",Cardo,serif;
+  #insp .grk.heb,.row .v .gk.heb{font-family:"SBL Hebrew","Ezra SIL","Noto Serif Hebrew",Cardo,serif;
     letter-spacing:0;direction:rtl;unicode-bidi:isolate;}
   #insp .ref{font-size:10px;color:var(--muted);letter-spacing:.11em;margin-top:5px;
     font-weight:600;}
@@ -470,15 +473,14 @@
 
       <span class="glbl">Ink</span>
       <div class="grp">
-        <button data-tool="chain" title="Tap a word to link it to somewhere else in this book"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.2" cy="8.4" r="4.3"/><circle cx="13.8" cy="8.4" r="4.3"/><path d="M6 17.4h10" stroke-width="1.3"/></svg>Chain</button>
-        <button data-tool="xref" title="Drag a square around a quotation and give its reference"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.2" y="6.2" width="12.6" height="9.6" rx="1.4"/><path d="M13.4 4.2h5.4v5.4" /><path d="M18.8 4.2l-5.2 5.2"/></svg>Cross-ref</button>
+        <button data-tool="chain" title="Tap a word to link it to somewhere else in this book"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="1.6" y="8.2" width="12.2" height="6.6" rx="3.3" transform="rotate(-45 7.7 11.5)"/><rect x="8.2" y="7.2" width="12.2" height="6.6" rx="3.3" transform="rotate(-45 14.3 10.5)"/></svg>Chain</button>
         <button data-tool="connect" title="Tap two words to draw a relation arrow"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.6 7c0 7.4 5.2 10.6 13.4 10.2"/><path d="M14.2 14.6l3.2 2.7-2.9 2.5"/><circle cx="3.6" cy="7" r="1.5" fill="currentColor" stroke="none"/></svg>Connect</button>
         <button data-tool="pen" title="Freehand pen, pressure sensitive"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15.8 3.4l2.8 2.8-8.5 8.5-4 1.2 1.2-4 8.5-8.5z"/><path d="M13.6 5.6l2.8 2.8"/><path d="M9 13l1.6 1.6"/></svg>Pen</button>
         <button data-tool="highlight" title="Broad translucent highlighter"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6.4 12.6l6.2-6.2 3.6 3.6-6.2 6.2H6.4v-3.6z"/><path d="M13.4 5.6l2.2-2.2 3.6 3.6-2.2 2.2"/><path d="M3.6 19.4h14" stroke-width="2.6"/></svg>Highlight</button>
         <button data-tool="line" id="lineBtn" title="Straight line — tap for weights and patterns"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.4 17L18.6 5"/><circle cx="3.4" cy="17" r="1.4" fill="currentColor" stroke="none"/><circle cx="18.6" cy="5" r="1.4" fill="currentColor" stroke="none"/></svg>Line<svg class="car"
                viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"
                stroke-linecap="round"><path d="M1 1l4 4 4-4"/></svg></button>
-        <button data-tool="rect" title="Rectangle, drag corner to corner"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.6" y="6" width="14.8" height="10" rx="1.6"/><circle cx="3.6" cy="6" r="1.3" fill="currentColor" stroke="none"/><circle cx="18.4" cy="16" r="1.3" fill="currentColor" stroke="none"/></svg>Box</button>
+        <button data-tool="rect" id="boxBtn" title="Rectangle — tap for the cross-reference square"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.6" y="6" width="14.8" height="10" rx="1.6"/><circle cx="3.6" cy="6" r="1.3" fill="currentColor" stroke="none"/><circle cx="18.4" cy="16" r="1.3" fill="currentColor" stroke="none"/></svg>Box<svg class="car" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M1 1l4 4 4-4"/></svg></button>
         <button data-tool="mark" id="markBtn" title="Underline, box or badge a word — tap for options"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.2h10v16l-5-3.6-5 3.6v-16z"/><path d="M11 7l1 2.1 2.3.3-1.7 1.6.4 2.3-2-1.1-2 1.1.4-2.3L7.7 9.4 10 9.1 11 7z" stroke-width="1.1"/></svg>Mark<svg class="car" viewBox="0 0 10 6" fill="none"
                stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M1 1l4 4 4-4"/></svg></button>
         <button data-tool="erase" title="Erase whole strokes"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8.4 17.4H5.2l-1.8-1.8a1.6 1.6 0 010-2.3l8-8 5.5 5.5-6.5 6.6z"/><path d="M8.4 17.4H18"/><path d="M9.6 8.2l5.5 5.5"/></svg>Erase</button>
@@ -659,6 +661,7 @@
 
 <div class="pop anchored" id="linePop"></div>
 <div class="pop anchored" id="markPop"></div>
+<div class="pop anchored" id="boxPop"></div>
 
 <div class="pop" id="findPop">
   <h4>Find in this passage</h4>
@@ -923,6 +926,10 @@ const PASSAGES = {};
    STATE
    ============================================================ */
 const INDENT = 36, ROW = 44, MARGIN = 78, TOP = 76, GAPW = 9, WRAP = 1075;
+/* Right-to-left needs its gutter on the other side, and the vowel points and
+   accents need more room above and below than Greek does. */
+const RWRAP = 1040, ROW_HE = 58, GAPW_HE = 11;
+function rowH(){ return isRTL() ? ROW_HE : ROW; }
 const MAX_LAYOUT_WORDS = 2600;   // about a long chapter
 const SECGAP = 46;          // vertical space a section break opens up
 
@@ -1457,6 +1464,7 @@ function layout(){
   S.sections.forEach(s => s._y = undefined);
   let y = TOP, lastVerse = null, lastCh = null;
   const rtl = isRTL();
+  const R = rtl ? ROW_HE : ROW, GAP = rtl ? GAPW_HE : GAPW;
 
   S.lines.forEach(line=>{
     // a section break pushes this line — and everything after it — down a notch
@@ -1464,25 +1472,25 @@ function layout(){
     if(sec){ y += SECGAP; sec._y = y - SECGAP + 17; }
 
     // x0 is where the line starts: the left margin, or the right one mirrored
-    const x0 = rtl ? (WRAP - line.indent*INDENT) : (MARGIN + line.indent*INDENT);
+    const x0 = rtl ? (RWRAP - line.indent*INDENT) : (MARGIN + line.indent*INDENT);
     let x = x0, rows = 1;
     line.y = y; line.x = x0;
 
     line.ids.forEach(id=>{
       const w = S.words[id];
       if(rtl){
-        if(x < x0 && x - w.w < MARGIN){ x = x0 - 22; y += ROW; rows++; }
+        if(x < x0 && x - w.w < MARGIN){ x = x0 - 22; y += R; rows++; }
         x -= w.w;
         w.lx = x; w.ly = y;
-        x -= GAPW;
+        x -= GAP;
       } else {
-        if(x > x0 && x + w.w > WRAP){ x = x0 + 22; y += ROW; rows++; }
+        if(x > x0 && x + w.w > WRAP){ x = x0 + 22; y += R; rows++; }
         w.lx = x; w.ly = y;
-        x += w.w + GAPW;
+        x += w.w + GAP;
       }
     });
 
-    line.h = rows*ROW;
+    line.h = rows*R;
 
     // verse number, outside the margin the line starts from
     const first = S.words[line.ids[0]];
@@ -1493,20 +1501,21 @@ function layout(){
       // print the chapter only when it changes, so 1:12 … 24, 2:1 … reads naturally
       vn.textContent = (ch !== lastCh) ? first.verse : v;
       vn.style.left = (rtl ? x0 + 14 : x0 - 48) + "px"; vn.style.top = (line.y + 6) + "px";
+      if(rtl) vn.style.textAlign = "left";
       board.appendChild(vn);
       lastVerse = first.verse; lastCh = ch;
     }
     // line grip
-    const hx = rtl ? x0 + 52 : x0 - 68;
+    const hx = rtl ? x0 + 54 : x0 - 68;
     const lh = document.createElement("div");
     lh.className = "lh";
     lh.style.left = hx + "px"; lh.style.top = (line.y + 2) + "px";
-    lh.style.height = (ROW - 12) + "px";
+    lh.style.height = (R - 12) + "px";
     lh.dataset.line = line.id;
     board.appendChild(lh);
-    line.hx = hx; line.hy = line.y + 2; line.hw = 16; line.hh = ROW - 12;
+    line.hx = hx; line.hy = line.y + 2; line.hw = 16; line.hh = R - 12;
 
-    y += ROW + 10;
+    y += R + 10;
   });
 
   render(); drawConns(); redraw(); renderSections(); saveSoon();
@@ -1564,7 +1573,7 @@ function render(){
           w.el.appendChild(w._symEl);          // child, so it travels with the word
         }
         const col = (mk && mk.sc) || "";
-        const svg = glyphSVG(sym, col, SYMSIZE);
+        const svg = glyphSVG(sym, col, symSize(w));
         if(svg){ w._symEl.innerHTML = svg; w._symEl.style.color = ""; }
         else { w._symEl.innerHTML = ""; w._symEl.textContent = sym; // legacy character
                w._symEl.style.color = col; }
@@ -1579,7 +1588,11 @@ function render(){
    ============================================================ */
 /* Kept in step with --sym and --symink in the stylesheet, so a symbol looks
    the same on the page and in an exported picture. */
-const SYMSIZE = 34, SYMINK = .42;
+const SYMINK = .42;
+/* A symbol stands a third of the word's height above it and a third below, so
+   it reads as laid over the word rather than tucked inside it. */
+const SYMGROW = 5 / 3;
+function symSize(w){ return Math.round(((w && w.h) || 34) * SYMGROW); }
 const CANVAS_BUDGET = 12e6;    // safely under iOS Safari's ~16.7M pixel ceiling
 const CANVAS_MAXDIM = 8192;    // and under the per-dimension texture limit
 
@@ -1617,6 +1630,46 @@ function strokePoints(s){
 }
 
 
+
+/* Two links of a real chain: elongated ovals lying along a diagonal, the upper
+   one passing through the lower. The crossing is made by laying a stroke in the
+   colour of the paper under each link where it goes in front, which is how an
+   engraver would do it. */
+function chainLink(g, cx, cy, len, wid, ang){
+  const r = wid / 2, half = Math.max(0.1, len / 2 - r);
+  g.save();
+  g.translate(cx, cy);
+  g.rotate(ang);
+  g.beginPath();
+  g.moveTo(-half, -r);
+  g.lineTo(half, -r);
+  g.arc(half, 0, r, -Math.PI / 2, Math.PI / 2);
+  g.lineTo(-half, r);
+  g.arc(-half, 0, r, Math.PI / 2, -Math.PI / 2);
+  g.closePath();
+  g.restore();
+}
+
+function paintChain(g, cx, cy, col){
+  /* Two oval links meeting end to end at slightly different angles — capsules
+     on one axis merge into a single long shape, crossed ones interlock. The
+     link in front is outlined twice: once thickly in the colour of the paper,
+     which opens a gap in the link behind exactly where it passes under, and
+     then in its own colour. The rear link still shows through the hole. */
+  const LEN = 24, WID = 12.5, RUN = -Math.PI / 4;
+  const A = RUN - 0.42, B = RUN + 0.42;        // each link, angled off the run
+  const OFF = 8.2;
+  const dx = Math.cos(RUN) * OFF, dy = Math.sin(RUN) * OFF;
+
+  g.strokeStyle = col; g.lineWidth = 2.1;
+  chainLink(g, cx - dx, cy - dy, LEN, WID, A); g.stroke();
+
+  g.strokeStyle = "#fffefb"; g.lineWidth = 4.8;
+  chainLink(g, cx + dx, cy + dy, LEN, WID, B); g.stroke();
+  g.strokeStyle = col; g.lineWidth = 2.1;
+  chainLink(g, cx + dx, cy + dy, LEN, WID, B); g.stroke();
+}
+
 /* A tag, drawn the same way on the page and in an exported picture. */
 function paintTag(g, st){
   const pts = strokePoints(st);
@@ -1627,16 +1680,13 @@ function paintTag(g, st){
   g.strokeStyle = col; g.fillStyle = col;
 
   if(st.mode === "chain"){
-    // two interlocking rings, with the reference beneath — as on the worksheet
-    const cx = pts[0].x, cy = pts[0].y;
-    g.lineWidth = 2;
-    g.beginPath(); g.arc(cx - 5.5, cy, 7.4, 0, Math.PI * 2); g.stroke();
-    g.beginPath(); g.arc(cx + 5.5, cy, 7.4, 0, Math.PI * 2); g.stroke();
+    paintChain(g, pts[0].x, pts[0].y, col);
     if(st.ref){
-      g.font = "600 12.5px Inter, -apple-system, sans-serif";
+      g.font = "600 13px Inter, -apple-system, sans-serif";
       g.textBaseline = "top";
+      g.fillStyle = col;
       const tw = g.measureText(st.ref).width;
-      g.fillText(st.ref, cx - tw / 2, cy + 11);
+      g.fillText(st.ref, pts[0].x - tw / 2, pts[0].y + 19);
     }
   } else {
     const a = pts[0], b = pts[1] || pts[0];
@@ -1727,8 +1777,8 @@ function hitPoints(s){
   const pts = strokePoints(s);
   if(s.mode === "chain"){
     const c = pts[0], out = [];
-    if(c) for(let i = 0; i < 16; i++)
-      out.push({ x:c.x + Math.cos(i/16*Math.PI*2)*11, y:c.y + Math.sin(i/16*Math.PI*2)*9 });
+    if(c) for(let i = 0; i < 18; i++)
+      out.push({ x:c.x + Math.cos(i/18*Math.PI*2)*13, y:c.y + Math.sin(i/18*Math.PI*2)*11 });
     return out;
   }
   if(s.mode === "pen" || s.mode === "highlight" || pts.length < 2) return pts;
@@ -2188,7 +2238,7 @@ hit.addEventListener("pointermove", e=>{
     }
     // dragged up past the halfway point of the row above → offer to merge
     const li = S.lines.indexOf(drag.line);
-    const wantMerge = li > 0 && (p.y < drag.line.y - ROW*0.45);
+    const wantMerge = li > 0 && (p.y < drag.line.y - rowH()*0.45);
     if(wantMerge !== drag.merge){ drag.merge = wantMerge; showMergeHint(wantMerge ? S.lines[li-1] : null); }
     return;
   }
@@ -2655,10 +2705,12 @@ document.querySelectorAll("[data-tool]").forEach(b=>{
     if(INKTOOLS.has(S.tool)) S.lastInk = S.tool;
     if(S.tool !== "connect") S.connFrom = null;
     document.querySelectorAll("[data-tool]").forEach(x=>x.classList.toggle("on", x === b));
+    if(S.tool === "rect") S.tool = boxMode;
     // selecting Line opens its style menu; any other tool closes it
     if(S.tool === "line"){ paintLinePop(); placeLinePop(); openPop(linePop); }
     else if(S.tool === "mark"){ paintMarkPop(); placeMarkPop();
                                 openPop(document.getElementById("markPop")); }
+    else if(S.tool === "rect"){ paintBoxPop(); placeBoxPop(); openPop(boxPop); }
     else closePops();
     paintWheel(); drawConns();   // wheel previews tints vs hues per tool
   };
@@ -2669,7 +2721,8 @@ const helpPop = document.getElementById("help");
 const setPop  = document.getElementById("settings");
 
 const ALLPOPS = ()=> [helpPop, setPop, document.getElementById("linePop"),
-                      document.getElementById("markPop"), document.getElementById("findPop")];
+                      document.getElementById("markPop"), document.getElementById("boxPop"),
+                      document.getElementById("findPop")];
 
 function openPop(pop){
   const opening = !pop.classList.contains("show");
@@ -2690,12 +2743,13 @@ function closePops(){
 document.addEventListener("pointerdown", e=>{
   const t = e.target;
   if(t.closest && (t.closest(".pop") || t.closest("#helpBtn") || t.closest("#setBtn") ||
-                   t.closest("#lineBtn") || t.closest("#markBtn") || t.closest("#findBtn"))) return;
+                   t.closest("#lineBtn") || t.closest("#markBtn") || t.closest("#boxBtn") ||
+                   t.closest("#findBtn"))) return;
   closePops();
 }, true);
 
 // re-label the inspector buttons when the target modules change
-["mText","mLex"].forEach(id=>{
+["mText","mLex","mHeb","mHLex","mEng"].forEach(id=>{
   document.getElementById(id).onchange = ()=>{ if(S.sel !== null) select(S.words[S.sel]); };
 });
 
@@ -4247,24 +4301,25 @@ function paintBoard(g){
     if(mk && mk.u){ g.strokeStyle = mk.u; g.lineWidth = 2.5;
                     g.beginPath(); g.moveTo(x, y + wd.h); g.lineTo(x + wd.w, y + wd.h); g.stroke(); }
     g.fillStyle = "#211d18";
-    g.font = heb ? '30px "SBL Hebrew", "Ezra SIL", Cardo, serif'
+    g.font = heb ? '29px "SBL Hebrew", "Ezra SIL", "Noto Serif Hebrew", Cardo, serif'
                  : "27px Cardo, Georgia, serif";
     g.textBaseline = "top";
     g.fillText(wd.surface, x + 4, y + 3);
     if(mk && mk.s){
       const gl = (typeof Path2D !== "undefined") ? anyGlyph(mk.s) : null;
       const cx = x + wd.w / 2, cy = y + wd.h / 2;
+      const sz = symSize(wd);
       g.save();
       g.globalAlpha = SYMINK;                 // see-through, like the highlighter
       g.strokeStyle = mk.sc || "#8a5a2b"; g.fillStyle = mk.sc || "#8a5a2b";
       if(gl){
         const ds = (Array.isArray(gl.d) ? gl.d : [gl.d]).map(safePath).filter(Boolean);
-        g.translate(cx - SYMSIZE / 2, cy - SYMSIZE / 2);
-        g.scale(SYMSIZE / 24, SYMSIZE / 24);
+        g.translate(cx - sz / 2, cy - sz / 2);
+        g.scale(sz / 24, sz / 24);
         g.lineWidth = 1.9; g.lineCap = "round"; g.lineJoin = "round";
         ds.forEach(d=>{ const pth = new Path2D(d); gl.f ? g.fill(pth) : g.stroke(pth); });
       } else {
-        g.font = SYMSIZE + "px sans-serif";
+        g.font = sz + "px sans-serif";
         g.textBaseline = "middle";
         const tw = g.measureText(mk.s).width;
         g.fillText(mk.s, cx - tw / 2, cy);
@@ -4744,6 +4799,52 @@ function paintLinePop(){
     };
     linePop.appendChild(b);
   });
+}
+
+
+/* ---- the Box menu: a plain square, or one that carries a reference ---- */
+const boxPop = document.getElementById("boxPop");
+let boxMode = "rect";                       // which of the two the Box button means
+const BOXOPTS = [
+  { v:"rect", nm:"Plain box", sub:"Drag corner to corner" },
+  { v:"xref", nm:"Cross-reference", sub:"Round a quotation \u2014 opens Accordance" }
+];
+
+function boxPreview(kind, hue){
+  return kind === "rect"
+    ? `<rect x="6" y="3" width="50" height="10" rx="2" fill="none" stroke="${hue}" stroke-width="2"/>`
+    : `<rect x="6" y="4" width="50" height="9" rx="2" fill="none" stroke="${hue}" stroke-width="2"/>` +
+      `<rect x="4" y="0" width="26" height="8" rx="1.6" fill="var(--paper)" stroke="${hue}" stroke-width="1.2"/>` +
+      `<text x="7" y="6.2" font-size="5.4" font-family="Inter,sans-serif" fill="${hue}">Isa 49:8</text>`;
+}
+
+function paintBoxPop(){
+  const hue = COLORS[S.ci].hue;
+  boxPop.innerHTML = "";
+  const h = document.createElement("h4");
+  h.textContent = "Box"; boxPop.appendChild(h);
+  BOXOPTS.forEach(o=>{
+    const b = document.createElement("button");
+    b.className = "styleopt" + (S.tool === o.v ? " on" : "");
+    b.innerHTML =
+      `<svg class="prev" viewBox="0 0 62 16">${boxPreview(o.v, hue)}</svg>` +
+      `<span class="txt"><span class="nm">${o.nm}</span><span class="sub">${o.sub}</span></span>` +
+      `<span class="tick">\u2713</span>`;
+    b.onclick = ()=>{
+      S.tool = boxMode = o.v;
+      document.querySelectorAll("[data-tool]").forEach(x =>
+        x.classList.toggle("on", x.dataset.tool === "rect"));
+      paintBoxPop();
+      closePops();
+    };
+    boxPop.appendChild(b);
+  });
+}
+
+function placeBoxPop(){
+  const r = document.getElementById("boxBtn").getBoundingClientRect();
+  boxPop.style.top = (r.bottom + 8) + "px";
+  boxPop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - 272)) + "px";
 }
 
 /* Sit the menu directly under the Line button. */
@@ -5681,7 +5782,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-08-08f";
+const BUILD = "2026-08-09b";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file

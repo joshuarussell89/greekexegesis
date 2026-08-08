@@ -18,6 +18,7 @@
 <style>
   :root{
     --bg:#eeeae1; --paper:#fffefb; --ink:#211d18; --muted:#857d70;
+    --sym:34px; --symink:.42;
     --rule:#e6e1d6; --rule2:#f0ece3; --accent:#8a5a2b; --accent2:#a9713b;
     --sel:#c2410c; --chip:#f4f1e9;
   }
@@ -85,14 +86,18 @@
     border-radius:8px;background:var(--paper);color:var(--ink);width:210px;max-width:38vw;
     min-width:110px;transition:border-color .15s;}
   #refBox:focus{outline:none;border-color:var(--accent);}
-  .aimwrap{display:flex;align-items:center;gap:6px;flex:1 1 200px;min-width:120px;max-width:420px;}
-  .aimlbl{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);
-    flex:0 0 auto;}
-  #sumBox{font:inherit;font-size:13px;padding:7px 10px;border:1px solid var(--rule);
-    border-radius:7px;background:var(--paper);color:inherit;width:100%;min-width:0;
-    font-style:italic;}
-  #sumBox:focus{outline:none;border-color:var(--accent);font-style:normal;}
-  #sumBox::placeholder{font-style:italic;opacity:.55;}
+  /* The big idea sits on the paper above the Greek, where it can be seen while
+     working, rather than in the chrome at the top of the window. */
+  #pagesum{position:absolute;left:24px;top:16px;width:1051px;max-width:calc(100% - 48px);
+    display:flex;align-items:baseline;gap:10px;z-index:12;
+    border-bottom:1px solid var(--rule2);padding-bottom:7px;}
+  .sumlbl{font-size:9.5px;letter-spacing:.11em;text-transform:uppercase;color:var(--muted);
+    font-weight:700;flex:0 0 auto;}
+  #sumBox{font-family:Cardo,Georgia,serif;font-size:19px;padding:2px 0;border:0;
+    background:transparent;color:var(--ink);width:100%;min-width:0;font-style:italic;}
+  #sumBox:focus{outline:none;font-style:normal;}
+  #sumBox::placeholder{font-style:italic;color:var(--dim);opacity:.62;font-size:16px;}
+  #pagesum.off{display:none;}
   #refBox.bad{border-color:var(--sel);background:#fff5f2;}
   #refGo{padding:7px 8px;border:1px solid var(--rule);border-radius:8px;}
   #passage{font-weight:500;min-width:110px;max-width:26vw;flex-shrink:1;}
@@ -142,20 +147,28 @@
   #svg{pointer-events:none;z-index:2;}
   #ink{z-index:3;pointer-events:none;}
   #hit{z-index:10;touch-action:none;}
+  .w.heb{font-family:"SBL Hebrew","Ezra SIL SR","Ezra SIL",Cardo,"Times New Roman",serif;
+    font-size:30px;line-height:1.35;direction:rtl;unicode-bidi:isolate;}
   .w{position:absolute;font-family:Cardo,Georgia,serif;font-size:27px;line-height:1.15;
     padding:2px 4px;border-radius:4px;white-space:nowrap;z-index:1;
     transition:box-shadow .12s;}
   .w.sel{background:rgba(194,65,12,.12);box-shadow:0 0 0 1.5px var(--sel);}
   .w.lem{box-shadow:inset 0 -2px 0 rgba(0,0,0,.10);}
-  /* a marked word carries its symbol as a child, so it moves with the word */
-  .w .sym{position:absolute;left:50%;top:-16px;transform:translateX(-50%);
-    font-size:15px;line-height:1;pointer-events:none;white-space:nowrap;
+  /* A marked word carries its symbol as a child, so it moves with the word.
+     The symbol lies over the word rather than above it, and is see-through
+     like highlighter ink so the Greek reads straight through it. */
+  .w.heb .sym{font-size:calc(var(--sym) * 1.05);}
+  .w .sym{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+    font-size:var(--sym);line-height:0;pointer-events:none;white-space:nowrap;
+    opacity:var(--symink);
     font-family:Inter,-apple-system,"Apple Color Emoji",sans-serif;}
 
   /* ---------- empty state ---------- */
   #empty{position:absolute;inset:0;display:none;align-items:flex-start;justify-content:center;
     padding-top:96px;z-index:20;}
   #empty.show{display:flex;}
+  #empty .act.alt2{margin-top:9px;background:var(--paper);color:var(--ink);
+    border:1px solid var(--rule);}
   #empty .card{max-width:440px;text-align:center;padding:34px 32px;background:var(--paper);
     border:1px solid var(--rule);border-radius:16px;box-shadow:0 10px 34px rgba(0,0,0,.08);}
   #empty .glyph{width:56px;height:56px;color:var(--accent);display:block;margin:0 auto 12px;}
@@ -165,38 +178,6 @@
   button.big{font-size:14px;padding:12px 20px;border-radius:10px;}
   #empty .prog{font-size:12px;color:var(--muted);margin-top:12px;min-height:18px;line-height:1.5;}
 
-  /* ---------- ESV side panel ---------- */
-  #esv{position:fixed;top:0;right:0;bottom:0;width:340px;max-width:86vw;background:var(--paper);
-    border-left:1px solid var(--rule);box-shadow:-8px 0 28px rgba(0,0,0,.08);z-index:70;
-    display:none;flex-direction:column;}
-  #esv.show{display:flex;}
-  body.esvopen #scroll{padding-right:356px;}
-  #esv .ehead{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;
-    padding:14px 16px 10px;border-bottom:1px solid var(--rule2);}
-  #esv .etitle{font-size:9.5px;text-transform:uppercase;letter-spacing:.11em;color:var(--muted);
-    font-weight:700;}
-  #esv .eref{font-size:15px;font-weight:600;margin-top:3px;}
-  #esv .x{font-size:17px;color:var(--muted);cursor:pointer;padding:3px 6px;border-radius:7px;}
-  #esv .x:hover{background:var(--chip);color:var(--ink);}
-  #esvBody{flex:1 1 auto;overflow:auto;padding:14px 16px;font-size:14.5px;line-height:1.72;
-    white-space:pre-wrap;}
-  #esvBody .enote{font-size:12.5px;color:var(--muted);line-height:1.6;white-space:normal;}
-  #esvBody b.vn2{font-size:10px;color:var(--accent);vertical-align:super;font-weight:700;
-    margin-right:2px;}
-  #esv .efoot{flex:0 0 auto;padding:10px 16px 14px;border-top:1px solid var(--rule2);
-    font-size:10.5px;color:var(--muted);line-height:1.5;}
-  #esv .efoot a{color:var(--accent);}
-  #esv .efoot .chg{color:var(--accent);cursor:pointer;text-decoration:underline;
-    display:inline-block;margin-top:6px;}
-  #esv .ekey{display:flex;gap:6px;margin-top:12px;}
-  #esv .ekey input{flex:1 1 auto;min-width:0;font:inherit;font-size:13px;padding:9px 11px;
-    border:1px solid var(--rule);border-radius:9px;background:var(--paper);color:var(--ink);}
-  #esv .ekey input:focus{outline:none;border-color:var(--accent);}
-  #esv .ekey button{font-size:13px;padding:9px 14px;border-radius:9px;}
-
-  .outopts{display:flex;flex-direction:column;gap:10px;padding:4px 2px 2px;}
-  .outopts label{display:flex;align-items:center;gap:9px;font-size:13.5px;cursor:pointer;}
-  .outopts input{accent-color:var(--accent);width:16px;height:16px;}
 
   /* ---------- import mapping ---------- */
   .impgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;}
@@ -249,7 +230,7 @@
 
   /* ---------- printing ---------- */
   @media print{
-    header,#wheel,.pop,#insp,#esv,#conc,.sheet{display:none !important;}
+    header,#wheel,.pop,#insp,#conc,.sheet{display:none !important;}
     #scroll{overflow:visible !important;padding:0 !important;}
     #board{box-shadow:none !important;border:none !important;}
     html,body,#app{height:auto !important;overflow:visible !important;background:#fff !important;}
@@ -424,6 +405,8 @@
   #insp .hd{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;
     padding-bottom:11px;}
   #insp .grk{font-family:Cardo,serif;font-size:33px;line-height:1.05;letter-spacing:-.01em;}
+  #insp .grk.heb,.row .v .gk.heb{font-family:"SBL Hebrew","Ezra SIL",Cardo,serif;
+    letter-spacing:0;direction:rtl;unicode-bidi:isolate;}
   #insp .ref{font-size:10px;color:var(--muted);letter-spacing:.11em;margin-top:5px;
     font-weight:600;}
   #insp .x{font-size:17px;color:var(--muted);cursor:pointer;line-height:1;padding:3px 6px;
@@ -463,20 +446,14 @@
       <select id="chapter" title="Which part of the loaded book to lay out"
               style="display:none"></select>
       <span class="glbl" id="wcount"></span>
-      <div class="aimwrap"><span class="aimlbl">Summary</span>
-        <input type="text" id="sumBox" spellcheck="true" autocapitalize="sentences"
-               placeholder="what this passage says"
-               title="A summary of the passage in view. It belongs to this passage, and heads the exported outline."></div>
       <button id="auto" class="act" title="Break the passage into propositions"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.4 5.4h15.2"/><path d="M6.6 11h12"/><path d="M9.8 16.6h8.8"/><circle cx="3.4" cy="11" r="1.3" fill="currentColor" stroke="none"/><circle cx="6.6" cy="16.6" r="1.3" fill="currentColor" stroke="none"/></svg><span class="lbl-hide">Auto-split</span></button>
       <div class="grp">
         <button id="undoBtn" disabled title="Undo (⌘Z)"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4.2 9.8h9.4a4 4 0 010 8H8.6"/><path d="M7.6 6.2L4 9.8l3.6 3.6"/></svg><span class="lbl-hide">Undo</span></button>
         <button id="redoBtn" disabled title="Redo (⇧⌘Z)"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M17.8 9.8H8.4a4 4 0 000 8h5"/><path d="M14.4 6.2L18 9.8l-3.6 3.6"/></svg></button>
       </div>
-      <button id="joinUp" class="ghost" disabled title="Merge the current line into the one above"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M11 18V6"/><path d="M7.2 9.8L11 6l3.8 3.8"/><path d="M4.4 3.4h13.2"/></svg><span class="lbl-hide">Join ↑</span></button>
       <div class="right">
         <label class="toggle"><input type="checkbox" id="pmode" checked>
         <span class="lbl-hide">Pencil draws, finger moves</span></label>
-      <button id="esvBtn" class="ghost" title="Show the English (ESV) beside the Greek"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.6 4.6h6a2.4 2.4 0 012.4 2.4v10.4a2 2 0 00-2-2h-6.4z"/><path d="M18.4 4.6h-6A2.4 2.4 0 0010 7v10.4a2 2 0 012-2h6.4z"/></svg><span class="lbl-hide">ESV</span></button>
         <button id="findBtn" class="ghost" title="Find words by grammar, lemma or gloss"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="9.6" cy="9.6" r="5.8"/><path d="M13.9 13.9l4 4"/><path d="M7.4 9.6h4.4M9.6 7.4v4.4" stroke-width="1.3"/></svg><span class="lbl-hide">Find</span></button>
       <button id="helpBtn" class="ghost" title="Show the key"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4.2h8.6l3.4 3.4v10.2H5z"/><path d="M13.6 4.2v3.4H17"/><path d="M8.4 11.4h5.2M8.4 14.4h3.4" stroke-width="1.3"/></svg><span class="lbl-hide">Key</span></button>
       <span id="syncDot" class="syncdot off" style="display:none" title="Sync"></span>
@@ -487,14 +464,15 @@
     <div class="tier">
       <span class="glbl">Structure</span>
       <div class="grp">
-        <button data-tool="move" class="on" title="Move words and lines"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M11 2.6l2 3.4h-4l2-3.4zM11 19.4l-2-3.4h4l-2 3.4zM2.6 11l3.4-2v4L2.6 11zM19.4 11l-3.4 2v-4l3.4 2z"/><circle cx="11" cy="11" r="2.4"/></svg>Move</button>
-        <button data-tool="split" title="Tap a word to break the line there"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.4" cy="16.4" r="2.1"/><circle cx="5.4" cy="5.6" r="2.1"/><path d="M7 15L17.5 5.2M7 7l10.5 9.8"/></svg>Split</button>
-        <button data-tool="join" id="joinTool" title="Tap a word to rejoin its line"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5c4.2 0 3.4 6 7 6M4 17c4.2 0 3.4-6 7-6M11 11h7"/><path d="M15.6 8.4L18.2 11l-2.6 2.6"/></svg>Join</button>
-        <button data-tool="connect" title="Tap two words to draw a relation arrow"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.6 7c0 7.4 5.2 10.6 13.4 10.2"/><path d="M14.2 14.6l3.2 2.7-2.9 2.5"/><circle cx="3.6" cy="7" r="1.5" fill="currentColor" stroke="none"/></svg>Connect</button>
+        <button data-tool="move" class="on" title="Move and select words and lines"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M11 2.6l2 3.4h-4l2-3.4zM11 19.4l-2-3.4h4l-2 3.4zM2.6 11l3.4-2v4L2.6 11zM19.4 11l-3.4 2v-4l3.4 2z"/><circle cx="11" cy="11" r="2.4"/></svg>Move/Select</button>
+        <button data-tool="split" title="Tap a word to break the line before it — tap the first word of a line to rejoin it"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="4.8" cy="5.4" r="1.9"/><circle cx="4.8" cy="16.6" r="1.9"/><path d="M6.4 6.6L12 11M6.4 15.4L12 11M12 11h6.2"/><path d="M16.2 8.6L18.6 11l-2.4 2.4"/></svg>Split/Join</button>
       </div>
 
       <span class="glbl">Ink</span>
       <div class="grp">
+        <button data-tool="chain" title="Tap a word to link it to somewhere else in this book"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.2" cy="8.4" r="4.3"/><circle cx="13.8" cy="8.4" r="4.3"/><path d="M6 17.4h10" stroke-width="1.3"/></svg>Chain</button>
+        <button data-tool="xref" title="Drag a square around a quotation and give its reference"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.2" y="6.2" width="12.6" height="9.6" rx="1.4"/><path d="M13.4 4.2h5.4v5.4" /><path d="M18.8 4.2l-5.2 5.2"/></svg>Cross-ref</button>
+        <button data-tool="connect" title="Tap two words to draw a relation arrow"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.6 7c0 7.4 5.2 10.6 13.4 10.2"/><path d="M14.2 14.6l3.2 2.7-2.9 2.5"/><circle cx="3.6" cy="7" r="1.5" fill="currentColor" stroke="none"/></svg>Connect</button>
         <button data-tool="pen" title="Freehand pen, pressure sensitive"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15.8 3.4l2.8 2.8-8.5 8.5-4 1.2 1.2-4 8.5-8.5z"/><path d="M13.6 5.6l2.8 2.8"/><path d="M9 13l1.6 1.6"/></svg>Pen</button>
         <button data-tool="highlight" title="Broad translucent highlighter"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6.4 12.6l6.2-6.2 3.6 3.6-6.2 6.2H6.4v-3.6z"/><path d="M13.4 5.6l2.2-2.2 3.6 3.6-2.2 2.2"/><path d="M3.6 19.4h14" stroke-width="2.6"/></svg>Highlight</button>
         <button data-tool="line" id="lineBtn" title="Straight line — tap for weights and patterns"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.4 17L18.6 5"/><circle cx="3.4" cy="17" r="1.4" fill="currentColor" stroke="none"/><circle cx="18.6" cy="5" r="1.4" fill="currentColor" stroke="none"/></svg>Line<svg class="car"
@@ -512,6 +490,9 @@
 
   <div id="scroll">
     <div id="board">
+      <div id="pagesum"><span class="sumlbl">Big idea</span><input type="text" id="sumBox"
+           spellcheck="true" autocapitalize="sentences" enterkeyhint="done"
+           placeholder="in ten words or less, the idea that unifies the passage"></div>
       <svg id="svg"></svg>
       <canvas id="ink"></canvas>
       <div id="hit"></div>
@@ -523,9 +504,12 @@
              edition of the SBL Greek New Testament. About 8&nbsp;MB, fetched once
              and kept on this device.</p>
           <button id="installNT" class="act big">Install the New Testament</button>
+          <button id="installOT" class="act big alt2">Install the Old Testament</button>
           <div class="prog" id="installProg"></div>
-          <p class="alt">Or open <b>⋯</b> and load <b>-morphgnt.txt</b> files, a repository
-             <b>.zip</b>, or a saved workspace from your own files.</p>
+          <p class="alt">The Greek is the SBLGNT with MorphGNT tagging; the Hebrew is the
+             Westminster Leningrad Codex with Open Scriptures morphology. The Old Testament is
+             four times the size and takes a few minutes.<br>
+             Or open <b>⋯</b> and load the files yourself.</p>
         </div>
       </div>
     </div>
@@ -541,17 +525,6 @@
   <div class="efoot" id="concFoot"></div>
 </aside>
 
-<aside id="esv">
-  <div class="ehead">
-    <div>
-      <div class="etitle">English — ESV</div>
-      <div class="eref" id="esvRef"></div>
-    </div>
-    <div class="x" id="esvClose">×</div>
-  </div>
-  <div id="esvBody"><div class="enote">Add your free ESV API key in <b>⋯</b> to use this panel.</div></div>
-  <div class="efoot" id="esvFoot"></div>
-</aside>
 
 
 <div id="drawSheet" class="sheet">
@@ -647,6 +620,20 @@
   </div>
 </div>
 
+<div id="refSheet" class="sheet">
+  <div class="ws">
+    <div class="wslbl" id="refSheetLbl"></div>
+    <input type="text" id="refIn" spellcheck="false" enterkeyhint="done"
+           placeholder="Write here" autocapitalize="words">
+    <div class="askstate" id="refSheetState"></div>
+    <div class="wsbtns">
+      <button id="refSheetDel">Remove</button>
+      <button id="refSheetCancel">Cancel</button>
+      <button id="refSheetOk" class="act">✓ Use this</button>
+    </div>
+  </div>
+</div>
+
 <div id="insp">
   <div class="hd">
     <div><div class="grk" id="i-surf"></div><div class="ref" id="i-ref"></div></div>
@@ -692,10 +679,10 @@
 
 <div class="pop" id="help">
   <h4>Building the diagram</h4>
-  <div class="item"><div class="kbd">Split</div><div>Tap a word to break the line there; the
-    new line is indented one level.</div></div>
-  <div class="item"><div class="kbd">Rejoin</div><div>Tap a word in Join mode, press
-    <b>Join ↑</b>, or drag a line's grip up onto the line above.</div></div>
+  <div class="item"><div class="kbd">Split / Join</div><div>Tap any word to break the line
+    before it; the new line is indented one level. Tap the <em>first</em> word of a line and the
+    break is undone — so the same tap both splits and rejoins. Dragging a line's grip up onto the
+    line above also rejoins it.</div></div>
   <div class="item"><div class="kbd">Indent</div><div>Drag a line's grip sideways; it snaps
     to a 36&nbsp;pt grid.</div></div>
   <div class="item"><div class="kbd">Float a word</div><div>Drag any single word out of the
@@ -720,6 +707,13 @@
   <div class="item"><div class="kbd">Colour</div><div>Tap the floating puck to open the wheel;
     drag the hub to move it. 18 colours, shown as tints while the highlighter is active.</div></div>
   <hr>
+  <h4>Where the text comes from</h4>
+  <div class="item"><div class="kbd">Greek</div><div>SBLGNT, © 2010 Society of Biblical
+    Literature and Logos Bible Software, with MorphGNT tagging.</div></div>
+  <div class="item"><div class="kbd">Hebrew</div><div>Westminster Leningrad Codex — public
+    domain. Lemmas and morphology from the Open Scriptures Hebrew Bible Project, CC BY 4.0,
+    with lemma forms and glosses from the Open Scriptures Hebrew Lexicon.</div></div>
+  <hr>
   <h4>Finding and marking</h4>
   <div class="item"><div class="kbd">Find</div><div>Search the parsing itself. Tap
     <b>Imperative</b> to light up every imperative in the passage; add <b>Aorist</b> to narrow it
@@ -727,9 +721,19 @@
     Accents are ignored, so <b>λυπεω</b> finds λυπέω.</div></div>
   <div class="item"><div class="kbd">Apply</div><div>Highlight, Underline or Box every match at
     once, in the wheel's current colour.</div></div>
-  <div class="item"><div class="kbd">Mark</div><div>Underline a word, box it, or put a small
-    badge above it — ♥, 🩸, ✝, ★ and others. Tap a word to apply, tap again to remove. Marks are
-    attached to the word, so they move with it.</div></div>
+  <div class="item"><div class="kbd">Mark</div><div>Underline a word, box it, or lay a symbol
+    over it — ♥, 🩸, ✝, ★ and others. Symbols sit on the word, see-through like the highlighter.
+    Tap a word to apply, tap again to remove. Marks attach to the word, so they move with it.</div></div>
+  <div class="item"><div class="kbd">Hebrew</div><div>An Old Testament book is laid out right
+    to left: lines begin at the right margin and each level of indent steps in from the right.
+    Everything else behaves the same. The word inspector links to <b>HALOT</b> rather than BDAG,
+    and to your Hebrew text rather than the Greek — both set under <b>⋯</b>.</div></div>
+  <div class="item"><div class="kbd">Chain</div><div>Tap a word and write a reference to link it
+    to another part of this book — two rings and the reference, as on the worksheet. Tapping the
+    rings in <b>Move/Select</b> takes you there.</div></div>
+  <div class="item"><div class="kbd">Cross-ref</div><div>Drag a square round a quotation or
+    allusion and write what it quotes — <b>Isaiah 49:8</b>. Tapping its label opens that passage
+    in Accordance, in the English translation set under <b>⋯</b>.</div></div>
   <hr>
   <h4>Finding a passage</h4>
   <div class="item"><div class="kbd">Reference</div><div>Type it in the box at the top left:
@@ -780,13 +784,21 @@
     — a Septuagint dataset, for instance — and you'll be asked which column is which. Note that
     CATSS-derived LXX data carries its own conditions: you need to obtain it yourself and agree
     to their user declaration. Nothing is downloaded for you.</div>
+  <div class="foot" style="padding-top:0"><b>Hebrew.</b> Drop OSIS <b>.xml</b> files from
+    <b>openscriptures/morphhb</b> for the Old Testament — or use the buttons on the welcome
+    page, which fetch both testaments for you. The Westminster Leningrad Codex text is public
+    domain; its lemmas and morphology are © the Open Scriptures Hebrew Bible Project,
+    CC&nbsp;BY&nbsp;4.0.</div>
   <div class="fld"><label for="mgFile">Files</label>
     <input type="file" id="mgFile" multiple
-           accept=".txt,.zip,.json,text/plain,application/zip,application/json"></div>
+           accept=".txt,.zip,.json,.xml,text/plain,application/zip,application/json,text/xml,application/xml"></div>
   <div class="fld"><label for="mgAbbr">Ref override</label>
     <input type="text" id="mgAbbr" value="" placeholder="usually not needed"
            spellcheck="false"></div>
   <div class="foot" id="mgStatus">Nothing loaded — the built-in passage is hand-parsed.</div>
+  <button class="rowbtn" id="installNT2">Install the New Testament from GitHub…</button>
+  <button class="rowbtn" id="installOT2">Install the Old Testament from GitHub…</button>
+  <div class="foot" id="installProg2"></div>
   <hr>
   <h4>Symbol generation</h4>
   <div class="fld"><label for="aiKey">API key</label>
@@ -794,13 +806,6 @@
   <div class="foot">Only needed for <b>Ask for one</b> in the symbol picker. Drawing your own
     needs nothing. The key stays on this device, and whatever comes back is checked as plain
     path data before it is drawn.</div>
-  <hr>
-  <h4>English (ESV)</h4>
-  <div class="fld"><label for="esvKey">API key</label>
-    <input type="text" id="esvKey" spellcheck="false" placeholder="paste your key"></div>
-  <div class="foot">Free for non-commercial use from <b>api.esv.org</b>. The key stays on this
-    device. Crossway's terms allow a live lookup but not local storage of the text, so the
-    English is fetched when you open the panel and never saved.</div>
   <hr>
   <h4>Accordance links</h4>
   <div class="fld"><label for="mText">Greek text</label>
@@ -812,7 +817,18 @@
       <option value="TR">TR — Textus Receptus</option>
       <option value="BYZ">BYZ — Byzantine text</option>
     </select></div>
-  <div class="fld"><label for="mLex">Lexicon</label>
+  <div class="fld"><label for="mEng">English text</label>
+    <select id="mEng">
+      <option value="ESV" selected>ESV</option>
+      <option value="ESVS">ESVS — ESV with Strong's</option>
+      <option value="NIV">NIV</option>
+      <option value="NASB95">NASB95</option>
+      <option value="NKJV">NKJV</option>
+      <option value="KJVS">KJVS — KJV with Strong's</option>
+      <option value="NRSV">NRSV</option>
+      <option value="CSB">CSB</option>
+    </select></div>
+  <div class="fld"><label for="mLex">Greek lexicon</label>
     <select id="mLex">
       <option value="BDAG" selected>BDAG</option>
       <option value="CBDAG">Concise BDAG</option>
@@ -820,7 +836,25 @@
       <option value="LSJ">LSJ</option>
       <option value="Thayers">Thayer's</option>
     </select></div>
-  <div class="foot">Module names must match your own Accordance library. NA28-T includes the
+  <div class="fld"><label for="mHeb">Hebrew text</label>
+    <select id="mHeb">
+      <option value="BHS-W4" selected>BHS-W4 — tagged BHS</option>
+      <option value="HMT-W4">HMT-W4 — tagged Hebrew Masoretic</option>
+      <option value="BHS">BHS</option>
+      <option value="HMT">HMT</option>
+      <option value="WTT">WTT</option>
+    </select></div>
+  <div class="fld"><label for="mHLex">Hebrew lexicon</label>
+    <select id="mHLex">
+      <option value="HALOT" selected>HALOT</option>
+      <option value="CHALOT">Concise HALOT</option>
+      <option value="BDB">BDB</option>
+      <option value="DCH">DCH</option>
+      <option value="TWOT">TWOT</option>
+    </select></div>
+  <div class="foot">Which pair is used follows the passage on screen: Greek text and BDAG for
+    the New Testament, Hebrew text and HALOT for the Old. A cross-reference square opens the
+    English text above. Module names must match your own Accordance library. NA28-T includes the
     critical apparatus; GNT28-T is the same text without it.</div>
   <hr>
   <h4>Your work</h4>
@@ -888,7 +922,7 @@ const PASSAGES = {};
 /* ============================================================
    STATE
    ============================================================ */
-const INDENT = 36, ROW = 44, MARGIN = 78, TOP = 30, GAPW = 9, WRAP = 1075;
+const INDENT = 36, ROW = 44, MARGIN = 78, TOP = 76, GAPW = 9, WRAP = 1075;
 const MAX_LAYOUT_WORDS = 2600;   // about a long chapter
 const SECGAP = 46;          // vertical space a section break opens up
 
@@ -945,7 +979,9 @@ const COLORS = [
 const HUES = 12;   // outer ring count; the rest form the inner ring
 
 const LEXNAME = { BDAG:"BDAG lookup", CBDAG:"Concise BDAG", BrillDAG:"Brill lookup",
-                  LSJ:"LSJ lookup", Thayers:"Thayer's" };
+                  LSJ:"LSJ lookup", Thayers:"Thayer's",
+                  HALOT:"HALOT lookup", CHALOT:"Concise HALOT", BDB:"BDB lookup",
+                  DCH:"DCH lookup", TWOT:"TWOT lookup", HAL:"HAL lookup" };
 
 /* ============================================================
    SYMBOL LIBRARY
@@ -1145,10 +1181,13 @@ async function readZip(buf){
 }
 
 /* The first book in canonical order, or "" when nothing is loaded. */
+const BOOKKEY = /^(nt|ot):/;
 function firstBookKey(){
-  const ks = Object.keys(PASSAGES).filter(k => k.startsWith("nt:"));
+  const ks = Object.keys(PASSAGES).filter(k => BOOKKEY.test(k));
   if(!ks.length) return "";
-  return ks.map(k => PASSAGES[k]).sort((a,b)=>a.order-b.order)[0].key;
+  const nt = ks.filter(k => k.startsWith("nt:"));      // the New Testament first
+  const use = nt.length ? nt : ks;
+  return use.map(k => PASSAGES[k]).sort((a,b)=>a.order-b.order)[0].key;
 }
 
 /* ---- registering books ----
@@ -1189,19 +1228,24 @@ function registerBook(file){
 function refreshBookMenu(){
   const sel = document.getElementById("passage");
   sel.querySelectorAll(".ntgroup").forEach(n=>n.remove());
-  const books = Object.keys(PASSAGES).filter(k=>k.startsWith("nt:"))
-                  .map(k=>PASSAGES[k]).sort((a,b)=>a.order-b.order);
-  if(!books.length) return books;
-  const og = document.createElement("optgroup");
-  og.className = "ntgroup";
-  og.label = "New Testament (" + books.length + " books)";
-  books.forEach(p=>{
-    const o = document.createElement("option");
-    o.value = p.key; o.textContent = p.title;
-    og.appendChild(o);
-  });
-  sel.appendChild(og);
-  return books;
+  const group = (prefix, label)=>{
+    const books = Object.keys(PASSAGES).filter(k => k.startsWith(prefix))
+                    .map(k => PASSAGES[k]).sort((a,b) => a.order - b.order);
+    if(!books.length) return books;
+    const og = document.createElement("optgroup");
+    og.className = "ntgroup";
+    og.label = label + " (" + books.length + " book" + (books.length>1?"s":"") + ")";
+    books.forEach(p=>{
+      const o = document.createElement("option");
+      o.value = p.key; o.textContent = p.title;
+      og.appendChild(o);
+    });
+    sel.appendChild(og);
+    return books;
+  };
+  const ot = group("ot:", "Old Testament");
+  const nt = group("nt:", "New Testament");
+  return ot.concat(nt);
 }
 
 function refreshChapterMenu(){
@@ -1256,6 +1300,22 @@ async function loadFiles(files){
 
   let added = 0, skipped = 0;
   incoming.forEach(file=>{
+    // an OSIS .xml file is a Hebrew book; parse it and keep the compact form
+    if(/\.xml$/i.test(file.name) && /<osis/i.test(file.raw)){
+      const base = file.name.replace(/\.xml$/i, "");
+      const name = (HB_NAME[base] || {}).name || base;
+      const parsed = parseOSHB(file.raw, name, hbAccAbbr(name));
+      if(parsed.error){ skipped++; return; }
+      applyHebrewLexicon(parsed.verses);
+      const entry = { name: base + ".hb",
+                      raw: JSON.stringify({ name, abbr:parsed.abbr, file:base,
+                                            bad:parsed.bad, verses:parsed.verses }) };
+      if(!registerHebrew(entry)){ skipped++; return; }
+      added++;
+      S.corpusFiles = S.corpusFiles.filter(x => x.name !== entry.name);
+      S.corpusFiles.push(entry);
+      return;
+    }
     const p = registerBook(file);
     if(!p){ skipped++; return; }
     added++;
@@ -1263,7 +1323,8 @@ async function loadFiles(files){
     S.corpusFiles.push(file);
   });
 
-  if(!added){ status.textContent = "None of those files looked like MorphGNT."; return false; }
+  if(!added){ status.textContent =
+    "None of those files looked like MorphGNT or OSIS Hebrew."; return false; }
 
   const books = refreshBookMenu();
   const total = books.reduce((n,p)=>n+p.words, 0);
@@ -1336,6 +1397,7 @@ function buildPassage(key){
   showSummary();
 
   S.byUid = {};
+  const heb = p.lang === "he";
   verses.forEach(([vn, toks])=>{
     const label = (typeof vn === "number") ? p.ch + ":" + vn : String(vn);
     toks.forEach((t, i)=>{
@@ -1349,7 +1411,9 @@ function buildPassage(key){
         lx:0, ly:0, fx:null, fy:null, w:0, h:0, el:null
       };
       const el = document.createElement("div");
-      el.className = "w"; el.textContent = t[0]; el.dataset.id = w.id;
+      el.className = heb ? "w heb" : "w";
+      if(heb){ el.dir = "rtl"; }
+      el.textContent = t[0]; el.dataset.id = w.id;
       board.appendChild(el); w.el = el;
       S.words.push(w); S.byUid[uid] = w;
     });
@@ -1381,31 +1445,46 @@ function buildPassage(key){
   layout(); resizeCanvas();
 }
 
+/* Hebrew reads the other way, so the whole diagram is mirrored: lines begin at
+   the right margin, wrap leftwards, and each level of indent steps in from the
+   right. Everything else — ink, marks, arrows, sections — is already in page
+   coordinates and needs no changes. */
+function isRTL(){ const p = PASSAGES[S.key]; return !!(p && p.lang === "he"); }
+
 function layout(){
   board.querySelectorAll(".vn,.lh").forEach(n=>n.remove());
   const secs = sectionsByLine();
   S.sections.forEach(s => s._y = undefined);
   let y = TOP, lastVerse = null, lastCh = null;
+  const rtl = isRTL();
 
   S.lines.forEach(line=>{
     // a section break pushes this line — and everything after it — down a notch
     const sec = secs[line.id];
     if(sec){ y += SECGAP; sec._y = y - SECGAP + 17; }
 
-    const x0 = MARGIN + line.indent*INDENT;
+    // x0 is where the line starts: the left margin, or the right one mirrored
+    const x0 = rtl ? (WRAP - line.indent*INDENT) : (MARGIN + line.indent*INDENT);
     let x = x0, rows = 1;
     line.y = y; line.x = x0;
 
     line.ids.forEach(id=>{
       const w = S.words[id];
-      if(x > x0 && x + w.w > WRAP){ x = x0 + 22; y += ROW; rows++; }
-      w.lx = x; w.ly = y;
-      x += w.w + GAPW;
+      if(rtl){
+        if(x < x0 && x - w.w < MARGIN){ x = x0 - 22; y += ROW; rows++; }
+        x -= w.w;
+        w.lx = x; w.ly = y;
+        x -= GAPW;
+      } else {
+        if(x > x0 && x + w.w > WRAP){ x = x0 + 22; y += ROW; rows++; }
+        w.lx = x; w.ly = y;
+        x += w.w + GAPW;
+      }
     });
 
     line.h = rows*ROW;
 
-    // verse number
+    // verse number, outside the margin the line starts from
     const first = S.words[line.ids[0]];
     if(first && first.verse !== lastVerse){
       const [ch, v] = first.verse.split(":");
@@ -1413,18 +1492,19 @@ function layout(){
       vn.className = "vn";
       // print the chapter only when it changes, so 1:12 … 24, 2:1 … reads naturally
       vn.textContent = (ch !== lastCh) ? first.verse : v;
-      vn.style.left = (x0 - 48) + "px"; vn.style.top = (line.y + 6) + "px";
+      vn.style.left = (rtl ? x0 + 14 : x0 - 48) + "px"; vn.style.top = (line.y + 6) + "px";
       board.appendChild(vn);
       lastVerse = first.verse; lastCh = ch;
     }
     // line grip
+    const hx = rtl ? x0 + 52 : x0 - 68;
     const lh = document.createElement("div");
     lh.className = "lh";
-    lh.style.left = (x0 - 68) + "px"; lh.style.top = (line.y + 2) + "px";
+    lh.style.left = hx + "px"; lh.style.top = (line.y + 2) + "px";
     lh.style.height = (ROW - 12) + "px";
     lh.dataset.line = line.id;
     board.appendChild(lh);
-    line.hx = x0 - 68; line.hy = line.y + 2; line.hw = 16; line.hh = ROW - 12;
+    line.hx = hx; line.hy = line.y + 2; line.hw = 16; line.hh = ROW - 12;
 
     y += ROW + 10;
   });
@@ -1484,7 +1564,7 @@ function render(){
           w.el.appendChild(w._symEl);          // child, so it travels with the word
         }
         const col = (mk && mk.sc) || "";
-        const svg = glyphSVG(sym, col);
+        const svg = glyphSVG(sym, col, SYMSIZE);
         if(svg){ w._symEl.innerHTML = svg; w._symEl.style.color = ""; }
         else { w._symEl.innerHTML = ""; w._symEl.textContent = sym; // legacy character
                w._symEl.style.color = col; }
@@ -1497,6 +1577,9 @@ function render(){
 /* ============================================================
    CANVAS / INK
    ============================================================ */
+/* Kept in step with --sym and --symink in the stylesheet, so a symbol looks
+   the same on the page and in an exported picture. */
+const SYMSIZE = 34, SYMINK = .42;
 const CANVAS_BUDGET = 12e6;    // safely under iOS Safari's ~16.7M pixel ceiling
 const CANVAS_MAXDIM = 8192;    // and under the per-dimension texture limit
 
@@ -1531,6 +1614,49 @@ function strokePoints(s){
   if(!w) return s.anchor == null ? s.pts : [];   // anchored outside this window
   const ox = px(w), oy = py(w);
   return s.pts.map(p=>({x:p.x+ox, y:p.y+oy, p:p.p}));
+}
+
+
+/* A tag, drawn the same way on the page and in an exported picture. */
+function paintTag(g, st){
+  const pts = strokePoints(st);
+  if(!pts.length) return;
+  const col = st.color || "#8a5a2b";
+  g.save();
+  g.lineCap = "round"; g.lineJoin = "round";
+  g.strokeStyle = col; g.fillStyle = col;
+
+  if(st.mode === "chain"){
+    // two interlocking rings, with the reference beneath — as on the worksheet
+    const cx = pts[0].x, cy = pts[0].y;
+    g.lineWidth = 2;
+    g.beginPath(); g.arc(cx - 5.5, cy, 7.4, 0, Math.PI * 2); g.stroke();
+    g.beginPath(); g.arc(cx + 5.5, cy, 7.4, 0, Math.PI * 2); g.stroke();
+    if(st.ref){
+      g.font = "600 12.5px Inter, -apple-system, sans-serif";
+      g.textBaseline = "top";
+      const tw = g.measureText(st.ref).width;
+      g.fillText(st.ref, cx - tw / 2, cy + 11);
+    }
+  } else {
+    const a = pts[0], b = pts[1] || pts[0];
+    const x = Math.min(a.x, b.x), y = Math.min(a.y, b.y);
+    const w = Math.abs(b.x - a.x), h = Math.abs(b.y - a.y);
+    g.lineWidth = 2.2;
+    g.beginPath(); g.rect(x, y, w, h); g.stroke();
+    if(st.ref){
+      g.font = "600 11.5px Inter, -apple-system, sans-serif";
+      g.textBaseline = "top";
+      const tw = g.measureText(st.ref).width;
+      g.fillStyle = "#fffefb";
+      g.fillRect(x, y - 16, tw + 11, 17);       // a chip, so the rule reads through
+      g.strokeStyle = col; g.lineWidth = 1.2;
+      g.strokeRect(x + .5, y - 15.5, tw + 10, 16);
+      g.fillStyle = col;
+      g.fillText(st.ref, x + 5.5, y - 12.5);
+    }
+  }
+  g.restore();
 }
 
 function redraw(){
@@ -1592,18 +1718,25 @@ function redraw(){
       ctx.globalAlpha = 1;
     });
   }
+  S.strokes.filter(s => TAGMODES.has(s.mode)).forEach(s => paintTag(ctx, s));
 }
 
 /* Points to test the eraser against. Freehand strokes are already dense;
    shapes are only stored as two corners, so walk their outline. */
 function hitPoints(s){
   const pts = strokePoints(s);
+  if(s.mode === "chain"){
+    const c = pts[0], out = [];
+    if(c) for(let i = 0; i < 16; i++)
+      out.push({ x:c.x + Math.cos(i/16*Math.PI*2)*11, y:c.y + Math.sin(i/16*Math.PI*2)*9 });
+    return out;
+  }
   if(s.mode === "pen" || s.mode === "highlight" || pts.length < 2) return pts;
   const a = pts[0], b = pts[1], out = [];
   const seg = (p,q)=>{ for(let i=0;i<=20;i++)
     out.push({x:p.x+(q.x-p.x)*i/20, y:p.y+(q.y-p.y)*i/20}); };
   if(s.mode === "line") seg(a,b);
-  else {
+  else {                                        // rect and xref: the four sides
     const c1={x:a.x,y:a.y}, c2={x:b.x,y:a.y}, c3={x:b.x,y:b.y}, c4={x:a.x,y:b.y};
     seg(c1,c2); seg(c2,c3); seg(c3,c4); seg(c4,c1);
   }
@@ -1897,6 +2030,32 @@ hit.addEventListener("pointerdown", e=>{
     return;
   }
 
+  if(t === "chain"){
+    const w = wordAt(p.x, p.y) || (nearestWord(p.x, p.y, 140) !== null ? S.words[nearestWord(p.x, p.y, 140)] : null);
+    if(!w) return;
+    pushUndo();
+    const st = { sid:newSid(), mode:"chain", anchor:w.uid, color:COLORS[S.ci].hue,
+                 style:"regular", ref:"",
+                 pts:[{ x:p.x - px(w), y:p.y - py(w), p:.5 }] };
+    S.strokes.push(st);
+    openRefSheet(st);
+    return;
+  }
+
+  if(t === "xref"){
+    const anchor = nearestWord(p.x, p.y, 200);
+    const aw = anchor !== null ? S.words[anchor] : null;
+    const ox = aw ? px(aw) : 0, oy = aw ? py(aw) : 0;
+    pushUndo();
+    const start = { x:p.x - ox, y:p.y - oy, p:.5 };
+    const st = { sid:newSid(), mode:"xref", anchor: aw ? aw.uid : null,
+                 color:COLORS[S.ci].hue, style:"regular", ref:"",
+                 pts:[start, { x:start.x, y:start.y }] };
+    S.strokes.push(st);
+    drag = { kind:"shape", s:st, ox, oy, xref:true };
+    return;
+  }
+
   if(INKTOOLS.has(t)){
     pushUndo();
     const anchor = nearestWord(p.x, p.y, 110);
@@ -1931,14 +2090,15 @@ hit.addEventListener("pointerdown", e=>{
   }
 
   if(t === "split"){
+    // The first word of a line is the one that made the break, so tapping it
+    // undoes the break; tapping any other word makes a new one there. The same
+    // tap therefore both splits and rejoins, and is its own reverse.
     const w = wordAt(p.x, p.y);
-    if(w){ pushUndo(); splitBefore(w); }
-    return;
-  }
-
-  if(t === "join"){
-    const w = wordAt(p.x, p.y);
-    if(w){ pushUndo(); joinWordLine(w); }
+    if(!w) return;
+    const line = S.lines.find(l => l.id === w.line);
+    pushUndo();
+    if(line && line.ids[0] === w.id) joinWordLine(w);
+    else splitBefore(w);
     return;
   }
 
@@ -1949,6 +2109,14 @@ hit.addEventListener("pointerdown", e=>{
   }
 
   // ---- move ----
+  // a tag is a link before it is a thing to be dragged
+  const tag = tagAt(p.x, p.y);
+  if(tag){
+    drag = { kind:"tag", s:tag, sx:p.x, sy:p.y,
+             ox:tag.pts[0].x, oy:tag.pts[0].y, moved:false, t0:Date.now() };
+    return;
+  }
+
   const lh = lineHandleAt(p.x, p.y);
   if(lh){
     S.curLine = lh.id; syncJoin();
@@ -1992,12 +2160,25 @@ hit.addEventListener("pointermove", e=>{
     drag.s.pts[1] = {x, y};
     redraw(); return;
   }
+  if(drag.kind === "tag"){
+    const dx = p.x - drag.sx, dy = p.y - drag.sy;
+    if(Math.abs(dx) > 5 || Math.abs(dy) > 5){
+      if(!drag.moved){ drag.moved = true; pushUndo(); }
+      const sh = { x:drag.ox + dx - drag.s.pts[0].x, y:drag.oy + dy - drag.s.pts[0].y };
+      drag.s.pts = drag.s.pts.map(q => ({ x:q.x + sh.x, y:q.y + sh.y, p:q.p }));
+      drag.ox = drag.s.pts[0].x; drag.oy = drag.s.pts[0].y;
+      drag.sx = p.x; drag.sy = p.y;
+      redraw();
+    }
+    return;
+  }
   if(drag.kind === "erase"){ eraseAt(p); return; }
 
   if(drag.kind === "line"){
     drag.cy = p.y;
     const dx = p.x - drag.sx;
-    const ni = Math.max(0, Math.min(10, drag.i0 + Math.round(dx/INDENT)));
+    const ni = Math.max(0, Math.min(10,
+      drag.i0 + Math.round((isRTL() ? -dx : dx) / INDENT)));
     if(ni !== drag.line.indent){
       if(!drag.undone){ drag.undone = true; pushUndo(); }
       drag.line.indent = ni;
@@ -2065,6 +2246,13 @@ window.addEventListener("pointerdown", e=>{
   }catch(err){ S._anyTarget = "could not test"; }
 }, true);
 hit.addEventListener("pointerup", e=>{
+  // a tap on a tag follows it; a drag just moves it
+  if(drag && drag.kind === "tag"){
+    const st = drag.s, tapped = !drag.moved && Date.now() - drag.t0 < 600;
+    drag = null; endPointer(e); saveSoon();
+    if(tapped) followTag(st);
+    return;
+  }
   if(drag && drag.kind === "word" && !drag.moved && Date.now() - drag.t0 < 450){
     select(drag.w);
   }
@@ -2074,15 +2262,20 @@ hit.addEventListener("pointerup", e=>{
   }
   // a tap with the pen leaves a single point, which never renders (drawing
   // needs two) — drop it rather than accumulate invisible strokes
-  if(drag && drag.kind === "ink" && drag.s.pts.length < 2){
+  if(drag && drag.kind === "ink" && !TAGMODES.has(drag.s.mode) && drag.s.pts.length < 2){
     S.strokes.splice(S.strokes.indexOf(drag.s), 1); redraw();
   }
   // discard a shape that was only tapped, not dragged out
   if(drag && drag.kind === "shape"){
     const [a,b] = drag.s.pts;
-    if(Math.abs(b.x-a.x) < 5 && Math.abs(b.y-a.y) < 5){
-      S.strokes.splice(S.strokes.indexOf(drag.s), 1); redraw();
+    const tiny = drag.xref ? 14 : 5;
+    if(Math.abs(b.x-a.x) < tiny || Math.abs(b.y-a.y) < tiny){
+      if(!drag.xref && (Math.abs(b.x-a.x) >= 5 || Math.abs(b.y-a.y) >= 5)){ /* keep thin shapes */ }
+      else { S.strokes.splice(S.strokes.indexOf(drag.s), 1); redraw(); drag = null; }
     }
+    // a square drawn round a quotation asks what it is quoting
+    if(drag && drag.xref){ const st = drag.s; drag = null; endPointer(e); saveSoon();
+                           openRefSheet(st); return; }
   }
   // second chance to raise the iPad keyboard, still inside the user's gesture
   if(S._focusSec){ focusSectionTitle(S._focusSec); S._focusSec = null; }
@@ -2099,9 +2292,10 @@ function showMergeHint(line){
   }
   if(!line){ mergeHintEl.style.display = "none"; return; }
   mergeHintEl.style.display = "block";
-  mergeHintEl.style.left = (line.x - 46) + "px";
+  const rtl = isRTL();
+  mergeHintEl.style.left = (rtl ? MARGIN - 60 : line.x - 46) + "px";
   mergeHintEl.style.top  = (line.y - 4) + "px";
-  mergeHintEl.style.width  = (WRAP - line.x + 60) + "px";
+  mergeHintEl.style.width  = ((rtl ? line.x - MARGIN : WRAP - line.x) + 60) + "px";
   mergeHintEl.style.height = (line.h - 4) + "px";
 }
 
@@ -2194,11 +2388,9 @@ function joinWordLine(w){
   return joinUp(S.lines.findIndex(l => l.id === w.line));
 }
 
-function syncJoin(){
-  const b = document.getElementById("joinUp");
-  const li = S.lines.findIndex(l => l.id === S.curLine);
-  b.disabled = !(li > 0);
-}
+/* Nothing to keep in step any more — the same tap both splits and rejoins —
+   but the call sites are many and harmless, so the name stays. */
+function syncJoin(){}
 
 const COORD = new Set(["καί","δέ","ἀλλά","οὖν","γάρ","οὐδέ","ἤ",
                        "διό","ἄρα","εἴτε","οὔτε","μηδέ","πλήν"]);
@@ -2253,19 +2445,23 @@ function select(w){
   S.sel = w.id; S.curLine = w.line; syncJoin(); render();
   const p = PASSAGES[S.key];
   const ref = `${p.title} ${w.verse}`;
-  document.getElementById("i-surf").textContent = w.surface.replace(/[,.·;·]$/,"");
+  const surf = document.getElementById("i-surf");
+  surf.textContent = w.surface.replace(/[,.\u00b7;\u0387]$/,"");
+  surf.dir = (p.lang === "he") ? "rtl" : "ltr";
+  surf.classList.toggle("heb", p.lang === "he");
   document.getElementById("i-ref").textContent = ref.toUpperCase();
 
   // gloss and Strong's exist only for the hand-parsed passages; MorphGNT
   // supplies neither, so those rows are omitted rather than shown empty
   document.getElementById("i-rows").innerHTML = `
-    <div class="row"><div class="k">Lemma</div><div class="v"><span class="gk">${w.lemma}</span></div></div>
+    <div class="row"><div class="k">Lemma</div><div class="v"><span class="gk${p.lang === "he" ? " heb" : ""}"${p.lang === "he" ? ' dir="rtl"' : ""}>${w.lemma}</span></div></div>
     <div class="row"><div class="k">Parsing</div><div class="v">${w.pos} · ${w.parse}</div></div>`
     + (w.gloss   ? `<div class="row"><div class="k">Gloss</div><div class="v">${w.gloss}</div></div>` : "")
     + (w.strongs ? `<div class="row"><div class="k">Keys</div><div class="v">Strong's ${w.strongs}</div></div>` : "");
 
-  const lexMod  = document.getElementById("mLex").value;
-  const textMod = document.getElementById("mText").value;
+  const heb = p.lang === "he";
+  const lexMod  = document.getElementById(heb ? "mHLex" : "mLex").value;
+  const textMod = document.getElementById(heb ? "mHeb"  : "mText").value;
   const bdag = document.getElementById("i-bdag");
   bdag.href = "accord://search/" + lexMod + "?" + encodeURIComponent(w.lemma);
   bdag.textContent = LEXNAME[lexMod] || lexMod;
@@ -2510,13 +2706,21 @@ document.addEventListener("pointerdown", e=>{
    Both api.github.com and raw.githubusercontent.com allow cross-origin
    reads, so this works straight from the browser.
    ============================================================ */
+/* Both the welcome card and the settings panel can start an install, so the
+   progress goes to whichever of them is on screen. */
+function installSay(t){
+  ["installProg", "installProg2"].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.textContent = t;
+  });
+}
+
 const GH_API = "https://api.github.com/repos/morphgnt/sblgnt/contents/";
 const GH_RAW = "https://raw.githubusercontent.com/morphgnt/sblgnt/master/";
 
 async function installNT(){
-  const prog = document.getElementById("installProg");
-  const btn  = document.getElementById("installNT");
-  const say  = t => { prog.textContent = t; };
+  const say = installSay;
+  const btn = document.getElementById("installNT");
   btn.disabled = true;
   say("Looking up the book list…");
   try{
@@ -2562,122 +2766,127 @@ async function installNT(){
 }
 document.getElementById("installNT").onclick = installNT;
 
-/* ============================================================
-   ESV PANEL
-   Crossway's terms allow a live lookup with the reader's own key but
-   forbid storing more than 500 verses locally, so nothing fetched here is
-   ever written to disk — it is held in memory for the current view only.
-   ============================================================ */
-const esvPanel = document.getElementById("esv");
-let esvCache = {};                     // in-memory only, cleared on reload
+/* ---- the Old Testament ----
+   The OSIS files are large — Genesis alone is several megabytes — so each book
+   is parsed on arrival and only the compact form is kept. The XML is never
+   stored. */
+const HB_API = "https://api.github.com/repos/openscriptures/morphhb/contents/wlc";
+const HB_RAW = "https://raw.githubusercontent.com/openscriptures/morphhb/master/wlc/";
+const HB_LEX = "https://raw.githubusercontent.com/openscriptures/HebrewLexicon/master/LexicalIndex.xml";
 
-function esvReference(){
-  const p = PASSAGES[S.key];
-  if(!p) return "";
-  const book = p.title;
-  if(S.chapter && S.chapter !== "all")
-    return book + " " + rangeLabel(S.chapter).replace("chapter ","").replace("\u2013","-");
-  // whole book selected: ask for the range actually on screen
-  if(!S.words.length) return book;
-  return book + " " + S.words[0].verse + "-" + S.words[S.words.length-1].verse.split(":")[1];
+/* Canonical order and the names to show, keyed by the repository's filenames. */
+const HB_BOOKS = [
+  ["Gen","Genesis"],["Exod","Exodus"],["Lev","Leviticus"],["Num","Numbers"],["Deut","Deuteronomy"],
+  ["Josh","Joshua"],["Judg","Judges"],["Ruth","Ruth"],["1Sam","1 Samuel"],["2Sam","2 Samuel"],
+  ["1Kgs","1 Kings"],["2Kgs","2 Kings"],["Isa","Isaiah"],["Jer","Jeremiah"],["Ezek","Ezekiel"],
+  ["Hos","Hosea"],["Joel","Joel"],["Amos","Amos"],["Obad","Obadiah"],["Jonah","Jonah"],
+  ["Mic","Micah"],["Nah","Nahum"],["Hab","Habakkuk"],["Zeph","Zephaniah"],["Hag","Haggai"],
+  ["Zech","Zechariah"],["Mal","Malachi"],["Ps","Psalms"],["Prov","Proverbs"],["Job","Job"],
+  ["Song","Song of Songs"],["Lam","Lamentations"],["Eccl","Ecclesiastes"],
+  ["Esth","Esther"],["Dan","Daniel"],["Ezra","Ezra"],["Neh","Nehemiah"],
+  ["1Chr","1 Chronicles"],["2Chr","2 Chronicles"]
+];
+const HB_NAME = {};
+HB_BOOKS.forEach(([f, n], i) => { if(!HB_NAME[f]) HB_NAME[f] = { name:n, order:i }; });
+
+function hbAccAbbr(name){
+  const c = CANON.find(b => b[1] === name);
+  return c ? c[2] : name.replace(/\s+/g, "_");
 }
 
-/* Ask for the key in the panel itself, so it can be pasted where it is needed
-   rather than hunted for in a settings menu. It is written to the same field
-   the settings panel uses, so there is still only one place it is stored. */
-function esvKeyPrompt(body){
-  body.innerHTML = "";
-  const note = document.createElement("div");
-  note.className = "enote";
-  note.innerHTML = "Paste your free ESV API key to show the English alongside the Greek. " +
-    "Keys are issued at <b>api.esv.org</b>. It is kept on this device only — never in the " +
-    "repository, and never in an exported workspace.";
-
-  const row = document.createElement("div");
-  row.className = "ekey";
-  const inp = document.createElement("input");
-  inp.type = "text";
-  inp.setAttribute("placeholder", "Paste key");
-  inp.setAttribute("spellcheck", "false");
-  inp.setAttribute("autocapitalize", "off");
-  inp.setAttribute("autocorrect", "off");
-  const btn = document.createElement("button");
-  btn.className = "act";
-  btn.textContent = "Save";
-
-  const save = ()=>{
-    // tolerate a whole header being pasted, e.g. "Authorization: Token abc123"
-    const v = inp.value.trim().replace(/^authorization\s*:\s*/i, "").replace(/^token\s+/i, "").trim();
-    if(!v) return;
-    document.getElementById("esvKey").value = v;
-    esvCache = {};
-    saveNow();
-    loadESV();
-  };
-  btn.onclick = save;
-  inp.addEventListener("keydown", e=>{ if(e.key === "Enter"){ e.preventDefault(); save(); } });
-
-  row.appendChild(inp); row.appendChild(btn);
-  body.appendChild(note); body.appendChild(row);
-  inp.focus();
-}
-
-async function loadESV(){
-  const key = (document.getElementById("esvKey").value || "").trim();
-  const body = document.getElementById("esvBody");
-  const ref  = esvReference();
-  document.getElementById("esvRef").textContent = ref || "—";
-  const foot = document.getElementById("esvFoot");
-  foot.innerHTML =
-    'Scripture quotations are from the ESV® Bible, copyright © 2001 by Crossway. ' +
-    'Used by permission. All rights reserved. <a href="https://www.esv.org" ' +
-    'target="_blank" rel="noopener">esv.org</a>';
-  if(key){
-    const chg = document.createElement("div");
-    chg.className = "chg";
-    chg.textContent = "Change API key";
-    chg.onclick = ()=>{
-      document.getElementById("esvKey").value = "";
-      esvCache = {};
-      saveNow();
-      loadESV();
-    };
-    foot.appendChild(chg);
-  }
-
-  if(!key){ esvKeyPrompt(body); return; }
-  if(!ref){ body.innerHTML = '<div class="enote">Load a book first.</div>'; return; }
-  if(esvCache[ref]){ body.textContent = esvCache[ref]; return; }
-
-  body.innerHTML = '<div class="enote">Fetching…</div>';
+/* A parsed Hebrew book, stored in the compact form the importer already
+   understands, so it survives a reload like everything else. */
+function registerHebrew(file){
   try{
-    const url = "https://api.esv.org/v3/passage/text/?q=" + encodeURIComponent(ref) +
-                "&include-headings=false&include-footnotes=false&include-verse-numbers=true" +
-                "&include-short-copyright=false&include-passage-references=false";
-    const r = await fetch(url, { headers:{ Authorization: "Token " + key } });
-    if(r.status === 401) throw new Error("that key was refused");
-    if(!r.ok) throw new Error("ESV API replied " + r.status);
-    const j = await r.json();
-    const txt = (j.passages || []).join("\n\n").trim();
-    if(!txt) throw new Error("no text returned for " + ref);
-    esvCache[ref] = txt;               // memory only — never persisted
-    body.textContent = txt;
+    const d = JSON.parse(file.raw);
+    if(!d || !Array.isArray(d.verses)) return null;
+    const words = d.verses.reduce((n, v) => n + v[1].length, 0);
+    const chapters = [...new Set(d.verses.map(v => v[0].split(":")[0]))]
+                       .sort((a, b) => a - b);
+    const key = "ot:" + String(d.name).toLowerCase().replace(/[^a-z0-9]+/g, "");
+    PASSAGES[key] = { title:d.name, abbr:d.abbr, module:"BHS-W4", verses:d.verses, words,
+                      chapters, byChapter:true, bad:d.bad || 0, key, lang:"he",
+                      order:(HB_NAME[d.file] ? HB_NAME[d.file].order : 99),
+                      _file:file.name };
+    return PASSAGES[key];
+  }catch(e){ return null; }
+}
+
+async function installOT(){
+  const say = installSay;
+  const btn = document.getElementById("installOT");
+  if(btn) btn.disabled = true;
+  say("Looking up the book list…");
+  try{
+    const res = await fetch(HB_API);
+    if(!res.ok) throw new Error("GitHub replied " + res.status);
+    const list = (await res.json())
+      .filter(f => /\.xml$/i.test(f.name) && !/VerseMap/i.test(f.name))
+      .map(f => ({ f, base:f.name.replace(/\.xml$/i, "") }))
+      .filter(x => HB_NAME[x.base])
+      .sort((a, b) => HB_NAME[a.base].order - HB_NAME[b.base].order);
+    if(!list.length) throw new Error("no OSIS files found");
+
+    // the lexicon first: it turns Strong's numbers into words you can read
+    say("Fetching the lexical index…");
+    try{
+      const lr = await fetch(HB_LEX);
+      if(lr.ok) HEBLEX = parseHebrewLexicon(await lr.text());
+    }catch(e){ /* the text still works without it */ }
+
+    let added = 0, total = 0;
+    for(let i = 0; i < list.length; i++){
+      const { f, base } = list[i];
+      const name = HB_NAME[base].name;
+      say(`Downloading ${i+1} of ${list.length} — ${name}…`);
+      const r = await fetch(f.download_url || (HB_RAW + f.name));
+      if(!r.ok) throw new Error("could not fetch " + f.name);
+      const parsed = parseOSHB(await r.text(), name, hbAccAbbr(name));
+      if(parsed.error) continue;
+      applyHebrewLexicon(parsed.verses);          // readable lemmas, before storing
+      // keep the compact form, never the XML
+      const compact = { name, abbr:parsed.abbr, file:base, bad:parsed.bad,
+                        verses:parsed.verses };
+      const entry = { name: base + ".hb", raw: JSON.stringify(compact) };
+      if(registerHebrew(entry)){
+        added++; total += parsed.words;
+        S.corpusFiles = S.corpusFiles.filter(x => x.name !== entry.name);
+        S.corpusFiles.push(entry);
+      }
+      if(i % 6 === 5) await new Promise(r2 => setTimeout(r2, 0));   // let the page breathe
+    }
+
+    refreshBookMenu();
+    if(!PASSAGES[S.key]) S.key = firstBookKey();
+    S.chapter = "all";
+    document.getElementById("passage").value = S.key;
+    refreshChapterMenu();
+    build(S.key); syncJoin();
+    saveCorpus(); saveNow();
+    reportLoaded();
+    say(`Installed ${added} books of the Old Testament, ${total.toLocaleString()} words.`);
   }catch(err){
-    body.innerHTML = '<div class="enote">Could not load the ESV: ' +
-      String(err.message || err) + '.</div>';
+    say("Could not install the Old Testament (" + (err.message || err) + "). " +
+        "You can still drop the OSIS .xml files in from ⋯.");
+    if(btn) btn.disabled = false;
   }
 }
 
-function toggleESV(on){
-  const show = (on === undefined) ? !esvPanel.classList.contains("show") : on;
-  esvPanel.classList.toggle("show", show);
-  document.body.classList.toggle("esvopen", show);
-  document.getElementById("esvBtn").classList.toggle("on", show);
-  if(show) loadESV();
-  resizeCanvas();
+function reportLoaded(){
+  const all = Object.keys(PASSAGES).map(k => PASSAGES[k]);
+  const total = all.reduce((n, p) => n + (p.words || 0), 0);
+  document.getElementById("mgStatus").textContent = all.length
+    ? all.length + " book" + (all.length > 1 ? "s" : "") + " loaded · " +
+      total.toLocaleString() + " words"
+    : "Nothing loaded.";
 }
-document.getElementById("esvBtn").onclick   = ()=> toggleESV();
-document.getElementById("esvClose").onclick = ()=> toggleESV(false);
+
+[["installOT", installOT], ["installOT2", installOT],
+ ["installNT2", installNT]].forEach(([id, fn])=>{
+  const el = document.getElementById(id);
+  if(el) el.onclick = fn;
+});
+
 
 /* ============================================================
    HANDWRITING SHEET
@@ -2936,16 +3145,16 @@ function normBook(str){
 /* Split "2 Corinthians 1:12-2:4" into its book part and its numbers. */
 function splitRef(input){
   const t = String(input || "").trim().replace(/[\u2010-\u2015]/g, "-");
-  const m = /^\s*((?:[1-3]|i{1,3})\s*\.?\s*)?([A-Za-z][A-Za-z.\s]*?)\s*([\d:\-\s]*)$/i.exec(t);
+  const m = /^\s*(?:([1-3])\s*\.?\s*|(i{1,3})\s*\.?\s+)?([A-Za-z][A-Za-z.\s]*?)\s*([\d:\-\s]*)$/i.exec(t);
   if(!m) return null;
-  let prefix = (m[1] || "").trim().toLowerCase().replace(/\./g,"");
+  let prefix = (m[1] || m[2] || "").trim().toLowerCase().replace(/\./g,"");
   if(NUMERALS[prefix]) prefix = NUMERALS[prefix];
-  return { book: normBook(prefix + m[2]), nums: (m[3] || "").trim() };
+  return { book: normBook(prefix + m[3]), nums: (m[4] || "").trim() };
 }
 
 function findBookKey(norm){
   if(!norm) return null;
-  const keys = Object.keys(PASSAGES).filter(k => k.startsWith("nt:"));
+  const keys = Object.keys(PASSAGES).filter(k => BOOKKEY.test(k));
   let best = null;
   keys.forEach(k=>{
     const p = PASSAGES[k];
@@ -3024,7 +3233,6 @@ function goToRef(input){
   document.getElementById("passage").value = r.key;
   refreshChapterMenu();
   build(S.key); syncJoin(); saveNow();
-  if(esvPanel.classList.contains("show")) loadESV();
   box.value = PASSAGES[r.key].title + " " + rangeLabel(r.range).replace("chapter ", "");
   return true;
 }
@@ -3033,6 +3241,412 @@ document.getElementById("refGo").onclick = ()=> goToRef(document.getElementById(
 document.getElementById("refBox").addEventListener("keydown", e=>{
   if(e.key === "Enter"){ e.preventDefault(); goToRef(e.target.value); }
 });
+
+
+
+/* ============================================================
+   LINKS OUT OF THE PAGE
+   Two kinds, both anchored to a word so they travel with the text:
+     chain — two rings and a reference, pointing somewhere else in this book
+     xref  — a square round a quotation, giving the passage it quotes
+   Both are strokes, so saving, syncing, merging, undo, erasing and the
+   picture exports all work on them already.
+   ============================================================ */
+const TAGMODES = new Set(["chain", "xref"]);
+let refTarget = null;
+
+function openRefSheet(st){
+  refTarget = st;
+  const sheet = document.getElementById("refSheet");
+  const inp = document.getElementById("refIn");
+  const chain = st.mode === "chain";
+  document.getElementById("refSheetLbl").textContent = chain
+    ? "Which part of this book does it point to? Write it with your Pencil — 5:21, or 1:12–2:4."
+    : "What is being quoted? Write the reference — Isaiah 49:8, Ps. 110:1.";
+  inp.placeholder = chain ? "5:21" : "Isaiah 49:8";
+  inp.value = st.ref || "";
+  document.getElementById("refSheetState").textContent = "";
+  document.getElementById("refSheetDel").style.display = st.ref ? "" : "none";
+  sheet.classList.add("show");
+  inp.focus();
+  if(inp.select) inp.select();
+}
+
+/* What a chain points at, resolved inside the book being read. */
+function chainTarget(ref){
+  const p = PASSAGES[S.key];
+  if(!p) return null;
+  const t = String(ref || "").trim();
+  if(!t) return null;
+  if(/^[\d:\s\u2013-]+$/.test(t))                     // bare numbers: this book
+    return { key:S.key, range:parseNums(t.replace(/\u2013/g,"-").replace(/\s+/g,""), p.chapters) };
+  const r = lookupRef(t);                             // or a book you have loaded
+  return r.error ? null : r;
+}
+
+function closeRefSheet(action){
+  const sheet = document.getElementById("refSheet");
+  const inp = document.getElementById("refIn");
+  const st = refTarget;
+  if(!st){ sheet.classList.remove("show"); return; }
+
+  if(action === "delete"){
+    const i = S.strokes.indexOf(st);
+    if(i >= 0) S.strokes.splice(i, 1);
+  } else if(action === "ok"){
+    const v = inp.value.trim();
+    if(!v){                                           // nothing written: drop a new tag
+      if(!st.ref){ const i = S.strokes.indexOf(st); if(i >= 0) S.strokes.splice(i, 1); }
+    } else {
+      const good = st.mode === "chain" ? !!chainTarget(v) : !!canonRef(v);
+      if(!good){
+        document.getElementById("refSheetState").textContent = st.mode === "chain"
+          ? "That is not a place in a book you have loaded."
+          : "I do not recognise that reference. Try “Isaiah 49:8”.";
+        return;                                       // keep the sheet open
+      }
+      st.ref = st.mode === "xref" ? canonRef(v).label : v;
+    }
+  } else {                                            // cancelled
+    if(!st.ref){ const i = S.strokes.indexOf(st); if(i >= 0) S.strokes.splice(i, 1); }
+  }
+  sheet.classList.remove("show");
+  refTarget = null;
+  redraw(); saveSoon();
+}
+document.getElementById("refSheetOk").onclick     = ()=> closeRefSheet("ok");
+document.getElementById("refSheetCancel").onclick = ()=> closeRefSheet("cancel");
+document.getElementById("refSheetDel").onclick    = ()=> closeRefSheet("delete");
+document.getElementById("refIn").addEventListener("keydown", e=>{
+  if(e.key === "Enter"){ e.preventDefault(); closeRefSheet("ok"); }
+  if(e.key === "Escape") closeRefSheet("cancel");
+});
+
+/* Where a tag sits on the page right now. */
+function tagBox(st){
+  const pts = strokePoints(st);
+  if(!pts.length) return null;
+  if(st.mode === "chain")
+    return { x:pts[0].x - 17, y:pts[0].y - 15, w:34, h:44 };
+  const a = pts[0], b = pts[1] || pts[0];
+  return { x:Math.min(a.x, b.x), y:Math.min(a.y, b.y),
+           w:Math.abs(b.x - a.x), h:Math.abs(b.y - a.y) };
+}
+
+/* A tag under the finger, if there is one. For a square only the reference
+   chip counts, so the square itself does not swallow taps on the words. */
+function tagAt(x, y){
+  for(let i = S.strokes.length - 1; i >= 0; i--){
+    const st = S.strokes[i];
+    if(!TAGMODES.has(st.mode) || !st.ref) continue;
+    const bx = tagBox(st);
+    if(!bx) continue;
+    if(st.mode === "chain"){
+      if(x >= bx.x - 4 && x <= bx.x + bx.w + 4 && y >= bx.y - 4 && y <= bx.y + bx.h + 4) return st;
+    } else {
+      const chipW = 9 + st.ref.length * 6.2, chipH = 17;
+      if(x >= bx.x && x <= bx.x + chipW && y >= bx.y - chipH && y <= bx.y + 3) return st;
+    }
+  }
+  return null;
+}
+
+function followTag(st){
+  if(st.mode === "chain"){
+    const t = chainTarget(st.ref);
+    if(!t) return false;
+    saveNow();
+    S.key = t.key; S.chapter = t.range;
+    document.getElementById("passage").value = t.key;
+    refreshChapterMenu();
+    build(S.key); syncJoin(); saveNow();
+    const box = document.getElementById("refBox");
+    if(box) box.value = PASSAGES[t.key].title + " " + rangeLabel(t.range).replace("chapter ", "");
+    return true;
+  }
+  const url = accordEnglish(st.ref);
+  if(!url) return false;
+  window.location.href = url;          // hands over to Accordance
+  return true;
+}
+
+
+/* ============================================================
+   THE HEBREW BIBLE
+   Open Scriptures Hebrew Bible: the Westminster Leningrad Codex marked up in
+   OSIS, with lemma and morphology. The text is public domain; the lemma and
+   morphology are CC BY 4.0 and credited in the Key.
+
+   Words are held as they are printed — vowels and accents and all — while the
+   markup keeps their morphemes apart with a slash, which is stripped here.
+   ============================================================ */
+const HEB_LANG = { H:"Hebrew", A:"Aramaic" };
+
+/* Morphemes that are only ever prefixes carry a letter where a Strong's number
+   would be; these are the words they stand for. */
+const HEB_PREFIX = { b:"\u05d1\u05bc\u05b0", c:"\u05d5\u05b0", d:"\u05d4\u05b7", i:"\u05d4\u05b2",
+                     k:"\u05db\u05bc\u05b0", l:"\u05dc\u05b0", m:"\u05de\u05b4\u05df",
+                     s:"\u05e9\u05c1\u05b6" };
+
+const HEB_POS = {
+  A:"Adjective", C:"Conjunction", D:"Adverb", N:"Noun", P:"Pronoun",
+  R:"Preposition", S:"Suffix", T:"Particle", V:"Verb"
+};
+const HEB_SUB = {
+  A:{ a:"", c:"cardinal number", g:"gentilic", o:"ordinal number" },
+  N:{ c:"", g:"gentilic", p:"proper" },
+  P:{ d:"demonstrative", f:"indefinite", i:"interrogative", p:"personal", r:"relative" },
+  S:{ d:"directional he", h:"paragogic he", n:"paragogic nun", p:"pronominal suffix" },
+  T:{ a:"affirmation", d:"definite article", e:"exhortation", i:"interrogative",
+      j:"interjection", m:"demonstrative", n:"negative", o:"object marker", r:"relative" }
+};
+const HEB_STEM = {
+  H:{ q:"qal", N:"niphal", p:"piel", P:"pual", h:"hiphil", H:"hophal", t:"hithpael",
+      o:"polel", O:"polal", r:"hithpolel", m:"poel", M:"poal", k:"palel", K:"pulal",
+      Q:"qal passive", l:"pilpel", L:"polpal", f:"hithpalpel", D:"nithpael",
+      j:"pealal", i:"pilel", u:"hothpaal", c:"tiphil", v:"hishtaphel",
+      w:"nithpalel", y:"nithpoel", z:"hithpoel" },
+  A:{ q:"peal", Q:"peil", u:"hithpeel", p:"pael", P:"ithpaal", M:"hithpaal",
+      a:"aphel", h:"haphel", s:"saphel", e:"shaphel", H:"hophal", i:"ithpeel",
+      t:"hishtaphel", v:"ishtaphel", w:"hithaphel", o:"polel", z:"ithpoel",
+      r:"hithpolel", f:"hithpalpel", b:"hephal", c:"tiphel", m:"poel",
+      l:"palpel", L:"ithpalpel", O:"ithpolel", G:"ittaphal" }
+};
+const HEB_TYPE = {
+  p:"perfect", q:"sequential perfect", i:"imperfect", w:"sequential imperfect",
+  h:"cohortative", j:"jussive", v:"imperative", r:"participle",
+  s:"passive participle", a:"infinitive absolute", c:"infinitive construct"
+};
+const HEB_PERSON = { 1:"1st", 2:"2nd", 3:"3rd" };
+const HEB_GENDER = { m:"masculine", f:"feminine", b:"common", c:"common" };
+const HEB_NUMBER = { s:"singular", p:"plural", d:"dual" };
+const HEB_STATE  = { a:"absolute", c:"construct", d:"determined" };
+
+/* One morpheme's code, in words. "Vqw3fs" → "qal sequential imperfect,
+   3rd feminine singular". */
+function hebMorpheme(code, lang){
+  const c = String(code || "");
+  if(!c) return { pos:"", parse:"" };
+  const k = c[0];
+  const pos = HEB_POS[k] || k;
+  const rest = c.slice(1);
+
+  if(k === "V"){
+    const stem = (HEB_STEM[lang] || HEB_STEM.H)[rest[0]] || rest[0] || "";
+    const type = HEB_TYPE[rest[1]] || "";
+    const tail = rest.slice(2);
+    let who = "";
+    if(rest[1] === "r" || rest[1] === "s"){          // participles decline like nouns
+      who = [HEB_GENDER[tail[0]], HEB_NUMBER[tail[1]], HEB_STATE[tail[2]]]
+              .filter(Boolean).join(" ");
+    } else if(/^[123]/.test(tail)){
+      who = [HEB_PERSON[tail[0]], HEB_GENDER[tail[1]], HEB_NUMBER[tail[2]]]
+              .filter(Boolean).join(" ");
+    }
+    return { pos, parse:[ [stem, type].filter(Boolean).join(" "), who ].filter(Boolean).join(", ") };
+  }
+
+  const sub = (HEB_SUB[k] || {})[rest[0]];
+  let tail = sub === undefined ? rest : rest.slice(1);
+  let bits = [];
+  if(k === "N" || k === "A"){
+    bits = [HEB_GENDER[tail[0]], HEB_NUMBER[tail[1]], HEB_STATE[tail[2]]];
+  } else if(k === "P" || k === "S"){
+    if(/^[123]/.test(tail)) bits = [HEB_PERSON[tail[0]], HEB_GENDER[tail[1]], HEB_NUMBER[tail[2]]];
+    else bits = [HEB_GENDER[tail[1]], HEB_NUMBER[tail[2]]];
+  } else if(k === "R"){
+    bits = [rest[0] === "d" ? "with the article" : ""];
+  }
+  const parse = [sub || "", bits.filter(Boolean).join(" ")].filter(Boolean).join(" ").trim();
+  return { pos, parse };
+}
+
+/* A whole word: its morphemes, joined by plus signs, main part first in the
+   part-of-speech so the inspector reads sensibly. */
+function hebParse(morph){
+  const m = String(morph || "");
+  const lang = HEB_LANG[m[0]] ? m[0] : "H";
+  const body = HEB_LANG[m[0]] ? m.slice(1) : m;
+  const parts = body.split("/").filter(Boolean).map(c => hebMorpheme(c, lang));
+  if(!parts.length) return { pos:"", parse:"", lang:HEB_LANG[lang] };
+  // the main morpheme is the last one that is not a suffix
+  let main = parts.length - 1;
+  while(main > 0 && parts[main].pos === "Suffix") main--;
+  const pos = parts[main].pos;
+  const label = p => (p.pos.toLowerCase() + (p.parse ? " " + p.parse : "")).trim();
+  const before = parts.slice(0, main).map(label).filter(Boolean);
+  const after  = parts.slice(main + 1)
+    .map(p => (p.pos === "Suffix" ? "with " + (p.parse || "suffix") : label(p)))
+    .filter(Boolean);
+  const parse = [
+    before.concat(parts[main].parse || []).join(" + "),
+    after.join(", ")
+  ].filter(Boolean).join(", ");
+  return { pos, parse, lang:HEB_LANG[lang] };
+}
+
+/* OSIS → the same shape every other book uses. */
+function parseOSHB(xml, label, abbr){
+  let doc;
+  try{
+    doc = new DOMParser().parseFromString(xml, "application/xml");
+  }catch(e){ return { error:"Could not read that file as XML." }; }
+  if(!doc || doc.getElementsByTagName("parsererror").length)
+    return { error:"That file is not valid OSIS XML." };
+
+  const verses = [];
+  const vs = doc.getElementsByTagName("verse");
+  let bad = 0;
+  for(let i = 0; i < vs.length; i++){
+    const v = vs[i];
+    const osis = v.getAttribute("osisID") || "";
+    const bits = osis.split(".");
+    if(bits.length < 3) continue;
+    const ref = bits[1] + ":" + bits[2];
+    const toks = [];
+    let pending = "";                       // a maqqef belongs to the word before it
+    for(let n = v.firstChild; n; n = n.nextSibling){
+      if(n.nodeType !== 1) continue;
+      const tag = (n.localName || n.nodeName || "").toLowerCase();
+      if(tag === "seg"){
+        const t = (n.textContent || "").trim();
+        const kind = n.getAttribute("type") || "";
+        if(/maqqef/.test(kind) && toks.length) toks[toks.length - 1][0] += t;
+        else if(/sof-pasuq|paseq/.test(kind) && toks.length) toks[toks.length - 1][0] += t;
+        continue;
+      }
+      if(tag !== "w") continue;
+      const surface = (n.textContent || "").replace(/\//g, "").trim();
+      if(!surface){ bad++; continue; }
+      const lemAttr = (n.getAttribute("lemma") || "").trim();
+      const morph = (n.getAttribute("morph") || "").trim();
+      const parsed = hebParse(morph);
+      // the lemma attribute is a chain of morphemes; the numbered one is the word
+      const nums = lemAttr.split("/").map(x => x.trim()).filter(x => /\d/.test(x));
+      const strongs = nums.length ? nums[nums.length - 1].replace(/\s+/g, "") : "";
+      // a word that is nothing but a prefix has a letter for a lemma, not a number
+      const lemma = strongs || HEB_PREFIX[lemAttr] || lemAttr;
+      toks.push([surface, lemma, parsed.pos, parsed.parse, strongs, ""]);
+    }
+    if(toks.length) verses.push([ref, toks]);
+  }
+  if(!verses.length) return { error:"No verses found in that file." };
+  const words = verses.reduce((n, v) => n + v[1].length, 0);
+  const chapters = [...new Set(verses.map(v => v[0].split(":")[0]))]
+                     .sort((a, b) => a - b);
+  return { title:label, abbr, module:"BHS-W4", verses, words, chapters,
+           byChapter:true, bad, lang:"he" };
+}
+
+/* Strong's numbers are exact but unreadable. The Open Scriptures lexical index
+   turns them into the lemma itself and a short gloss, which is what a
+   concordance and a lexicon link both want. */
+let HEBLEX = null;
+function applyHebrewLexicon(verses){
+  if(!HEBLEX || !verses) return verses;
+  verses.forEach(([, toks]) => toks.forEach(t=>{
+    const e = HEBLEX[String(t[4]).replace(/[^0-9]/g, "")];
+    if(e){ t[1] = e[0] || t[1]; if(!t[5]) t[5] = e[1] || ""; }
+  }));
+  return verses;
+}
+function parseHebrewLexicon(xml){
+  const out = {};
+  try{
+    const doc = new DOMParser().parseFromString(xml, "application/xml");
+    const es = doc.getElementsByTagName("entry");
+    for(let i = 0; i < es.length; i++){
+      const e = es[i];
+      const xr = e.getElementsByTagName("xref")[0];
+      const sn = xr && xr.getAttribute("strong");
+      if(!sn) continue;
+      const w = e.getElementsByTagName("w")[0];
+      const d = e.getElementsByTagName("def")[0];
+      if(!out[sn]) out[sn] = [ w ? (w.textContent || "").trim() : "",
+                               d ? (d.textContent || "").trim() : "" ];
+    }
+  }catch(err){ return null; }
+  return Object.keys(out).length ? out : null;
+}
+
+/* ============================================================
+   CROSS-REFERENCES ANYWHERE IN THE BIBLE
+   A loaded book can be found by its own title; the rest of the canon has to
+   be named here, because a cross-reference to Isaiah must work whether or not
+   any Hebrew or Greek Isaiah has been loaded. The abbreviations are the ones
+   Accordance uses in a verse reference.
+   ============================================================ */
+const CANON = [
+  [["ge","gen","genesis"],"Genesis","Gen."], [["ex","exo","exod","exodus"],"Exodus","Exod."],
+  [["le","lev","leviticus"],"Leviticus","Lev."], [["nu","num","numbers"],"Numbers","Num."],
+  [["dt","deu","deut","deuteronomy"],"Deuteronomy","Deut."],
+  [["jos","josh","joshua"],"Joshua","Josh."], [["jdg","judg","judges"],"Judges","Judg."],
+  [["ru","rut","ruth"],"Ruth","Ruth"],
+  [["1sa","1sam","1samuel"],"1 Samuel","1_Sam."], [["2sa","2sam","2samuel"],"2 Samuel","2_Sam."],
+  [["1ki","1kg","1kgs","1kings"],"1 Kings","1_Kings"], [["2ki","2kg","2kgs","2kings"],"2 Kings","2_Kings"],
+  [["1ch","1chr","1chronicles"],"1 Chronicles","1_Chron."],
+  [["2ch","2chr","2chronicles"],"2 Chronicles","2_Chron."],
+  [["ezr","ezra"],"Ezra","Ezra"], [["ne","neh","nehemiah"],"Nehemiah","Neh."],
+  [["es","est","esth","esther"],"Esther","Esth."], [["job"],"Job","Job"],
+  [["ps","psa","psalm","psalms"],"Psalms","Ps."], [["pr","pro","prov","proverbs"],"Proverbs","Prov."],
+  [["ec","ecc","eccl","ecclesiastes"],"Ecclesiastes","Eccl."],
+  [["so","song","songofsongs","songofsolomon","cant"],"Song of Songs","Song"],
+  [["is","isa","isaiah"],"Isaiah","Isa."], [["je","jer","jeremiah"],"Jeremiah","Jer."],
+  [["la","lam","lamentations"],"Lamentations","Lam."], [["eze","ezek","ezekiel"],"Ezekiel","Ezek."],
+  [["da","dan","daniel"],"Daniel","Dan."], [["ho","hos","hosea"],"Hosea","Hos."],
+  [["joe","joel"],"Joel","Joel"], [["am","amo","amos"],"Amos","Amos"],
+  [["ob","oba","obad","obadiah"],"Obadiah","Obad."], [["jon","jonah"],"Jonah","Jonah"],
+  [["mic","micah"],"Micah","Mic."], [["na","nah","nahum"],"Nahum","Nah."],
+  [["hab","habakkuk"],"Habakkuk","Hab."], [["zep","zeph","zephaniah"],"Zephaniah","Zeph."],
+  [["hag","haggai"],"Haggai","Hag."], [["zec","zech","zechariah"],"Zechariah","Zech."],
+  [["mal","malachi"],"Malachi","Mal."],
+  [["mt","mat","matt","matthew"],"Matthew","Matt."], [["mk","mar","mark"],"Mark","Mark"],
+  [["lk","luk","luke"],"Luke","Luke"], [["jn","joh","john"],"John","John"],
+  [["ac","act","acts"],"Acts","Acts"], [["ro","rom","romans"],"Romans","Rom."],
+  [["1co","1cor","1corinthians"],"1 Corinthians","1_Cor."],
+  [["2co","2cor","2corinthians"],"2 Corinthians","2_Cor."],
+  [["ga","gal","galatians"],"Galatians","Gal."], [["eph","ephesians"],"Ephesians","Eph."],
+  [["php","phil","philippians"],"Philippians","Phil."],
+  [["col","colossians"],"Colossians","Col."],
+  [["1th","1thess","1thessalonians"],"1 Thessalonians","1_Thess."],
+  [["2th","2thess","2thessalonians"],"2 Thessalonians","2_Thess."],
+  [["1ti","1tim","1timothy"],"1 Timothy","1_Tim."], [["2ti","2tim","2timothy"],"2 Timothy","2_Tim."],
+  [["tit","titus"],"Titus","Titus"], [["phm","phlm","philemon"],"Philemon","Phlm."],
+  [["heb","hebrews"],"Hebrews","Heb."], [["jas","jam","james"],"James","James"],
+  [["1pe","1pet","1peter"],"1 Peter","1_Pet."], [["2pe","2pet","2peter"],"2 Peter","2_Pet."],
+  [["1jn","1joh","1john"],"1 John","1_John"], [["2jn","2joh","2john"],"2 John","2_John"],
+  [["3jn","3joh","3john"],"3 John","3_John"], [["jud","jude"],"Jude","Jude"],
+  [["re","rev","revelation"],"Revelation","Rev."]
+];
+
+/* "Isa 49:8" → the book, the Accordance abbreviation and the numbers.
+   Ambiguity is resolved by preferring an exact id, then the shortest name
+   that starts with what was typed — so "Phil" is Philippians, not Philemon. */
+function canonRef(input){
+  const sp = splitRef(input);
+  if(!sp || !sp.book) return null;
+  const norm = sp.book;
+  let hit = CANON.find(b => b[0].includes(norm));
+  if(!hit){
+    const starts = CANON.filter(b => normBook(b[1]).startsWith(norm) ||
+                                     b[0].some(id => id.startsWith(norm)));
+    starts.sort((a, b) => a[1].length - b[1].length);
+    hit = starts[0];
+  }
+  if(!hit) return null;
+  const nums = sp.nums.replace(/\s+/g, "");
+  if(!nums) return null;
+  return { name:hit[1], acc:hit[2], nums, label:hit[1] + " " + nums.replace(/-/g, "\u2013") };
+}
+
+/* Accordance takes a module and a reference; the same shape the word inspector
+   already uses for the Greek. */
+function accordEnglish(ref){
+  const c = canonRef(ref);
+  if(!c) return null;
+  const mod = (document.getElementById("mEng") || {}).value || "ESV";
+  return "accord://read/" + mod + "#" + encodeURIComponent(c.acc + "_" + c.nums);
+}
 
 /* ---- corpus loading ----
    Accepts MorphGNT .txt files (any number at once), a repository .zip,
@@ -3076,7 +3690,6 @@ document.getElementById("chapter").onchange = e =>{
   saveNow();
   S.chapter = e.target.value;
   build(S.key); syncJoin(); saveNow();
-  if(esvPanel.classList.contains("show")) loadESV();
 };
 
 /* ============================================================
@@ -3579,6 +4192,24 @@ document.getElementById("concClose").onclick = ()=>{
    from saving it, because the sermon outline needs to draw bands of the same
    page into the Word document. */
 function paintBoard(g){
+  // the big idea, at the head of the page
+  const bigIdea = summaryNow().trim();
+  if(bigIdea){
+    g.save();
+    g.textBaseline = "alphabetic";
+    g.fillStyle = "#8c8577";
+    g.font = "700 10px Inter, sans-serif";
+    const label = "B I G   I D E A";
+    g.fillText(label, 24, 36);
+    const lw = g.measureText(label).width;
+    g.fillStyle = "#3d3730";
+    g.font = "italic 19px Cardo, Georgia, serif";
+    g.fillText(bigIdea, 24 + lw + 14, 36);
+    g.fillStyle = "#f0ece3";
+    g.fillRect(24, 49, WRAP - 24, 1);
+    g.restore();
+  }
+
   // section rules and their titles
   S.sections.forEach(sec=>{
     if(sec._y === undefined) return;
@@ -3605,6 +4236,7 @@ function paintBoard(g){
   g.globalAlpha = 1;
 
   // words, with their highlights and marks
+  const heb = isRTL();
   S.words.forEach(wd=>{
     const x = px(wd), y = py(wd);
     const bg = S.hits[wd.uid] || S.lemHi[wd.lemma];
@@ -3615,22 +4247,30 @@ function paintBoard(g){
     if(mk && mk.u){ g.strokeStyle = mk.u; g.lineWidth = 2.5;
                     g.beginPath(); g.moveTo(x, y + wd.h); g.lineTo(x + wd.w, y + wd.h); g.stroke(); }
     g.fillStyle = "#211d18";
-    g.font = "27px Cardo, Georgia, serif";
+    g.font = heb ? '30px "SBL Hebrew", "Ezra SIL", Cardo, serif'
+                 : "27px Cardo, Georgia, serif";
     g.textBaseline = "top";
     g.fillText(wd.surface, x + 4, y + 3);
-    if(mk && mk.s && typeof Path2D !== "undefined"){
-      const gl = anyGlyph(mk.s);
+    if(mk && mk.s){
+      const gl = (typeof Path2D !== "undefined") ? anyGlyph(mk.s) : null;
+      const cx = x + wd.w / 2, cy = y + wd.h / 2;
+      g.save();
+      g.globalAlpha = SYMINK;                 // see-through, like the highlighter
+      g.strokeStyle = mk.sc || "#8a5a2b"; g.fillStyle = mk.sc || "#8a5a2b";
       if(gl){
         const ds = (Array.isArray(gl.d) ? gl.d : [gl.d]).map(safePath).filter(Boolean);
-        g.save();
-        g.translate(x + wd.w / 2 - 8.5, y - 16);
-        g.scale(17 / 24, 17 / 24);
-        g.strokeStyle = mk.sc || "#8a5a2b"; g.fillStyle = mk.sc || "#8a5a2b";
+        g.translate(cx - SYMSIZE / 2, cy - SYMSIZE / 2);
+        g.scale(SYMSIZE / 24, SYMSIZE / 24);
         g.lineWidth = 1.9; g.lineCap = "round"; g.lineJoin = "round";
         ds.forEach(d=>{ const pth = new Path2D(d); gl.f ? g.fill(pth) : g.stroke(pth); });
-        g.restore();
-      } else { g.font = "15px sans-serif"; g.fillStyle = mk.sc || "#8a5a2b";
-               g.fillText(mk.s, x + wd.w / 2 - 7, y - 17); }
+      } else {
+        g.font = SYMSIZE + "px sans-serif";
+        g.textBaseline = "middle";
+        const tw = g.measureText(mk.s).width;
+        g.fillText(mk.s, cx - tw / 2, cy);
+        g.textBaseline = "top";
+      }
+      g.restore();
     }
   });
 
@@ -3669,7 +4309,7 @@ function paintBoard(g){
       g.globalAlpha = 1;
     });
   });
-
+  S.strokes.filter(s => TAGMODES.has(s.mode)).forEach(s => paintTag(g, s));
 }
 
 function boardWidth(){
@@ -3689,7 +4329,7 @@ function bandOf(lines, sec){
       const w = S.words[id];
       if(!w) return;
       seen.add(w.uid);
-      grow(py(w) - 20, py(w) + w.h + 8);      // -20 leaves room for a symbol above
+      grow(py(w) - 8, py(w) + w.h + 8);
       wide(px(w) + w.w);
     });
   });
@@ -4123,11 +4763,6 @@ document.addEventListener("keydown", e=>{
   e.shiftKey ? redo() : undo();
 });
 
-document.getElementById("esvKey").addEventListener("change", ()=>{
-  esvCache = {};
-  saveNow();
-  if(esvPanel.classList.contains("show")) loadESV();
-});
 document.getElementById("pmode").onchange = e => S.pencilMode = e.target.checked;
 document.getElementById("passage").onchange = e =>{
   saveNow();                       // bank the diagram we are leaving
@@ -4137,7 +4772,6 @@ document.getElementById("passage").onchange = e =>{
     ? np.chapters[0] : "all";
   refreshChapterMenu();
   build(S.key); syncJoin(); saveNow();
-  if(esvPanel.classList.contains("show")) loadESV();
 };
 document.getElementById("auto").onclick  = ()=>{ pushUndo(); autoSplit(); };
 document.getElementById("joinUp").onclick = ()=>{
@@ -4240,7 +4874,7 @@ function docSnapshot(){
     floats: Object.assign({}, S.floats),
     strokes:S.strokes.map(s => ({
       id:s.sid || (s.sid = newSid()),
-      m:s.mode, a:s.anchor, c:s.color, st:s.style,
+      m:s.mode, a:s.anchor, c:s.color, st:s.style, r:s.ref || undefined,
       p:s.pts.map(q => [r1(q.x), r1(q.y), Math.round((q.p == null ? .5 : q.p) * 100) / 100])
     })),
     conns:   S.conns.map(c => [c.a, c.b]),
@@ -4262,9 +4896,9 @@ function applyDoc(d, p){
   S.floats  = Object.assign({}, (d && d.floats) || {});
   S.strokes = ((d && d.strokes) || []).map(s => ({
     sid:s.id || newSid(),
-    mode:s.m, anchor:(s.a == null ? null : s.a), color:s.c, style:s.st,
+    mode:s.m, anchor:(s.a == null ? null : s.a), color:s.c, style:s.st, ref:s.r || "",
     pts:(s.p || []).map(q => ({ x:q[0], y:q[1], p:q[2] }))
-  })).filter(s => s.pts.length);
+  })).filter(s => s.pts.length && (TAGMODES.has(s.mode) || s.pts.length >= 2));
   S.conns = ((d && d.conns) || []).map(([a,b]) => ({ a, b }));
   S.sections = ((d && d.sections) || [])
     .map((s,i) => ({ id:i+1, beforeWord:s.w, title:s.t || "", ci:s.ci || 0 }));
@@ -4306,9 +4940,10 @@ function prefsSnapshot(){
   return {
     key:S.key, chapter:S.chapter, ci:S.ci, ls:S.lineStyle, tool:S.tool,
     pencil:S.pencilMode, wheel:[WH.x, WH.y, S.wheelOpen],
-    mods:[document.getElementById("mText").value, document.getElementById("mLex").value],
+    mods:[document.getElementById("mText").value, document.getElementById("mLex").value,
+          document.getElementById("mEng").value,  document.getElementById("mHeb").value,
+          document.getElementById("mHLex").value],
     abbr:document.getElementById("mgAbbr").value,
-    esvKey:document.getElementById("esvKey").value,
     aiKey:document.getElementById("aiKey").value
   };
 }
@@ -4318,13 +4953,15 @@ function applyPrefs(p){
   if(p.mods){
     document.getElementById("mText").value = p.mods[0] || "NA28-T";
     document.getElementById("mLex").value  = p.mods[1] || "BDAG";
+    document.getElementById("mEng").value  = p.mods[2] || "ESV";
+    document.getElementById("mHeb").value  = p.mods[3] || "BHS-W4";
+    document.getElementById("mHLex").value = p.mods[4] || "HALOT";
   }
   if(p.abbr) document.getElementById("mgAbbr").value = p.abbr;
-  if(p.esvKey) document.getElementById("esvKey").value = p.esvKey;
   if(p.aiKey) document.getElementById("aiKey").value = p.aiKey;
   S.ci = (p.ci >= 0 && p.ci < COLORS.length) ? p.ci : 12;
   S.lineStyle = (LINESTYLE[p.ls] || p.ls === "thick") ? p.ls : "regular";
-  S.tool = p.tool || "move";
+  S.tool = (p.tool === "join") ? "split" : (p.tool || "move");
   S.pencilMode = p.pencil !== false;
   document.getElementById("pmode").checked = S.pencilMode;
   if(p.wheel){ WH.x = p.wheel[0]; WH.y = p.wheel[1]; S.wheelOpen = !!p.wheel[2]; }
@@ -4770,6 +5407,8 @@ function summaryNow(){ return (S.summaries && S.summaries[viewKey()]) || ""; }
 function showSummary(){
   const box = document.getElementById("sumBox");
   if(!box) return;
+  const wrap = document.getElementById("pagesum");
+  if(wrap) wrap.classList.toggle("off", !S.key);
   box.value = summaryNow();
   const p = PASSAGES[S.key];
   box.placeholder = p
@@ -4914,6 +5553,7 @@ async function loadSaved(){
     if(corpus && Array.isArray(corpus.files) && corpus.files.length){
       S.corpusFiles = corpus.files;
       corpus.files.forEach(f=>{
+        if(/\.hb$/.test(f.name)){ registerHebrew(f); return; }
         if(/\.import$/.test(f.name)){ registerImported(f); return; }
         registerBook(f);
       });
@@ -5031,11 +5671,11 @@ function openWorkspace(snap){
 document.getElementById("saveFile").onclick = saveProjectFile;
 document.getElementById("forget").onclick = ()=>{
   S.docs = {}; S.corpusFiles = []; S._loadedBook = null;
-  Object.keys(PASSAGES).filter(k=>k.startsWith("nt:")).forEach(k=>delete PASSAGES[k]);
+  Object.keys(PASSAGES).filter(k=>BOOKKEY.test(k)).forEach(k=>delete PASSAGES[k]);
   kvSet("docs", {}); kvSet("corpus", {files:[]}); kvSet("prefs", {});
   refreshBookMenu();
   document.getElementById("mgStatus").textContent = "Nothing loaded.";
-  esvCache = {};
+
   document.getElementById("saveState").textContent = "Saved work cleared.";
   S.key = ""; S.chapter = "all";
   document.getElementById("passage").value = "";
@@ -5045,7 +5685,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-08-08b";
+const BUILD = "2026-08-08e";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file

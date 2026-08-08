@@ -85,6 +85,14 @@
     border-radius:8px;background:var(--paper);color:var(--ink);width:210px;max-width:38vw;
     min-width:110px;transition:border-color .15s;}
   #refBox:focus{outline:none;border-color:var(--accent);}
+  .aimwrap{display:flex;align-items:center;gap:6px;flex:1 1 200px;min-width:120px;max-width:420px;}
+  .aimlbl{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);
+    flex:0 0 auto;}
+  #sumBox{font:inherit;font-size:13px;padding:7px 10px;border:1px solid var(--rule);
+    border-radius:7px;background:var(--paper);color:inherit;width:100%;min-width:0;
+    font-style:italic;}
+  #sumBox:focus{outline:none;border-color:var(--accent);font-style:normal;}
+  #sumBox::placeholder{font-style:italic;opacity:.55;}
   #refBox.bad{border-color:var(--sel);background:#fff5f2;}
   #refGo{padding:7px 8px;border:1px solid var(--rule);border-radius:8px;}
   #passage{font-weight:500;min-width:110px;max-width:26vw;flex-shrink:1;}
@@ -455,6 +463,10 @@
       <select id="chapter" title="Which part of the loaded book to lay out"
               style="display:none"></select>
       <span class="glbl" id="wcount"></span>
+      <div class="aimwrap"><span class="aimlbl">Summary</span>
+        <input type="text" id="sumBox" spellcheck="true" autocapitalize="sentences"
+               placeholder="what this passage says"
+               title="A summary of the passage in view. It belongs to this passage, and heads the exported outline."></div>
       <button id="auto" class="act" title="Break the passage into propositions"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.4 5.4h15.2"/><path d="M6.6 11h12"/><path d="M9.8 16.6h8.8"/><circle cx="3.4" cy="11" r="1.3" fill="currentColor" stroke="none"/><circle cx="6.6" cy="16.6" r="1.3" fill="currentColor" stroke="none"/></svg><span class="lbl-hide">Auto-split</span></button>
       <div class="grp">
         <button id="undoBtn" disabled title="Undo (⌘Z)"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4.2 9.8h9.4a4 4 0 010 8H8.6"/><path d="M7.6 6.2L4 9.8l3.6 3.6"/></svg><span class="lbl-hide">Undo</span></button>
@@ -581,11 +593,13 @@
 
 <div id="outlineSheet" class="sheet">
   <div class="ws">
-    <div class="wslbl">Your section titles become numbered headings in a Word document —
-      a sermon outline built from the diagram.</div>
+    <div class="wslbl">Your section titles become red numbered headings in a Word document,
+      with the diagram beneath each one — line breaks, highlights, marks, ink and arrows just
+      as they are here. Your summary of the passage sits under the title, and every page
+      is headed with an empty <b>Aim:</b> line for you to fill in.</div>
     <div class="outopts">
-      <label><input type="checkbox" id="outRefs" checked> Verse range under each heading</label>
-      <label><input type="checkbox" id="outGreek"> The Greek text of each section</label>
+      <label><input type="checkbox" id="outRefs" checked> Verses in brackets beside each heading</label>
+      <label><input type="checkbox" id="outPic" checked> The diagram itself, exactly as it looks here</label>
       <label><input type="checkbox" id="outNotes" checked> Your notes, as bullet points</label>
     </div>
     <div class="askstate" id="outState"></div>
@@ -890,7 +904,7 @@ const LINESTYLE = {
 const S = {
   key:"", chapter:"all", docs:{}, undo:[], redo:[],
   lineStarts:{}, floats:{}, byUid:{},
-  hits:{}, marks:{}, notes:{}, markMode:"underline", findQ:"", glyphs:[],
+  hits:{}, marks:{}, notes:{}, summaries:{}, markMode:"underline", findQ:"", glyphs:[],
   words:[], lines:[], strokes:[], conns:[], sections:[],
   tool:"move", lastInk:"pen", ci:12, wheelOpen:false, lineStyle:"regular",
   pencilMode:true, sel:null, lemHi:{}, connFrom:null, curLine:null, dpr:1
@@ -1317,6 +1331,9 @@ function buildPassage(key){
     const ch = document.getElementById("chapter");
     if(ch) ch.value = S.chapter;
   }
+
+  // the summary belongs to the passage, so it follows the range on screen
+  showSummary();
 
   S.byUid = {};
   verses.forEach(([vn, toks])=>{
@@ -3558,17 +3575,10 @@ document.getElementById("concClose").onclick = ()=>{
    breaks and marks — so the image is what you actually see rather than a
    screenshot of part of it.
    ============================================================ */
-function exportPNG(){
-  const w = board.offsetWidth, h = board.offsetHeight;
-  let scale = 2;
-  if(w * h * scale * scale > CANVAS_BUDGET) scale = Math.sqrt(CANVAS_BUDGET / (w * h));
-  const c = document.createElement("canvas");
-  c.width = Math.max(1, Math.floor(w * scale));
-  c.height = Math.max(1, Math.floor(h * scale));
-  const g = c.getContext("2d");
-  g.setTransform(scale, 0, 0, scale, 0, 0);
-  g.fillStyle = "#fffefb"; g.fillRect(0, 0, w, h);
-
+/* The page, drawn on a canvas exactly as it appears on screen. Kept separate
+   from saving it, because the sermon outline needs to draw bands of the same
+   page into the Word document. */
+function paintBoard(g){
   // section rules and their titles
   S.sections.forEach(sec=>{
     if(sec._y === undefined) return;
@@ -3660,6 +3670,68 @@ function exportPNG(){
     });
   });
 
+}
+
+function boardWidth(){
+  return Math.max(board.offsetWidth || 0, WRAP + 60);
+}
+
+/* Everything that belongs to a run of lines, in page coordinates: the words,
+   the ink anchored to them, the arrows between them and the section rule
+   above. This is what decides where to cut the page for one section. */
+function bandOf(lines, sec){
+  let top = Infinity, bottom = -Infinity, right = 0;
+  const seen = new Set();
+  const grow = (a, b)=>{ if(a < top) top = a; if(b > bottom) bottom = b; };
+  const wide = x => { if(x > right) right = x; };
+  lines.forEach(line=>{
+    line.ids.forEach(id=>{
+      const w = S.words[id];
+      if(!w) return;
+      seen.add(w.uid);
+      grow(py(w) - 20, py(w) + w.h + 8);      // -20 leaves room for a symbol above
+      wide(px(w) + w.w);
+    });
+  });
+  if(sec && sec._y !== undefined) grow(sec._y - 16, sec._y + 10);
+  S.strokes.forEach(st=>{
+    if(st.anchor == null || !seen.has(st.anchor)) return;
+    const pts = strokePoints(st);
+    if(pts.length < 2) return;
+    const pad = st.mode === "highlight" ? 13 : 4;
+    pts.forEach(q => { grow(q.y - pad, q.y + pad); wide(q.x + pad); });
+  });
+  S.conns.forEach(cn=>{
+    if(!seen.has(cn.a) || !seen.has(cn.b)) return;
+    connPoints(cn).forEach(q => { grow(q.y - 3, q.y + 3); wide(q.x + 3); });
+  });
+  if(!isFinite(top)) return null;
+  return { top: Math.max(0, Math.floor(top)), bottom: Math.ceil(bottom),
+           right: Math.ceil(right) };
+}
+
+/* One band of the page as a PNG, at something close to print resolution.
+   Every band in an export is cut to the same width, so the indents of a flow
+   diagram still line up from one section to the next on the page. */
+function renderBand(top, bottom, want, width){
+  const w = Math.max(120, Math.round(width || boardWidth())), h = Math.max(1, bottom - top);
+  let scale = want || 2;
+  if(w * h * scale * scale > CANVAS_BUDGET) scale = Math.sqrt(CANVAS_BUDGET / (w * h));
+  if(Math.max(w, h) * scale > CANVAS_MAXDIM) scale = CANVAS_MAXDIM / Math.max(w, h);
+  scale = Math.max(0.5, scale);
+  const c = document.createElement("canvas");
+  c.width  = Math.max(1, Math.round(w * scale));
+  c.height = Math.max(1, Math.round(h * scale));
+  const g = c.getContext("2d");
+  g.setTransform(scale, 0, 0, scale, 0, -top * scale);
+  g.fillStyle = "#fffefb"; g.fillRect(0, top, w, h);
+  paintBoard(g);
+  return { canvas:c, w, h, scale };
+}
+
+function exportPNG(){
+  const w = boardWidth(), h = board.offsetHeight;
+  const { canvas: c } = renderBand(0, h, 2);
   const p = PASSAGES[S.key];
   const name = ((p && p.title) || "nous").replace(/\s+/g,"-").toLowerCase() +
                (S.chapter && S.chapter !== "all"
@@ -3709,7 +3781,7 @@ function zipStored(files){
 
   files.forEach(f=>{
     const name = enc.encode(f.name);
-    const data = enc.encode(f.data);
+    const data = (f.data instanceof Uint8Array) ? f.data : enc.encode(f.data);
     const crc = crc32(data);
     const local = [].concat(
       u32(0x04034b50), u16(20), u16(0x0800), u16(0),   // UTF-8 names, stored
@@ -3744,11 +3816,13 @@ const xmlEsc = t => String(t == null ? "" : t)
    in the order they appear down the page. */
 function buildOutline(){
   const secs = sectionsByLine();
-  const buckets = [{ title:null, words:[], sec:null }];
+  const buckets = [{ title:null, lines:[], words:[], sec:null }];
   S.lines.forEach(line=>{
     const sec = secs[line.id];
-    if(sec) buckets.push({ title: sec.title || "", words:[], sec });
-    line.ids.forEach(id => buckets[buckets.length-1].words.push(S.words[id]));
+    if(sec) buckets.push({ title: sec.title || "", lines:[], words:[], sec });
+    const b = buckets[buckets.length - 1];
+    b.lines.push(line);
+    line.ids.forEach(id => b.words.push(S.words[id]));
   });
   if(!buckets[0].words.length) buckets.shift();     // no text before the first break
   return buckets.map(b=>{
@@ -3760,54 +3834,145 @@ function buildOutline(){
       numbered: !!b.sec,
       from: refs[0] || "", to: refs[refs.length-1] || "",
       greek: b.words.map(w => w.surface).join(" "),
+      band: bandOf(b.lines, b.sec),
       notes
     };
   });
 }
 
+/* Verses beside the title, in the form a preacher writes them: 2:5–11, or
+   1:12–2:4 when the section runs over a chapter boundary. */
+function refSpan(from, to){
+  if(!from) return "";
+  if(from === to) return from;
+  const [c1, v1] = String(from).split(":"), [c2, v2] = String(to).split(":");
+  return c1 === c2 ? c1 + ":" + v1 + "–" + v2 : from + "–" + to;
+}
+
+const EMU_PER_PX = 9525;                 // 96 dpi into English Metric Units
+const CONTENT_IN = 7.2;                  // fits inside half-inch margins on A4 and Letter
+
+function xmlEscAttr(t){ return xmlEsc(t).replace(/"/g, "&quot;"); }
+
 function docxParagraph(text, style, opts){
   const o = opts || {};
   const rpr = o.greek ? '<w:rPr><w:rFonts w:ascii="Cardo" w:hAnsi="Cardo"/><w:sz w:val="26"/></w:rPr>'
-            : (o.small ? '<w:rPr><w:sz w:val="18"/><w:color w:val="7C756A"/></w:rPr>' : "");
+            : (o.small ? '<w:rPr><w:sz w:val="18"/><w:i/><w:color w:val="7C756A"/></w:rPr>' : "");
   return '<w:p><w:pPr>' + (style ? '<w:pStyle w:val="' + style + '"/>' : "") +
          (o.bullet ? '<w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr>' : "") +
          '</w:pPr><w:r>' + rpr + '<w:t xml:space="preserve">' + xmlEsc(text) + '</w:t></w:r></w:p>';
 }
 
+/* A heading in red, with the verses in parentheses beside it in a lighter
+   weight so the title still carries the line. */
+function docxHeading(text, span){
+  // one w:sz per run — a repeated one is invalid and readers disagree about it
+  const run = (t, sz, bold) =>
+    '<w:r><w:rPr>' + (bold ? '<w:b/>' : '<w:b w:val="0"/>') +
+    '<w:color w:val="B3231E"/><w:sz w:val="' + sz + '"/>' +
+    '</w:rPr><w:t xml:space="preserve">' + xmlEsc(t) + '</w:t></w:r>';
+  return '<w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr>' + run(text, 30, true) +
+         (span ? run("  (" + span + ")", 24, false) : "") +
+         '</w:p>';
+}
+
+function docxImage(rid, wPx, hPx, alt){
+  const wEmu = Math.round(CONTENT_IN * 914400);
+  const hEmu = Math.max(1, Math.round(wEmu * (hPx / wPx)));
+  return '<w:p><w:pPr><w:spacing w:before="60" w:after="160"/></w:pPr><w:r><w:drawing>' +
+    '<wp:inline distT="0" distB="0" distL="0" distR="0" ' +
+      'xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing">' +
+    '<wp:extent cx="' + wEmu + '" cy="' + hEmu + '"/>' +
+    '<wp:effectExtent l="0" t="0" r="0" b="0"/>' +
+    '<wp:docPr id="' + rid.replace(/\D/g,"") + '" name="' + xmlEscAttr(alt) + '" descr="' + xmlEscAttr(alt) + '"/>' +
+    '<wp:cNvGraphicFramePr><a:graphicFrameLocks noChangeAspect="1" ' +
+      'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"/></wp:cNvGraphicFramePr>' +
+    '<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">' +
+    '<a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">' +
+    '<pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">' +
+    '<pic:nvPicPr><pic:cNvPr id="0" name="' + xmlEscAttr(alt) + '"/><pic:cNvPicPr/></pic:nvPicPr>' +
+    '<pic:blipFill><a:blip r:embed="' + rid + '"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>' +
+    '<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="' + wEmu + '" cy="' + hEmu + '"/></a:xfrm>' +
+    '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr>' +
+    '</pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>';
+}
+
+function pngBytes(canvas){
+  const url = canvas.toDataURL("image/png");
+  const bin = atob(url.slice(url.indexOf(",") + 1));
+  const out = new Uint8Array(bin.length);
+  for(let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
 function exportOutline(){
-  const inc = id => document.getElementById(id).checked;
-  const withGreek = inc("outGreek"), withNotes = inc("outNotes"), withRefs = inc("outRefs");
+  const inc = id => { const el = document.getElementById(id); return el ? el.checked : false; };
+  const withPic = inc("outPic"), withNotes = inc("outNotes"), withRefs = inc("outRefs");
   const p = PASSAGES[S.key];
   const heading = (p ? p.title : "Passage") +
     (S.chapter && S.chapter !== "all" ? " " + rangeLabel(S.chapter).replace("chapter ","") : "");
+  const summary = summaryNow().trim();
   const outline = buildOutline();
 
+  // one width for every picture, so the indents line up down the page
+  const cutWidth = Math.min(boardWidth(),
+    outline.reduce((m, b) => Math.max(m, (b.band && b.band.right) || 0), 0) + 26) || boardWidth();
+
+  const media = [];                        // the pictures, and their relationships
   let body = docxParagraph(heading, "Title");
+  if(summary) body += docxParagraph(summary, "Summary");
+
   let n = 0;
   outline.forEach(b=>{
+    const span = withRefs ? refSpan(b.from, b.to) : "";
     if(b.numbered){
       n++;
-      body += docxParagraph(n + ". " + (b.title || "(untitled section)"), "Heading1");
+      body += docxHeading(n + ". " + (b.title || "(untitled section)"), span);
     } else if(outline.length > 1){
-      body += docxParagraph("Introduction", "Heading1");
+      body += docxHeading("Introduction", span);
     }
-    if(withRefs && b.from){
-      body += docxParagraph(b.from === b.to ? b.from : b.from + "–" + b.to, null, {small:true});
+
+    if(withPic && b.band && b.band.bottom > b.band.top){
+      try{
+        const r = renderBand(b.band.top, b.band.bottom, 2, cutWidth);
+        const rid = "rIdImg" + (media.length + 1);
+        media.push({ rid, file:"image" + (media.length + 1) + ".png", bytes:pngBytes(r.canvas) });
+        body += docxImage(rid, r.canvas.width, r.canvas.height,
+                          (b.title || heading) + " — the Greek text as diagrammed");
+      }catch(err){
+        body += docxParagraph(b.greek, null, {greek:true});   // fall back to plain text
+      }
     }
-    if(withGreek && b.greek) body += docxParagraph(b.greek, null, {greek:true});
+
     if(withNotes) b.notes.forEach(nt=>{
       body += docxParagraph(nt.surface + " (" + nt.ref + ") — " + nt.text, null, {bullet:true});
     });
-    body += docxParagraph("");
   });
 
-  const doc = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-    '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
-    '<w:body>' + body + '</w:body></w:document>';
+  // half-inch margins all round, and the aim across the top of every page
+  const sectPr = '<w:sectPr>' +
+    '<w:headerReference w:type="default" r:id="rIdHdr"/>' +
+    '<w:pgSz w:w="11906" w:h="16838"/>' +
+    '<w:pgMar w:top="850" w:right="720" w:bottom="720" w:left="720" ' +
+      'w:header="360" w:footer="360" w:gutter="0"/>' +
+    '</w:sectPr>';
 
-  // docDefaults and an explicit Normal style: without them a paragraph with no
-  // pStyle has no resolvable style at all, which trips stricter readers even
-  // though Word itself copes
+  const doc = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" ' +
+    'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+    '<w:body>' + body + sectPr + '</w:body></w:document>';
+
+  // Left empty on purpose: the aim changes from one sermon to the next, so it
+  // is a line to write on rather than something Nous can fill in.
+  const header = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<w:hdr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
+    '<w:p><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="4" w:space="3" w:color="D8D2C6"/></w:pBdr>' +
+    '<w:spacing w:after="0"/><w:tabs><w:tab w:val="right" w:pos="10466"/></w:tabs></w:pPr>' +
+    '<w:r><w:rPr><w:b/><w:sz w:val="18"/><w:color w:val="B3231E"/></w:rPr>' +
+    '<w:t xml:space="preserve">Aim: </w:t></w:r>' +
+    '<w:r><w:rPr><w:i/><w:sz w:val="18"/><w:color w:val="B9B2A6"/></w:rPr>' +
+    '<w:t xml:space="preserve"></w:t></w:r></w:p></w:hdr>';
+
   const styles = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
     '<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
     '<w:docDefaults><w:rPrDefault><w:rPr>' +
@@ -3818,11 +3983,14 @@ function exportOutline(){
     '<w:style w:type="paragraph" w:default="1" w:styleId="Normal">' +
     '<w:name w:val="Normal"/><w:qFormat/></w:style>' +
     '<w:style w:type="paragraph" w:styleId="Title"><w:name w:val="Title"/>' +
-    '<w:pPr><w:spacing w:after="240"/></w:pPr>' +
+    '<w:pPr><w:spacing w:after="80"/></w:pPr>' +
     '<w:rPr><w:b/><w:sz w:val="40"/></w:rPr></w:style>' +
+    '<w:style w:type="paragraph" w:styleId="Summary"><w:name w:val="Summary"/>' +
+    '<w:pPr><w:spacing w:after="200"/><w:ind w:right="900"/></w:pPr>' +
+    '<w:rPr><w:i/><w:sz w:val="24"/><w:color w:val="5A5248"/></w:rPr></w:style>' +
     '<w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/>' +
-    '<w:pPr><w:outlineLvl w:val="0"/><w:spacing w:before="240" w:after="120"/></w:pPr>' +
-    '<w:rPr><w:b/><w:sz w:val="30"/></w:rPr></w:style>' +
+    '<w:pPr><w:outlineLvl w:val="0"/><w:keepNext/><w:spacing w:before="280" w:after="80"/></w:pPr>' +
+    '<w:rPr><w:b/><w:color w:val="B3231E"/><w:sz w:val="30"/></w:rPr></w:style>' +
     '</w:styles>';
 
   const numbering = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
@@ -3831,28 +3999,40 @@ function exportOutline(){
     '<w:lvlText w:val="•"/><w:pPr><w:ind w:left="720" w:hanging="360"/></w:pPr></w:lvl>' +
     '</w:abstractNum><w:num w:numId="1"><w:abstractNumId w:val="0"/></w:num></w:numbering>';
 
+  const rels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+    '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>' +
+    '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering" Target="numbering.xml"/>' +
+    '<Relationship Id="rIdHdr" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header" Target="header1.xml"/>' +
+    media.map(m => '<Relationship Id="' + m.rid +
+      '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/' +
+      m.file + '"/>').join("") +
+    '</Relationships>';
+
+  const types = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+    '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+    '<Default Extension="xml" ContentType="application/xml"/>' +
+    '<Default Extension="png" ContentType="image/png"/>' +
+    '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>' +
+    '<Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>' +
+    '<Override PartName="/word/numbering.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"/>' +
+    '<Override PartName="/word/header1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/>' +
+    '</Types>';
+
   const files = [
-    { name:"[Content_Types].xml", data:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-      '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
-      '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
-      '<Default Extension="xml" ContentType="application/xml"/>' +
-      '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>' +
-      '<Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>' +
-      '<Override PartName="/word/numbering.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"/>' +
-      '</Types>' },
+    { name:"[Content_Types].xml", data:types },
     { name:"_rels/.rels", data:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
       '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
       '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>' +
       '</Relationships>' },
-    { name:"word/_rels/document.xml.rels", data:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
-      '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>' +
-      '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering" Target="numbering.xml"/>' +
-      '</Relationships>' },
+    { name:"word/_rels/document.xml.rels", data:rels },
     { name:"word/document.xml",  data:doc },
     { name:"word/styles.xml",    data:styles },
     { name:"word/numbering.xml", data:numbering }
   ];
+  files.push({ name:"word/header1.xml", data:header });
+  media.forEach(m => files.push({ name:"word/media/" + m.file, data:m.bytes }));
 
   const bytes = zipStored(files);
   const blob = new Blob([bytes],
@@ -3868,9 +4048,10 @@ function exportOutline(){
 function openOutline(){
   const outline = buildOutline();
   const named = outline.filter(b => b.numbered).length;
-  document.getElementById("outState").textContent = named
+  document.getElementById("outState").textContent = (named
     ? named + " section" + (named === 1 ? "" : "s") + " will become numbered headings."
-    : "No section breaks yet — add them with the Line tool set to Extra thick, and title each one.";
+    : "No section breaks yet — add them with the Line tool set to Extra thick, and title each one.")
+    + (summaryNow().trim() ? "" : " No summary typed yet, so the first page will have none.");
   document.getElementById("outlineSheet").classList.add("show");
 }
 document.getElementById("outCancel").onclick = ()=>
@@ -4064,6 +4245,7 @@ function docSnapshot(){
     })),
     conns:   S.conns.map(c => [c.a, c.b]),
     sections:S.sections.map(s => ({ w:s.beforeWord, t:s.title, ci:s.ci })),
+    summaries: Object.assign({}, S.summaries),
     lem: Object.assign({}, S.lemHi),
     notes: Object.assign({}, S.notes),
     hits: Object.assign({}, S.hits),
@@ -4092,6 +4274,9 @@ function applyDoc(d, p){
   S.hits  = Object.assign({}, (d && d.hits) || {});
   S.marks = JSON.parse(JSON.stringify((d && d.marks) || {}));
   S.findQ = (d && d.findQ) || "";
+  S.summaries = Object.assign({}, (d && d.summaries) || {});
+  if(d && d.aim && !S.summaries.all) S.summaries.all = d.aim;   // the old book-wide field
+  showSummary();
   const fq = document.getElementById("findQ"); if(fq) fq.value = S.findQ;
   return true;
 }
@@ -4320,6 +4505,7 @@ function docParts(d){
   return {
     marks: d.marks || {}, hits: d.hits || {}, notes: d.notes || {},
     lem: d.lem || {}, lineStarts: d.lineStarts || {}, floats: d.floats || {},
+    summaries: d.summaries || {},
     strokes: byId(d.strokes, s => s.id),
     conns:   byId(d.conns, c => c[0] + ">" + c[1]),
     sections:byId(d.sections, x => x.w)
@@ -4331,6 +4517,7 @@ function partsToDoc(parts, at, dev){
     v:3, at: at || Date.now(), dev: dev || deviceId(),
     marks:parts.marks, hits:parts.hits, notes:parts.notes, lem:parts.lem,
     lineStarts:parts.lineStarts, floats:parts.floats,
+    summaries:parts.summaries,
     strokes: Object.keys(parts.strokes).map(k => parts.strokes[k]),
     conns:   Object.keys(parts.conns).map(k => parts.conns[k]),
     sections:Object.keys(parts.sections).map(k => parts.sections[k])
@@ -4573,6 +4760,39 @@ function syncSoon(key){
   SYNC.timer = setTimeout(()=>syncAll(), 20000);
 }
 
+
+/* A summary of what the passage says. It belongs to the passage rather than to
+   the book, because a summary of 2:5-11 is not a summary of the whole letter —
+   so narrowing the view gives you a fresh box for that passage. */
+function viewKey(){ return String(S.chapter || "all"); }
+function summaryNow(){ return (S.summaries && S.summaries[viewKey()]) || ""; }
+
+function showSummary(){
+  const box = document.getElementById("sumBox");
+  if(!box) return;
+  box.value = summaryNow();
+  const p = PASSAGES[S.key];
+  box.placeholder = p
+    ? "what " + p.title + (S.chapter && S.chapter !== "all"
+        ? " " + rangeLabel(S.chapter).replace("chapter ", "") : "") + " says"
+    : "what this passage says";
+}
+
+(function wireSummary(){
+  const box = document.getElementById("sumBox");
+  if(!box) return;
+  const take = ()=>{
+    const v = box.value.trim();
+    if(v === summaryNow()) return;
+    if(!S.summaries) S.summaries = {};
+    if(v) S.summaries[viewKey()] = v; else delete S.summaries[viewKey()];
+    saveSoon();
+  };
+  box.addEventListener("input", take);
+  box.addEventListener("change", take);
+  box.addEventListener("blur", take);
+  box.addEventListener("keydown", e=>{ if(e.key === "Enter"){ take(); box.blur(); } });
+})();
 
 /* ---- the sync panel ---- */
 function setSyncState(state, detail){
@@ -4825,7 +5045,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-08-07b";
+const BUILD = "2026-08-08b";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file

@@ -1357,8 +1357,15 @@ function build(key){
   // nothing loaded, or a passage that failed to parse: show the welcome panel
   // rather than throwing halfway through a layout
   if(!key || !PASSAGES[key] || !Array.isArray(PASSAGES[key].verses)){
+    // Put the book that was open safely away BEFORE clearing the page, and then
+    // let go of it. Otherwise the next book switch would snapshot this emptied
+    // state over a week's work.
+    if(S._loadedBook && PASSAGES[S._loadedBook])
+      S.docs[S._loadedBook] = currentDoc(S._loadedBook);
+    S._loadedBook = null;
     S.key = ""; S.words = []; S.lines = []; S.strokes = []; S.conns = []; S.sections = [];
     S.hits = {}; S.marks = {}; S.lemHi = {}; S.sel = null;
+    S.notes = {}; S.lineStarts = {}; S.floats = {}; S.summaries = {}; S.byUid = {};
     board.querySelectorAll(".w,.vn,.lh,.secbreak").forEach(n=>n.remove());
     document.getElementById("empty").classList.add("show");
     document.getElementById("wcount").textContent = "";
@@ -2315,13 +2322,13 @@ hit.addEventListener("pointerup", e=>{
   if(drag && drag.kind === "ink" && !TAGMODES.has(drag.s.mode) && drag.s.pts.length < 2){
     S.strokes.splice(S.strokes.indexOf(drag.s), 1); redraw();
   }
-  // discard a shape that was only tapped, not dragged out
+  // discard a shape that was only tapped, not dragged out — judged on the whole
+  // shape, so a long flat box round a line of text survives
   if(drag && drag.kind === "shape"){
     const [a,b] = drag.s.pts;
-    const tiny = drag.xref ? 14 : 5;
-    if(Math.abs(b.x-a.x) < tiny || Math.abs(b.y-a.y) < tiny){
-      if(!drag.xref && (Math.abs(b.x-a.x) >= 5 || Math.abs(b.y-a.y) >= 5)){ /* keep thin shapes */ }
-      else { S.strokes.splice(S.strokes.indexOf(drag.s), 1); redraw(); drag = null; }
+    const w = Math.abs(b.x - a.x), h = Math.abs(b.y - a.y);
+    if(Math.max(w, h) < 12 || w * h < 200){
+      S.strokes.splice(S.strokes.indexOf(drag.s), 1); redraw(); drag = null;
     }
     // a square drawn round a quotation asks what it is quoting
     if(drag && drag.xref){ const st = drag.s; drag = null; endPointer(e); saveSoon();
@@ -4866,6 +4873,11 @@ document.addEventListener("keydown", e=>{
 
 document.getElementById("pmode").onchange = e => S.pencilMode = e.target.checked;
 document.getElementById("passage").onchange = e =>{
+  // the placeholder option is not a book; picking it should not blank the page
+  if(!e.target.value || !PASSAGES[e.target.value]){
+    e.target.value = S.key || "";
+    return;
+  }
   saveNow();                       // bank the diagram we are leaving
   S.key = e.target.value;
   const np = PASSAGES[S.key];
@@ -4952,6 +4964,8 @@ async function kvSet(key, val){
       document.getElementById("saveState").textContent =
         "Could not save automatically (" + (err && err.name || "storage blocked") +
         "). Use “Save a copy as a file”.";
+      // a passing squeeze on storage should not silence saving for the session
+      setTimeout(()=>{ storageOK = true; }, 15000);
       return false;
     }
   }
@@ -5012,6 +5026,13 @@ function applyDoc(d, p){
   return true;
 }
 
+/* How much is in a document. Used to refuse to replace something with nothing,
+   which is never what anyone means. */
+function docWeight(d){
+  const p = docParts(d);
+  return Object.keys(p).reduce((n, k) => n + Object.keys(p[k]).length, 0);
+}
+
 /* The book as it stands right now. If nothing has actually changed since the
    last save, the old timestamp is kept: "the newer one wins" should mean the
    newer piece of work, not merely the more recent closing of the lid. */
@@ -5019,6 +5040,11 @@ function currentDoc(key){
   const prev = S.docs[key] || null;
   if(S._loadedBook !== key) return prev;
   const next = docSnapshot();
+  /* A book that is really open always has line starts — one per verse at the
+     very least — so a snapshot with nothing at all in it means the page is not
+     showing this book, whatever the bookkeeping says. Never write that over
+     something. */
+  if(docWeight(next) === 0 && prev && docWeight(prev) > 0) return prev;
   if(prev && JSON.stringify(docParts(prev)) === JSON.stringify(docParts(next)))
     next.at = prev.at;
   return next;
@@ -5114,18 +5140,20 @@ function syncUndo(){
 /* ---- saving ---- */
 function saveSoon(){
   if(S._restoring) return;
+  S._lastEditAt = Date.now();
   clearTimeout(saveTimer);
   saveTimer = setTimeout(saveNow, 600);
   syncSoon(S.key);
 }
 
 function saveNow(){
-  if(S._restoring || !storageOK) return;
+  if(S._restoring) return;
   if(S.key) S.docs[docKey()] = currentDoc(S.key);
-  kvSet("docs", S.docs);
-  kvSet("prefs", prefsSnapshot());
-  mirrorSync();
-  stampSaved(Date.now());
+  mirrorSync();                       // synchronous, so it survives a sudden close
+  if(!storageOK) return;
+  Promise.all([kvSet("docs", S.docs), kvSet("prefs", prefsSnapshot())])
+    .then(([a, b])=>{ if(a && b) stampSaved(Date.now()); })
+    .catch(()=>{});
 }
 
 /* IndexedDB writes are asynchronous, and iPadOS often tears the page down on
@@ -5415,7 +5443,7 @@ async function syncBook(key){
   const { doc: theirs, sha } = await ghRead(key);
 
   if(!theirs){                                  // first time this book goes up
-    if(!live) return { skipped:true };
+    if(!live || docWeight(live) === 0) return { skipped:true };
     const newSha = await ghWrite(key, live, sha);
     if(newSha){ SYNC.shas[key] = newSha; SYNC.base[key] = docPrints(live); }
     return { pushed:true, added:0, changed:0 };
@@ -5432,6 +5460,16 @@ async function syncBook(key){
     rebuildLines();
     S.words.forEach(w=>{ const f = S.floats[w.uid]; w.fx = f ? f[0] : null; w.fy = f ? f[1] : null; });
     layout(); syncJoin();
+  }
+
+  // A merge should never turn a book that had work in it into an empty one. If
+  // it has, something upstream is wrong and the safe thing is to leave the
+  // other device alone and say so, rather than propagate the loss.
+  if(docWeight(theirs) > 0 && docWeight(merged) === 0){
+    setSyncState("error",
+      "Stopped: syncing would have emptied " + ((PASSAGES[key] || {}).title || key) +
+      ", which had work in it. Nothing was sent. Your other device still has it.");
+    return { skipped:true, refused:true };
   }
 
   // and push it back, unless theirs already says the same thing
@@ -5453,7 +5491,7 @@ async function syncAll(opts){
   if(!navigator.onLine){ setSyncState("offline", "No connection — your work is safe on this device."); return; }
   SYNC.busy = true;
   setSyncState("busy", "Syncing…");
-  let added = 0, changed = 0, books = 0, pushed = 0;
+  let added = 0, changed = 0, books = 0, pushed = 0, refused = false;
   try{
     let keys = Array.from(SYNC.queue);
     SYNC.queue.clear();
@@ -5465,12 +5503,14 @@ async function syncAll(opts){
       if(!key) continue;
       let r = await syncBook(key);
       if(r && r.retry) r = await syncBook(key);    // one retry after a clash
+      if(r && r.refused){ refused = true; continue; }
       if(r && !r.skipped){ books++; added += r.added || 0; changed += r.changed || 0;
                            if(r.pushed) pushed++; }
     }
     saveNow();
     kvSet("sync", { base:SYNC.base, shas:SYNC.shas, at:Date.now() });
     SYNC.at = Date.now();
+    if(refused) return;                          // the reason is already showing
     const what = added || changed
       ? "Brought in " + (added ? added + " new " + (added === 1 ? "mark" : "marks") : "") +
         (added && changed ? " and " : "") +
@@ -5782,7 +5822,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-08-09b";
+const BUILD = "2026-08-09d";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file
@@ -5791,12 +5831,15 @@ if("serviceWorker" in navigator && location.protocol.startsWith("http")){
   window.addEventListener("load", ()=>{
     navigator.serviceWorker.register("./sw.js").then(reg=>{
       reg.update();                                  // check for a new build now
-      // when a new worker takes over, reload once so the new page is shown
+      /* When a new build takes over, the page has to be reloaded to show it —
+         but reloading out from under someone mid-sentence is indistinguishable
+         from the app losing their work. So: save first, and wait until nothing
+         is being drawn and nothing has been touched for a few seconds. */
       let reloaded = false;
       navigator.serviceWorker.addEventListener("controllerchange", ()=>{
         if(reloaded) return;
         reloaded = true;
-        location.reload();
+        reloadWhenIdle();
       });
       reg.addEventListener("updatefound", ()=>{
         const w = reg.installing;
@@ -5809,6 +5852,23 @@ if("serviceWorker" in navigator && location.protocol.startsWith("http")){
       });
     }).catch(()=>{});
   });
+}
+
+/* A reload is only safe when nothing is in the middle of happening. */
+function reloadWhenIdle(){
+  const idle = ()=> !drag && !refTarget && !writeTarget &&
+                    !document.querySelector(".sheet.show") &&
+                    Date.now() - (S._lastEditAt || 0) > 5000 &&
+                    Date.now() - (lastPointerAt || 0) > 3000;
+  const el = document.getElementById("saveState");
+  if(el) el.textContent = "A new version is ready — it will appear in a moment.";
+  const tick = ()=>{
+    if(!idle()){ setTimeout(tick, 1500); return; }
+    clearTimeout(saveTimer);
+    saveNow();                      // the localStorage mirror is written synchronously
+    setTimeout(()=> location.reload(), 200);
+  };
+  setTimeout(tick, 1500);
 }
 
 /* ---- go ---- */

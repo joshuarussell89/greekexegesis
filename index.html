@@ -2322,12 +2322,13 @@ hit.addEventListener("pointerup", e=>{
   if(drag && drag.kind === "ink" && !TAGMODES.has(drag.s.mode) && drag.s.pts.length < 2){
     S.strokes.splice(S.strokes.indexOf(drag.s), 1); redraw();
   }
-  // discard a shape that was only tapped, not dragged out — judged on the whole
-  // shape, so a long flat box round a line of text survives
+  // Discard a shape that was only tapped, not dragged out. Judged on how far
+  // the pen actually travelled: area would call a horizontal rule nothing at
+  // all, and a box drawn round a single line of text nearly nothing.
   if(drag && drag.kind === "shape"){
     const [a,b] = drag.s.pts;
-    const w = Math.abs(b.x - a.x), h = Math.abs(b.y - a.y);
-    if(Math.max(w, h) < 12 || w * h < 200){
+    const travelled = Math.hypot(b.x - a.x, b.y - a.y);
+    if(travelled < (drag.xref ? 24 : 12)){
       S.strokes.splice(S.strokes.indexOf(drag.s), 1); redraw(); drag = null;
     }
     // a square drawn round a quotation asks what it is quoting
@@ -5822,7 +5823,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-08-09d";
+const BUILD = "2026-08-09e";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file

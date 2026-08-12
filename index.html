@@ -863,6 +863,11 @@
   <h4>Your work</h4>
   <div class="foot" id="saveState" style="padding-top:0">Not saved yet.</div>
   <div class="foot" id="storeInfo" style="padding-top:0">Checking storage…</div>
+  <div id="newVersion" style="display:none">
+    <div class="foot" style="padding-top:0"><b>A new version of Nous is ready.</b>
+      Your work is saved first; nothing is lost by loading it now.</div>
+    <button class="rowbtn" id="loadNewVersion">Load the new version</button>
+  </div>
   <button class="rowbtn" id="saveFile">Save a copy as a file…</button>
   <button class="rowbtn" id="forget">Forget saved work</button>
   <hr>
@@ -5806,6 +5811,7 @@ function openWorkspace(snap){
   return true;
 }
 
+document.getElementById("loadNewVersion").onclick = loadNewVersion;
 document.getElementById("saveFile").onclick = saveProjectFile;
 document.getElementById("forget").onclick = ()=>{
   S.docs = {}; S.corpusFiles = []; S._loadedBook = null;
@@ -5823,53 +5829,60 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-08-09e";
+const BUILD = "2026-08-10a";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file
    directly still works, just without the cache. */
+/* A new build is offered, never imposed.
+
+   Nous used to take over as soon as a new version installed and then reload the
+   page itself. That is one event away from a refresh loop — anything that fires
+   controllerchange again, a content network still settling after an upload for
+   instance, and the page reloads over and over. So: the new worker waits, a
+   quiet line appears in the settings panel, and the reload happens when you ask
+   for it. A reload is also recorded for the session, so even if something else
+   asked for one it could not happen twice. */
+let waitingWorker = null;
+
+function offerUpdate(w){
+  waitingWorker = w;
+  const el = document.getElementById("newVersion");
+  if(el) el.style.display = "";
+  const st = document.getElementById("saveState");
+  if(st) st.textContent = "A new version is ready — see below.";
+}
+
+function loadNewVersion(){
+  const once = "nous.reloaded." + BUILD;
+  try{
+    if(sessionStorage.getItem(once)) return;       // never twice for one build
+    sessionStorage.setItem(once, "1");
+  }catch(e){}
+  clearTimeout(saveTimer);
+  saveNow();                        // the localStorage mirror is written synchronously
+  const go = ()=> setTimeout(()=> location.reload(), 150);
+  if(waitingWorker){
+    navigator.serviceWorker.addEventListener("controllerchange", go, { once:true });
+    waitingWorker.postMessage("skipWaiting");
+    setTimeout(go, 2500);                          // in case it never answers
+  } else go();
+}
+
 if("serviceWorker" in navigator && location.protocol.startsWith("http")){
   window.addEventListener("load", ()=>{
     navigator.serviceWorker.register("./sw.js").then(reg=>{
-      reg.update();                                  // check for a new build now
-      /* When a new build takes over, the page has to be reloaded to show it —
-         but reloading out from under someone mid-sentence is indistinguishable
-         from the app losing their work. So: save first, and wait until nothing
-         is being drawn and nothing has been touched for a few seconds. */
-      let reloaded = false;
-      navigator.serviceWorker.addEventListener("controllerchange", ()=>{
-        if(reloaded) return;
-        reloaded = true;
-        reloadWhenIdle();
-      });
+      if(reg.waiting) offerUpdate(reg.waiting);
       reg.addEventListener("updatefound", ()=>{
         const w = reg.installing;
         if(!w) return;
         w.addEventListener("statechange", ()=>{
-          if(w.state === "installed" && navigator.serviceWorker.controller){
-            w.postMessage("skipWaiting");            // take over immediately
-          }
+          if(w.state === "installed" && navigator.serviceWorker.controller) offerUpdate(w);
         });
       });
+      reg.update();                                // look for a new build once
     }).catch(()=>{});
   });
-}
-
-/* A reload is only safe when nothing is in the middle of happening. */
-function reloadWhenIdle(){
-  const idle = ()=> !drag && !refTarget && !writeTarget &&
-                    !document.querySelector(".sheet.show") &&
-                    Date.now() - (S._lastEditAt || 0) > 5000 &&
-                    Date.now() - (lastPointerAt || 0) > 3000;
-  const el = document.getElementById("saveState");
-  if(el) el.textContent = "A new version is ready — it will appear in a moment.";
-  const tick = ()=>{
-    if(!idle()){ setTimeout(tick, 1500); return; }
-    clearTimeout(saveTimer);
-    saveNow();                      // the localStorage mirror is written synchronously
-    setTimeout(()=> location.reload(), 200);
-  };
-  setTimeout(tick, 1500);
 }
 
 /* ---- go ---- */

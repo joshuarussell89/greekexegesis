@@ -9,7 +9,7 @@
    having instantly.
 
    Books and diagrams live in IndexedDB and are never touched here. */
-const VERSION = "2026-08-09e";
+const VERSION = "2026-08-10a";
 const CACHE   = "nous-" + VERSION;
 const SHELL = [
   "./",
@@ -21,11 +21,13 @@ const SHELL = [
   "./icon-maskable-512.png"
 ];
 
+/* No skipWaiting here on purpose: a new worker waits until the page asks for
+   it. Barging in changes the controller under a running page, and the page
+   reloading in response to that is how a refresh loop starts. */
 self.addEventListener("install", e=>{
   e.waitUntil(
     caches.open(CACHE)
       .then(c => c.addAll(SHELL).catch(()=> c.add("./index.html")))
-      .then(()=> self.skipWaiting())
   );
 });
 

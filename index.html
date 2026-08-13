@@ -156,7 +156,7 @@
   .w{position:absolute;font-family:Cardo,Georgia,serif;font-size:27px;line-height:1.15;
     padding:2px 4px;border-radius:4px;white-space:nowrap;z-index:1;
     transition:box-shadow .12s;}
-  .w.sel{background:rgba(194,65,12,.12);box-shadow:0 0 0 1.5px var(--sel);}
+  .w.sel{background:rgba(194,65,12,.12);outline:1.5px solid var(--sel);outline-offset:1px;}
   .w.lem{box-shadow:inset 0 -2px 0 rgba(0,0,0,.10);}
   /* A marked word carries its symbol as a child, so it moves with the word.
      The symbol lies over the word rather than above it, and is see-through
@@ -724,8 +724,8 @@
     Accents are ignored, so <b>λυπεω</b> finds λυπέω.</div></div>
   <div class="item"><div class="kbd">Apply</div><div>Highlight, Underline or Box every match at
     once, in the wheel's current colour.</div></div>
-  <div class="item"><div class="kbd">Mark</div><div>Underline a word, box it, or lay a symbol
-    over it — ♥, 🩸, ✝, ★ and others. Symbols sit on the word, see-through like the highlighter.
+  <div class="item"><div class="kbd">Mark</div><div>Underline a word once or twice, box it, or
+    lay a symbol over it — ♥, 🩸, ✝, ★ and others. Symbols sit on the word, see-through like the highlighter.
     Tap a word to apply, tap again to remove. Marks attach to the word, so they move with it.</div></div>
   <div class="item"><div class="kbd">Hebrew</div><div>An Old Testament book is laid out right
     to left: lines begin at the right margin and each level of indent steps in from the right.
@@ -1563,11 +1563,14 @@ function render(){
     // underline / box / symbol. Outline is used for the box so it does not
     // collide with the selection ring, which is a box-shadow.
     const mk  = S.marks[w.uid] || null;
-    const und = mk && mk.u ? mk.u : "";
+    const und = mk && mk.u ? (mk.u + (mk.u2 ? "|2" : "")) : "";
     const box = mk && mk.b ? mk.b : "";
     const sym = mk && mk.s ? mk.s : "";
     if(w._und !== und){
-      w.el.style.borderBottom = und ? "2.5px solid " + und : "";
+      const hue = mk && mk.u ? mk.u : "";
+      w.el.style.borderBottom = hue ? (mk.u2 ? "2px solid " : "2.5px solid ") + hue : "";
+      // the second rule of a double underline, hung just below the first
+      w.el.style.boxShadow = (hue && mk.u2) ? "0 3.5px 0 -1.5px " + hue : "";
       w._und = und;
     }
     if(w._box !== box){
@@ -3834,7 +3837,7 @@ function applyFind(kind){
     if(kind === "highlight") S.hits[w.uid] = c.tint;
     else {
       const mk = S.marks[w.uid] || (S.marks[w.uid] = {});
-      if(kind === "underline") mk.u = c.hue;
+      if(kind === "underline"){ mk.u = c.hue; mk.u2 = (S.markMode === "double") || null; }
       if(kind === "box")       mk.b = c.hue;
     }
   });
@@ -3869,17 +3872,20 @@ function paintMarkPop(){
 
   const h = document.createElement("h4"); h.textContent = "Mark a word"; pop.appendChild(h);
 
-  [["underline","Underline"],["box","Box"]].forEach(([v,label])=>{
+  const MARKPREV = {
+    underline: `<text x="4" y="11" font-family="Cardo,serif" font-size="13" fill="${hue}">λόγος</text>
+                <path d="M3 13.5h34" stroke="${hue}" stroke-width="2.5" stroke-linecap="round"/>`,
+    double:    `<text x="4" y="10" font-family="Cardo,serif" font-size="13" fill="${hue}">λόγος</text>
+                <path d="M3 12h34" stroke="${hue}" stroke-width="2" stroke-linecap="round"/>
+                <path d="M3 15.4h34" stroke="${hue}" stroke-width="2" stroke-linecap="round"/>`,
+    box:       `<text x="6" y="12" font-family="Cardo,serif" font-size="13" fill="${hue}">λόγος</text>
+                <rect x="3" y="1.5" width="36" height="13" rx="2" fill="none" stroke="${hue}"
+                      stroke-width="2"/>`
+  };
+  [["underline","Underline"],["double","Double underline"],["box","Box"]].forEach(([v,label])=>{
     const b = document.createElement("button");
     b.className = "styleopt" + (S.markMode === v ? " on" : "");
-    b.innerHTML =
-      (v === "underline"
-        ? `<svg class="prev" viewBox="0 0 62 16"><text x="4" y="12" font-family="Cardo,serif"
-             font-size="13" fill="${hue}">λόγος</text><path d="M3 14.5h34" stroke="${hue}"
-             stroke-width="2.5" stroke-linecap="round"/></svg>`
-        : `<svg class="prev" viewBox="0 0 62 16"><text x="6" y="12" font-family="Cardo,serif"
-             font-size="13" fill="${hue}">λόγος</text><rect x="3" y="1.5" width="36" height="13"
-             rx="2" fill="none" stroke="${hue}" stroke-width="2"/></svg>`) +
+    b.innerHTML = `<svg class="prev" viewBox="0 0 62 16">${MARKPREV[v]}</svg>` +
       `<span class="txt"><span class="nm">${label}</span></span><span class="tick">✓</span>`;
     b.onclick = ()=>{ S.markMode = v; paintMarkPop(); };
     pop.appendChild(b);
@@ -3957,7 +3963,9 @@ function markWord(w){
   pushUndo();
   const mk = S.marks[w.uid] || {};
   const c = COLORS[S.ci];
-  if(S.markMode === "underline")  mk.u = mk.u ? null : c.hue;
+  if(S.markMode === "underline"){ mk.u = mk.u ? null : c.hue; mk.u2 = null; }
+  else if(S.markMode === "double"){ const on = mk.u && mk.u2;
+                                    mk.u = on ? null : c.hue; mk.u2 = on ? null : true; }
   else if(S.markMode === "box")   mk.b = mk.b ? null : c.hue;
   else { mk.s = (mk.s === S.markMode) ? null : S.markMode; mk.sc = c.hue; }
   if(!mk.u && !mk.b && !mk.s) delete S.marks[w.uid];
@@ -4311,8 +4319,14 @@ function paintBoard(g){
     const mk = S.marks[wd.uid];
     if(mk && mk.b){ g.strokeStyle = mk.b; g.lineWidth = 2;
                     g.strokeRect(x - 1, y - 1, wd.w + 2, wd.h + 2); }
-    if(mk && mk.u){ g.strokeStyle = mk.u; g.lineWidth = 2.5;
-                    g.beginPath(); g.moveTo(x, y + wd.h); g.lineTo(x + wd.w, y + wd.h); g.stroke(); }
+    if(mk && mk.u){
+      g.strokeStyle = mk.u;
+      g.lineWidth = mk.u2 ? 2 : 2.5;
+      g.beginPath(); g.moveTo(x, y + wd.h); g.lineTo(x + wd.w, y + wd.h); g.stroke();
+      if(mk.u2){                                   // the second rule
+        g.beginPath(); g.moveTo(x, y + wd.h + 3.5); g.lineTo(x + wd.w, y + wd.h + 3.5); g.stroke();
+      }
+    }
     g.fillStyle = "#211d18";
     g.font = heb ? '29px "SBL Hebrew", "Ezra SIL", "Noto Serif Hebrew", Cardo, serif'
                  : "27px Cardo, Georgia, serif";
@@ -5445,8 +5459,12 @@ async function ghList(){
 /* Bring one book into line on both sides. Reads, merges against what we had at
    the last sync, writes back only if the result differs from theirs. */
 async function syncBook(key){
-  const live = currentDoc(key);
+  /* Read first, and only then look at what is here. A fetch takes a moment,
+     and whatever is typed during that moment must be part of the merge — not
+     something the merge silently paves over. Taking the local document before
+     the round trip is how a note written mid-sync disappears. */
   const { doc: theirs, sha } = await ghRead(key);
+  const live = currentDoc(key);
 
   if(!theirs){                                  // first time this book goes up
     if(!live || docWeight(live) === 0) return { skipped:true };
@@ -5458,9 +5476,11 @@ async function syncBook(key){
   const merged = mergeDocs(SYNC.base[key], live || { at:0 }, theirs);
   const report = mergeReport(live || {}, merged);
 
-  // take the merge locally
+  // take the merge locally — but only touch the page if the merge actually
+  // says something different, so a sync that agrees with you changes nothing
+  const movedOn = !live || JSON.stringify(docParts(live)) !== JSON.stringify(docParts(merged));
   S.docs[key] = merged;
-  if(S._loadedBook === key){
+  if(S._loadedBook === key && movedOn){
     S._restoring = true;
     try{ applyDoc(merged, PASSAGES[key]); }finally{ S._restoring = false; }
     rebuildLines();
@@ -5829,7 +5849,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-08-10a";
+const BUILD = "2026-08-10b";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file

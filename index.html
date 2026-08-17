@@ -134,7 +134,28 @@
   .pop .foot{padding:8px 12px 10px;font-size:11px;color:var(--muted);line-height:1.5;}
 
   /* ---------- board ---------- */
+  #body{flex:1 1 auto;display:flex;min-height:0;}
   #scroll{flex:1 1 auto;overflow:auto;-webkit-overflow-scrolling:touch;padding:20px;}
+
+  /* ---------- the palette ----------
+     A rail beside the page rather than a puck on top of it, so nothing you are
+     working on is ever underneath a colour. */
+  #palette{flex:0 0 auto;width:64px;background:var(--paper);
+    border-right:1px solid var(--rule);display:flex;flex-direction:column;
+    align-items:center;gap:6px;padding:10px 0 14px;overflow-y:auto;
+    -webkit-overflow-scrolling:touch;}
+  #palette .plbl{font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--muted);font-weight:700;margin-bottom:1px;}
+  #palette .grid{display:grid;grid-template-columns:repeat(2,22px);gap:6px;}
+  #palette .sw{width:22px;height:22px;border-radius:6px;cursor:pointer;
+    border:1px solid rgba(0,0,0,.16);position:relative;}
+  #palette .sw.on{box-shadow:0 0 0 2px var(--paper),0 0 0 3.5px var(--ink);}
+  #palette .now{width:46px;height:30px;border-radius:8px;border:1px solid rgba(0,0,0,.16);
+    margin-top:2px;}
+  #palette .nowname{font-size:8.5px;color:var(--muted);text-align:center;line-height:1.25;
+    max-width:58px;}
+  #palette hr{width:38px;border:0;border-top:1px solid var(--rule2);margin:4px 0 2px;}
+  @media (max-width:640px){ #palette{width:44px;} #palette .grid{grid-template-columns:22px;} }
   #board{position:relative;width:1120px;height:1750px;background:var(--paper);
     border:1px solid var(--rule);border-radius:4px;
     box-shadow:0 1px 2px rgba(0,0,0,.05),0 10px 30px rgba(0,0,0,.07);}
@@ -161,6 +182,8 @@
   /* A marked word carries its symbol as a child, so it moves with the word.
      The symbol lies over the word rather than above it, and is see-through
      like highlighter ink so the Greek reads straight through it. */
+  /* the lower rule of a double underline */
+  .w .u2{position:absolute;left:0;right:0;bottom:-4.2px;height:1.4px;pointer-events:none;}
   .w .sym{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
     line-height:0;pointer-events:none;white-space:nowrap;
     opacity:var(--symink);
@@ -233,7 +256,7 @@
 
   /* ---------- printing ---------- */
   @media print{
-    header,#wheel,.pop,#insp,#conc,.sheet{display:none !important;}
+    header,#palette,.pop,#insp,#conc,.sheet{display:none !important;}
     #scroll{overflow:visible !important;padding:0 !important;}
     #board{box-shadow:none !important;border:none !important;}
     html,body,#app{height:auto !important;overflow:visible !important;background:#fff !important;}
@@ -475,7 +498,7 @@
       <div class="grp">
         <button data-tool="chain" title="Tap a word to link it to somewhere else in this book"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="1.6" y="8.2" width="12.2" height="6.6" rx="3.3" transform="rotate(-45 7.7 11.5)"/><rect x="8.2" y="7.2" width="12.2" height="6.6" rx="3.3" transform="rotate(-45 14.3 10.5)"/></svg>Chain</button>
         <button data-tool="connect" title="Tap two words to draw a relation arrow"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.6 7c0 7.4 5.2 10.6 13.4 10.2"/><path d="M14.2 14.6l3.2 2.7-2.9 2.5"/><circle cx="3.6" cy="7" r="1.5" fill="currentColor" stroke="none"/></svg>Connect</button>
-        <button data-tool="pen" title="Freehand pen, pressure sensitive"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15.8 3.4l2.8 2.8-8.5 8.5-4 1.2 1.2-4 8.5-8.5z"/><path d="M13.6 5.6l2.8 2.8"/><path d="M9 13l1.6 1.6"/></svg>Pen</button>
+        <button data-tool="pen" id="penBtn" title="Freehand pen — tap for nibs"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15.8 3.4l2.8 2.8-8.5 8.5-4 1.2 1.2-4 8.5-8.5z"/><path d="M13.6 5.6l2.8 2.8"/><path d="M9 13l1.6 1.6"/></svg>Pen</button>
         <button data-tool="highlight" title="Broad translucent highlighter"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6.4 12.6l6.2-6.2 3.6 3.6-6.2 6.2H6.4v-3.6z"/><path d="M13.4 5.6l2.2-2.2 3.6 3.6-2.2 2.2"/><path d="M3.6 19.4h14" stroke-width="2.6"/></svg>Highlight</button>
         <button data-tool="line" id="lineBtn" title="Straight line — tap for weights and patterns"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.4 17L18.6 5"/><circle cx="3.4" cy="17" r="1.4" fill="currentColor" stroke="none"/><circle cx="18.6" cy="5" r="1.4" fill="currentColor" stroke="none"/></svg>Line<svg class="car"
                viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"
@@ -490,6 +513,8 @@
     </div>
   </header>
 
+  <div id="body">
+  <aside id="palette" aria-label="Colours"></aside>
   <div id="scroll">
     <div id="board">
       <div id="pagesum"><span class="sumlbl">Big idea</span><input type="text" id="sumBox"
@@ -657,11 +682,10 @@
     and is never bundled — the button deep-links into your own Accordance copy.</div>
 </div>
 
-<div id="wheel"></div>
-
 <div class="pop anchored" id="linePop"></div>
 <div class="pop anchored" id="markPop"></div>
 <div class="pop anchored" id="boxPop"></div>
+<div class="pop anchored" id="penPop"></div>
 
 <div class="pop" id="findPop">
   <h4>Find in this passage</h4>
@@ -703,12 +727,21 @@
   <div class="item"><div class="kbd">Eraser</div><div>Rubs out whatever it passes over — ink,
     lines, boxes, arrows, and the underline, box or symbol on a word. Lemma highlights are left
     alone, since those belong to every occurrence; clear those from the word inspector.</div></div>
+  <div class="item"><div class="kbd">Nibs</div><div>Tapping <b>Pen</b> offers six: fineliner,
+    ballpoint, pencil, marker, brush and calligraphy. Each is kept with the stroke, so a page
+    can hold several, and they come through in the exported picture.</div></div>
   <div class="item"><div class="kbd">Line styles</div><div>Tapping <b>Line</b> opens a menu of
     weights. Thin, regular, dotted and double are ordinary strokes. <b>Extra thick</b> is
     different: it lays a section break across the page, opens a gap in the flow, and gives you a
     title to fill in. Tap the same boundary again to remove it.</div></div>
-  <div class="item"><div class="kbd">Colour</div><div>Tap the floating puck to open the wheel;
-    drag the hub to move it. 18 colours, shown as tints while the highlighter is active.</div></div>
+  <div class="item"><div class="kbd">Colour</div><div>The palette runs down the left of the
+    window, beside the page rather than over it. 18 colours, shown as tints while the
+    highlighter is active, with the current one at the foot.</div></div>
+  <hr>
+  <h4>With a keyboard</h4>
+  <div id="keylist"></div>
+  <div class="foot">Everything but the tool keys needs a word selected — tap one first.
+    Nothing fires while you are typing in a box.</div>
   <hr>
   <h4>Where the text comes from</h4>
   <div class="item"><div class="kbd">Greek</div><div>SBLGNT, © 2010 Society of Biblical
@@ -952,7 +985,7 @@ const S = {
   lineStarts:{}, floats:{}, byUid:{},
   hits:{}, marks:{}, notes:{}, summaries:{}, markMode:"underline", findQ:"", glyphs:[],
   words:[], lines:[], strokes:[], conns:[], sections:[],
-  tool:"move", lastInk:"pen", ci:12, wheelOpen:false, lineStyle:"regular",
+  tool:"move", lastInk:"pen", ci:12, lineStyle:"regular", nib:"fineliner",
   pencilMode:true, sel:null, lemHi:{}, connFrom:null, curLine:null, dpr:1
 };
 
@@ -988,7 +1021,7 @@ const COLORS = [
   {n:"Crimson", hue:"#c01340", tint:"#ffb3c4"},
   {n:"Navy",    hue:"#1d4bc4", tint:"#b6cbf7"}
 ];
-const HUES = 12;   // outer ring count; the rest form the inner ring
+
 
 const LEXNAME = { BDAG:"BDAG lookup", CBDAG:"Concise BDAG", BrillDAG:"Brill lookup",
                   LSJ:"LSJ lookup", Thayers:"Thayer's",
@@ -1504,17 +1537,22 @@ function layout(){
 
     line.h = rows*R;
 
-    // verse number, outside the margin the line starts from
+    /* Verse number, outside the margin the line starts from. It is recorded on
+       the line as well as put on the page, because an exported picture is drawn
+       on a canvas and would otherwise have no way of knowing it was there. */
     const first = S.words[line.ids[0]];
+    line.vn = null;
     if(first && first.verse !== lastVerse){
       const [ch, v] = first.verse.split(":");
       const vn = document.createElement("div");
       vn.className = "vn";
       // print the chapter only when it changes, so 1:12 … 24, 2:1 … reads naturally
       vn.textContent = (ch !== lastCh) ? first.verse : v;
-      vn.style.left = (rtl ? x0 + 14 : x0 - 48) + "px"; vn.style.top = (line.y + 6) + "px";
+      const vleft = rtl ? x0 + 14 : x0 - 48;
+      vn.style.left = vleft + "px"; vn.style.top = (line.y + 6) + "px";
       if(rtl) vn.style.textAlign = "left";
       board.appendChild(vn);
+      line.vn = { text:vn.textContent, x:vleft, y:line.y + 6, w:34, rtl };
       lastVerse = first.verse; lastCh = ch;
     }
     // line grip
@@ -1568,9 +1606,18 @@ function render(){
     const sym = mk && mk.s ? mk.s : "";
     if(w._und !== und){
       const hue = mk && mk.u ? mk.u : "";
-      w.el.style.borderBottom = hue ? (mk.u2 ? "2px solid " : "2.5px solid ") + hue : "";
-      // the second rule of a double underline, hung just below the first
-      w.el.style.boxShadow = (hue && mk.u2) ? "0 3.5px 0 -1.5px " + hue : "";
+      // The second rule is a child, not a shadow: a shadow copies the whole
+      // silhouette and shows down the sides, which is why it never read as two
+      // lines. This matches the Double line style — 1.3pt rules, 4.2pt apart.
+      w.el.style.borderBottom = hue ? (mk.u2 ? "1.4px solid " : "2.5px solid ") + hue : "";
+      if(hue && mk.u2){
+        if(!w._u2El){
+          w._u2El = document.createElement("span");
+          w._u2El.className = "u2";
+          w.el.appendChild(w._u2El);
+        }
+        w._u2El.style.background = hue;
+      } else if(w._u2El){ w._u2El.remove(); w._u2El = null; }
       w._und = und;
     }
     if(w._box !== box){
@@ -1724,6 +1771,55 @@ function paintTag(g, st){
   g.restore();
 }
 
+
+/* ---- pen nibs ----
+   Each is a way of turning a run of points into a line. Pressure comes from
+   the Pencil; a finger reports none, so every nib has a sensible middle. */
+const NIBS = {
+  fineliner:   { nm:"Fineliner",    sub:"Even, fine, no pressure",        w:1.5, var:0,   alpha:1 },
+  ballpoint:   { nm:"Ballpoint",    sub:"Even, with a little give",       w:2.1, var:0.9, alpha:1 },
+  pencil:      { nm:"Pencil",       sub:"Soft and grainy",                w:2.4, var:1.6, alpha:.62, grain:true },
+  marker:      { nm:"Marker",       sub:"Broad and flat",                 w:7,   var:0,   alpha:.9 },
+  brush:       { nm:"Brush",        sub:"Thin to thick with pressure",    w:2,   var:11,  alpha:1, taper:true },
+  calligraphy: { nm:"Calligraphy",  sub:"Wide across, thin along",        w:1.4, var:8,   alpha:1, angle:-Math.PI/4 }
+};
+const NIBORDER = ["fineliner","ballpoint","pencil","marker","brush","calligraphy"];
+const nibOf = st => NIBS[st && st.nib] || NIBS.fineliner;
+
+/* Draw one pen stroke with whichever nib it was made with. Shared by the page
+   and the exported picture, so they cannot look different. */
+function strokePen(g, st, pts){
+  const nib = nibOf(st);
+  const a0 = g.globalAlpha;
+  g.globalAlpha = a0 * (nib.alpha === undefined ? 1 : nib.alpha);
+  const n = pts.length;
+  for(let i = 1; i < n; i++){
+    const p = pts[i], q = pts[i-1];
+    const pr = (p.p == null ? .5 : p.p);
+    let w = nib.w + pr * nib.var;
+    if(nib.angle !== undefined){
+      // an angled nib: broad across its edge, fine along it
+      const th = Math.atan2(p.y - q.y, p.x - q.x);
+      w = nib.w + nib.var * Math.abs(Math.sin(th - nib.angle));
+    }
+    if(nib.taper){
+      const ends = Math.min(i, n - i);              // thin at both ends
+      if(ends < 4) w *= 0.45 + 0.14 * ends;
+    }
+    g.lineWidth = Math.max(0.4, w);
+    g.beginPath(); g.moveTo(q.x, q.y); g.lineTo(p.x, p.y); g.stroke();
+    if(nib.grain && i % 2 === 0){
+      // a second, offset pass: graphite never lays down evenly
+      g.globalAlpha = a0 * 0.3;
+      g.lineWidth = Math.max(0.4, w * 0.6);
+      g.beginPath();
+      g.moveTo(q.x + 0.9, q.y - 0.7); g.lineTo(p.x + 0.9, p.y - 0.7); g.stroke();
+      g.globalAlpha = a0 * nib.alpha;
+    }
+  }
+  g.globalAlpha = a0;
+}
+
 function redraw(){
   ctx.setTransform(S.dpr,0,0,S.dpr,0,0);
   ctx.clearRect(0,0,cv.width,cv.height);
@@ -1744,15 +1840,7 @@ function redraw(){
         ctx.stroke();
 
       } else if(s.mode === "pen"){
-        // pressure-varying: draw as short segments of differing width
-        for(let i=1;i<pts.length;i++){
-          const pr = (pts[i].p || 0.5);
-          ctx.lineWidth = 1.1 + pr*3.4;
-          ctx.beginPath();
-          ctx.moveTo(pts[i-1].x, pts[i-1].y);
-          ctx.lineTo(pts[i].x, pts[i].y);
-          ctx.stroke();
-        }
+        strokePen(ctx, s, pts);
 
       } else if(s.mode === "line"){
         const st = LINESTYLE[s.style] || LINESTYLE.regular;
@@ -2017,6 +2105,7 @@ function bpt(e){
 }
 
 const INKTOOLS = new Set(["pen","highlight","line","rect"]);
+let boxMode = "rect";        // which kind of box the Box button currently means
 
 function activeTool(e){
   if(S.pencilMode && e.pointerType === "pen"){
@@ -2040,7 +2129,7 @@ function wordAt(x,y){
 }
 function lineHandleAt(x,y){
   for(const l of S.lines){
-    if(x>=l.hx-8 && x<=l.hx+l.hw+8 && y>=l.hy-4 && y<=l.hy+l.hh+4) return l;
+    if(x>=l.hx-14 && x<=l.hx+l.hw+14 && y>=l.hy-6 && y<=l.hy+l.hh+6) return l;
   }
   return null;
 }
@@ -2085,7 +2174,21 @@ hit.addEventListener("pointerdown", e=>{
   if(panning && e.pointerType !== "pen") return;
 
   hit.setPointerCapture(e.pointerId);
-  const p = bpt(e), t = activeTool(e);
+  const p = bpt(e);
+
+  /* The grip beside a line is for moving that line, so reaching for it means
+     you want to move it — whatever tool happens to be in hand, and whether you
+     use a finger or the Pencil. Nous switches to Move/Select and gets on with
+     it, rather than drawing a stroke across the margin. */
+  const grip = lineHandleAt(p.x, p.y);
+  if(grip){
+    if(S.tool !== "move") pickTool("move");
+    S.curLine = grip.id; syncJoin();
+    drag = { kind:"line", line:grip, sx:p.x, sy:p.y, cy:p.y, i0:grip.indent, merge:false };
+    return;
+  }
+
+  const t = activeTool(e);
 
   // extra-thick isn't a stroke: it demarcates a section of the text
   if(t === "line" && S.lineStyle === "thick"){
@@ -2130,6 +2233,7 @@ hit.addEventListener("pointerdown", e=>{
     const start = {x:p.x-ox, y:p.y-oy, p:e.pressure || 0.5};
     const s = {
       sid: newSid(),
+      nib: (t === "pen") ? S.nib : undefined,
       mode: t, anchor: aw ? aw.uid : null,
       color: COLORS[S.ci].hue,   // highlighter renders the same hue at low alpha
       style: S.lineStyle,        // only meaningful for mode === "line"
@@ -2179,13 +2283,6 @@ hit.addEventListener("pointerdown", e=>{
   if(tag){
     drag = { kind:"tag", s:tag, sx:p.x, sy:p.y,
              ox:tag.pts[0].x, oy:tag.pts[0].y, moved:false, t0:Date.now() };
-    return;
-  }
-
-  const lh = lineHandleAt(p.x, p.y);
-  if(lh){
-    S.curLine = lh.id; syncJoin();
-    drag = { kind:"line", line:lh, sx:p.x, sy:p.y, cy:p.y, i0:lh.indent, merge:false };
     return;
   }
 
@@ -2582,7 +2679,7 @@ function paintLemSwatches(w){
       if(S.lemHi[w.lemma] === c.tint) delete S.lemHi[w.lemma];
       else S.lemHi[w.lemma] = c.tint;
       S.ci = i;                             // keep pen/highlighter in step
-      render(); syncLemBtn(w); paintLemSwatches(w); paintWheel();
+      render(); syncLemBtn(w); paintLemSwatches(w); paintPalette();
     };
     box.appendChild(d);
   });
@@ -2608,127 +2705,74 @@ document.getElementById("i-close").onclick = ()=>{
    Outer ring = 12 hues, inner ring = 6 neutrals, hub = current colour.
    Tap the hub to open/close; drag the hub to reposition it over the page.
    ============================================================ */
-const wheelEl = document.getElementById("wheel");
-const WH = { x: null, y: null, R:122, r1:112, r0:70, r3:66, r2:34, hub:30 };
+const paletteEl = document.getElementById("palette");
 
-function arcPath(cx, cy, rIn, rOut, a0, a1){
-  const pt = (r,a)=>[(cx + r*Math.cos(a)).toFixed(2), (cy + r*Math.sin(a)).toFixed(2)];
-  const big = (a1 - a0) > Math.PI ? 1 : 0;
-  const [x0,y0] = pt(rOut,a0), [x1,y1] = pt(rOut,a1);
-  const [x2,y2] = pt(rIn ,a1), [x3,y3] = pt(rIn ,a0);
-  return `M${x0},${y0} A${rOut},${rOut} 0 ${big} 1 ${x1},${y1} `
-       + `L${x2},${y2} A${rIn},${rIn} 0 ${big} 0 ${x3},${y3} Z`;
-}
-
-/* Show tints while the highlighter is active so the wheel previews the result. */
+/* Show tints while the highlighter is active, so a swatch previews the result. */
 function swatchColor(c){ return (S.tool === "highlight") ? c.tint : c.hue; }
 
-function paintWheel(){
+function paintPalette(){
   const cur = COLORS[S.ci];
-  if(!S.wheelOpen){
-    wheelEl.innerHTML =
-      `<svg width="58" height="58" viewBox="0 0 58 58">
-         <circle class="hub" data-hub="1" cx="29" cy="29" r="26"
-                 fill="${swatchColor(cur)}" stroke="#fffdf8" stroke-width="3"/>
-         <circle cx="29" cy="29" r="27.5" fill="none" stroke="rgba(0,0,0,.18)" stroke-width="1"/>
-       </svg>`;
-    place(); return;
-  }
-
-  const C = WH.R, gap = 0.022;
-  let out = `<svg width="${C*2}" height="${C*2}" viewBox="0 0 ${C*2} ${C*2}">`;
-  out += `<circle cx="${C}" cy="${C}" r="${WH.r1+3}" fill="#fffdf8" opacity=".97"/>`;
-
-  COLORS.forEach((c,i)=>{
-    const outer = i < HUES;
-    const n  = outer ? HUES : COLORS.length - HUES;
-    const k  = outer ? i : i - HUES;
-    const a0 = (k/n)*2*Math.PI - Math.PI/2 + gap;
-    const a1 = ((k+1)/n)*2*Math.PI - Math.PI/2 - gap;
-    const on = (i === S.ci);
-    out += `<path class="sec" data-i="${i}" d="${
-      arcPath(C, C, outer?WH.r0:WH.r2, outer?WH.r1:WH.r3, a0, a1)}"
-      fill="${swatchColor(c)}" stroke="${on?'#1c1a17':'rgba(0,0,0,.10)'}"
-      stroke-width="${on?2.5:1}"/>`;
+  let out = '<div class="plbl">Ink</div><div class="grid">';
+  COLORS.forEach((c, i)=>{
+    out += '<div class="sw' + (i === S.ci ? " on" : "") + '" data-i="' + i + '"' +
+           ' title="' + c.n + '" style="background:' + swatchColor(c) + '"></div>';
   });
-
-  out += `<circle class="hub" data-hub="1" cx="${C}" cy="${C}" r="${WH.hub}"
-            fill="${swatchColor(cur)}" stroke="#fffdf8" stroke-width="3"/>
-          <circle cx="${C}" cy="${C}" r="${WH.hub+1.5}" fill="none"
-            stroke="rgba(0,0,0,.16)" stroke-width="1"/>
-          <text class="hublbl" x="${C}" y="${C-4}">${
-            (INKTOOLS.has(S.tool) ? S.tool : S.lastInk).toUpperCase()
-              .replace("RECT","BOX")}</text>
-          <text class="hubname" x="${C}" y="${C+10}">${cur.n}</text>
-        </svg>`;
-  wheelEl.innerHTML = out;
-  place();
-}
-
-function place(){
-  if(WH.x === null){                       // first paint: park it top-right
-    WH.x = Math.max(12, window.innerWidth - 300);
-    WH.y = 104;
-  }
-  const size = S.wheelOpen ? WH.R*2 : 58;
-  const maxX = Math.max(8, window.innerWidth  - size - 8);
-  const maxY = Math.max(8, window.innerHeight - size - 8);
-  wheelEl.style.left = Math.min(Math.max(8, WH.x), maxX) + "px";
-  wheelEl.style.top  = Math.min(Math.max(8, WH.y), maxY) + "px";
+  out += '</div><hr>' +
+    '<div class="now" style="background:' + swatchColor(cur) + '"></div>' +
+    '<div class="nowname">' + cur.n + '</div>';
+  paletteEl.innerHTML = out;
 }
 
 function pickColor(i){
   S.ci = i;
-  // the style menu previews in the live colour, so refresh it if it is open
+  // the menus preview in the live colour, so refresh whichever is open
   if(linePop.classList.contains("show")) paintLinePop();
   if(document.getElementById("markPop").classList.contains("show")) paintMarkPop();
+  if(penPop.classList.contains("show")) paintPenPop();
+  if(boxPop.classList.contains("show")) paintBoxPop();
   saveSoon();
   // recolour a highlighted lemma live if its word is open in the inspector
   if(S.sel !== null){
     const w = S.words[S.sel];
     if(S.lemHi[w.lemma]){ S.lemHi[w.lemma] = COLORS[i].tint; render(); syncLemBtn(w); paintLemSwatches(w); }
   }
-  paintWheel();
+  paintPalette();
 }
 
-let wdrag = null;
-wheelEl.addEventListener("pointerdown", e=>{
-  const hub = e.target.dataset && e.target.dataset.hub;
-  const sec = e.target.dataset && e.target.dataset.i;
-  e.preventDefault(); e.stopPropagation();
-  if(hub){
-    wheelEl.setPointerCapture(e.pointerId);
-    wdrag = { sx:e.clientX, sy:e.clientY, ox:WH.x, oy:WH.y, moved:false };
-  } else if(sec !== undefined && sec !== null && sec !== ""){
-    pickColor(+sec);
-  }
+paletteEl.addEventListener("pointerdown", e=>{
+  const sw = e.target && e.target.dataset ? e.target.dataset.i : null;
+  if(sw === undefined || sw === null || sw === "") return;
+  e.preventDefault();
+  pickColor(+sw);
 });
-wheelEl.addEventListener("pointermove", e=>{
-  if(!wdrag) return;
-  const dx = e.clientX - wdrag.sx, dy = e.clientY - wdrag.sy;
-  if(Math.abs(dx) > 4 || Math.abs(dy) > 4) wdrag.moved = true;
-  if(wdrag.moved){ WH.x = wdrag.ox + dx; WH.y = wdrag.oy + dy; place(); }
-});
-wheelEl.addEventListener("pointerup", ()=>{
-  if(wdrag && !wdrag.moved){ S.wheelOpen = !S.wheelOpen; paintWheel(); }
-  wdrag = null;
-});
-wheelEl.addEventListener("pointercancel", ()=>{ wdrag = null; });
+
+/* One way in to changing tool, so the buttons, the menus and the state cannot
+   disagree — whether it was a button, a key, or reaching for a line's grip. */
+function pickTool(name){
+  S.tool = name;
+  if(INKTOOLS.has(name)) S.lastInk = name;
+  if(name !== "connect") S.connFrom = null;
+  // the cross-reference square lives under the Box button, so light that one
+  const lit = (name === "xref") ? "rect" : name;
+  document.querySelectorAll("[data-tool]").forEach(x =>
+    x.classList.toggle("on", x.dataset.tool === lit));
+
+  /* A tool's menu always OPENS when the tool is chosen — it must never toggle
+     shut, or picking the cross-reference would leave no visible way back to a
+     plain box. Close it by choosing something, or by tapping the page. */
+  if(name === "line"){ paintLinePop(); placeLinePop(); showPop(linePop); }
+  else if(name === "mark"){ paintMarkPop(); placeMarkPop();
+                            showPop(document.getElementById("markPop")); }
+  else if(name === "pen"){ paintPenPop(); placePenPop(); showPop(penPop); }
+  else if(name === "rect" || name === "xref"){ paintBoxPop(); placeBoxPop(); showPop(boxPop); }
+  else closePops();
+  paintPalette(); drawConns();  // the palette previews tints or hues per tool
+}
 
 document.querySelectorAll("[data-tool]").forEach(b=>{
   b.onclick = ()=>{
-    S.tool = b.dataset.tool;
-    if(INKTOOLS.has(S.tool)) S.lastInk = S.tool;
-    if(S.tool !== "connect") S.connFrom = null;
-    document.querySelectorAll("[data-tool]").forEach(x=>x.classList.toggle("on", x === b));
-    if(S.tool === "rect") S.tool = boxMode;
-    // selecting Line opens its style menu; any other tool closes it
-    if(S.tool === "line"){ paintLinePop(); placeLinePop(); openPop(linePop); }
-    else if(S.tool === "mark"){ paintMarkPop(); placeMarkPop();
-                                openPop(document.getElementById("markPop")); }
-    else if(S.tool === "rect"){ paintBoxPop(); placeBoxPop(); openPop(boxPop); }
-    else closePops();
-    paintWheel(); drawConns();   // wheel previews tints vs hues per tool
+    // tapping Box means whichever kind of box was last chosen
+    pickTool(b.dataset.tool === "rect" ? boxMode : b.dataset.tool);
   };
 });
 
@@ -2738,7 +2782,14 @@ const setPop  = document.getElementById("settings");
 
 const ALLPOPS = ()=> [helpPop, setPop, document.getElementById("linePop"),
                       document.getElementById("markPop"), document.getElementById("boxPop"),
-                      document.getElementById("findPop")];
+                      document.getElementById("penPop"), document.getElementById("findPop")];
+
+/* Open this one and close the rest — no toggling. */
+function showPop(pop){
+  ALLPOPS().forEach(p => p.classList.toggle("show", p === pop));
+  document.getElementById("helpBtn").classList.toggle("on", helpPop.classList.contains("show"));
+  document.getElementById("setBtn").classList.toggle("on", setPop.classList.contains("show"));
+}
 
 function openPop(pop){
   const opening = !pop.classList.contains("show");
@@ -2760,7 +2811,7 @@ document.addEventListener("pointerdown", e=>{
   const t = e.target;
   if(t.closest && (t.closest(".pop") || t.closest("#helpBtn") || t.closest("#setBtn") ||
                    t.closest("#lineBtn") || t.closest("#markBtn") || t.closest("#boxBtn") ||
-                   t.closest("#findBtn"))) return;
+                   t.closest("#penBtn")  || t.closest("#findBtn"))) return;
   closePops();
 }, true);
 
@@ -3876,8 +3927,8 @@ function paintMarkPop(){
     underline: `<text x="4" y="11" font-family="Cardo,serif" font-size="13" fill="${hue}">λόγος</text>
                 <path d="M3 13.5h34" stroke="${hue}" stroke-width="2.5" stroke-linecap="round"/>`,
     double:    `<text x="4" y="10" font-family="Cardo,serif" font-size="13" fill="${hue}">λόγος</text>
-                <path d="M3 12h34" stroke="${hue}" stroke-width="2" stroke-linecap="round"/>
-                <path d="M3 15.4h34" stroke="${hue}" stroke-width="2" stroke-linecap="round"/>`,
+                <path d="M3 11.6h34" stroke="${hue}" stroke-width="1.3"/>
+                <path d="M3 15.8h34" stroke="${hue}" stroke-width="1.3"/>`,
     box:       `<text x="6" y="12" font-family="Cardo,serif" font-size="13" fill="${hue}">λόγος</text>
                 <rect x="3" y="1.5" width="36" height="13" rx="2" fill="none" stroke="${hue}"
                       stroke-width="2"/>`
@@ -4267,6 +4318,19 @@ document.getElementById("concClose").onclick = ()=>{
    from saving it, because the sermon outline needs to draw bands of the same
    page into the Word document. */
 function paintBoard(g){
+  // verse numbers, in the margin the lines start from
+  g.save();
+  g.font = "700 10px Inter, -apple-system, sans-serif";
+  g.textBaseline = "top";
+  g.fillStyle = "#9c7a55";                 // the accent, at the opacity the page uses
+  S.lines.forEach(line=>{
+    const v = line.vn;
+    if(!v) return;
+    const tw = g.measureText(v.text).width;
+    g.fillText(v.text, v.rtl ? v.x : v.x + v.w - tw, v.y);
+  });
+  g.restore();
+
   // the big idea, at the head of the page
   const bigIdea = summaryNow().trim();
   if(bigIdea){
@@ -4321,10 +4385,10 @@ function paintBoard(g){
                     g.strokeRect(x - 1, y - 1, wd.w + 2, wd.h + 2); }
     if(mk && mk.u){
       g.strokeStyle = mk.u;
-      g.lineWidth = mk.u2 ? 2 : 2.5;
+      g.lineWidth = mk.u2 ? 1.4 : 2.5;             // the Double line style's weight
       g.beginPath(); g.moveTo(x, y + wd.h); g.lineTo(x + wd.w, y + wd.h); g.stroke();
-      if(mk.u2){                                   // the second rule
-        g.beginPath(); g.moveTo(x, y + wd.h + 3.5); g.lineTo(x + wd.w, y + wd.h + 3.5); g.stroke();
+      if(mk.u2){
+        g.beginPath(); g.moveTo(x, y + wd.h + 4.2); g.lineTo(x + wd.w, y + wd.h + 4.2); g.stroke();
       }
     }
     g.fillStyle = "#211d18";
@@ -4368,10 +4432,7 @@ function paintBoard(g){
         g.lineWidth = 22; g.beginPath(); g.moveTo(pts[0].x, pts[0].y);
         pts.slice(1).forEach(q => g.lineTo(q.x, q.y)); g.stroke();
       } else if(st.mode === "pen"){
-        for(let i=1;i<pts.length;i++){
-          g.lineWidth = 1.1 + (pts[i].p || .5) * 3.4;
-          g.beginPath(); g.moveTo(pts[i-1].x, pts[i-1].y); g.lineTo(pts[i].x, pts[i].y); g.stroke();
-        }
+        strokePen(g, st, pts);
       } else if(st.mode === "line"){
         const sty = LINESTYLE[st.style] || LINESTYLE.regular;
         g.lineWidth = sty.w; g.setLineDash(sty.dash || []);
@@ -4407,6 +4468,10 @@ function bandOf(lines, sec){
   const grow = (a, b)=>{ if(a < top) top = a; if(b > bottom) bottom = b; };
   const wide = x => { if(x > right) right = x; };
   lines.forEach(line=>{
+    if(line.vn){                              // the verse number is part of the picture
+      grow(line.vn.y - 2, line.vn.y + 14);
+      wide(line.vn.x + line.vn.w);
+    }
     line.ids.forEach(id=>{
       const w = S.words[id];
       if(!w) return;
@@ -4829,9 +4894,61 @@ function paintLinePop(){
 }
 
 
+
+/* ---- the Pen menu ---- */
+const penPop = document.getElementById("penPop");
+
+/* A short squiggle drawn with the nib itself, so the preview is the truth. */
+function nibPreview(name, hue){
+  const pts = [];
+  for(let i = 0; i <= 26; i++){
+    const t = i / 26;
+    pts.push({ x: 4 + t * 54, y: 8 + Math.sin(t * Math.PI * 1.7) * 4.6,
+               p: 0.15 + t * 0.8 });
+  }
+  const nib = NIBS[name];
+  let d = "";
+  for(let i = 1; i < pts.length; i++){
+    const p = pts[i], q = pts[i-1];
+    let w = nib.w + p.p * nib.var;
+    if(nib.angle !== undefined){
+      const th = Math.atan2(p.y - q.y, p.x - q.x);
+      w = nib.w + nib.var * Math.abs(Math.sin(th - nib.angle));
+    }
+    if(nib.taper){ const e = Math.min(i, pts.length - i); if(e < 4) w *= 0.45 + 0.14 * e; }
+    d += `<path d="M${q.x.toFixed(1)},${q.y.toFixed(1)}L${p.x.toFixed(1)},${p.y.toFixed(1)}"
+             stroke="${hue}" stroke-width="${Math.max(0.4,w).toFixed(2)}"
+             stroke-linecap="round" opacity="${nib.alpha}"/>`;
+  }
+  return d;
+}
+
+function paintPenPop(){
+  const hue = COLORS[S.ci].hue;
+  penPop.innerHTML = "";
+  const h = document.createElement("h4");
+  h.textContent = "Nib"; penPop.appendChild(h);
+  NIBORDER.forEach(name=>{
+    const nib = NIBS[name];
+    const b = document.createElement("button");
+    b.className = "styleopt" + (S.nib === name ? " on" : "");
+    b.innerHTML =
+      `<svg class="prev" viewBox="0 0 62 16">${nibPreview(name, hue)}</svg>` +
+      `<span class="txt"><span class="nm">${nib.nm}</span>` +
+      `<span class="sub">${nib.sub}</span></span><span class="tick">\u2713</span>`;
+    b.onclick = ()=>{ S.nib = name; paintPenPop(); saveSoon(); closePops(); };
+    penPop.appendChild(b);
+  });
+}
+
+function placePenPop(){
+  const r = document.getElementById("penBtn").getBoundingClientRect();
+  penPop.style.top = (r.bottom + 8) + "px";
+  penPop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - 272)) + "px";
+}
+
 /* ---- the Box menu: a plain square, or one that carries a reference ---- */
 const boxPop = document.getElementById("boxPop");
-let boxMode = "rect";                       // which of the two the Box button means
 const BOXOPTS = [
   { v:"rect", nm:"Plain box", sub:"Drag corner to corner" },
   { v:"xref", nm:"Cross-reference", sub:"Round a quotation \u2014 opens Accordance" }
@@ -4858,7 +4975,8 @@ function paintBoxPop(){
       `<span class="txt"><span class="nm">${o.nm}</span><span class="sub">${o.sub}</span></span>` +
       `<span class="tick">\u2713</span>`;
     b.onclick = ()=>{
-      S.tool = boxMode = o.v;
+      boxMode = o.v;
+      S.tool = o.v;
       document.querySelectorAll("[data-tool]").forEach(x =>
         x.classList.toggle("on", x.dataset.tool === "rect"));
       paintBoxPop();
@@ -4883,13 +5001,108 @@ function placeLinePop(){
 }
 document.getElementById("undoBtn").onclick = undo;
 document.getElementById("redoBtn").onclick = redo;
+
+/* ============================================================
+   THE KEYBOARD
+   For working with a Magic Keyboard rather than the Pencil. Everything here
+   needs a word selected, except the tool keys and Escape. Nothing fires while
+   the caret is in a text field, so typing a note or a section title is never
+   intercepted.
+   ============================================================ */
+function markSelected(mode){
+  const w = S.words[S.sel];
+  if(!w) return false;
+  const was = S.markMode;
+  S.markMode = mode;
+  markWord(w);
+  S.markMode = was;
+  paintMarkPop();
+  return true;
+}
+
+function moveSelection(step){
+  if(S.sel === null || !S.words.length) return false;
+  const i = Math.min(S.words.length - 1, Math.max(0, S.sel + step));
+  select(S.words[i]);
+  const el = S.words[i].el;
+  if(el && el.scrollIntoView) el.scrollIntoView({ block:"nearest", inline:"nearest" });
+  return true;
+}
+
+const SHORTCUTS = [
+  // [needs cmd, needs shift, key, what it does, how to describe it]
+  [1, 0, "u", ()=> markSelected("underline"),  "⌘U", "Underline the selected word"],
+  [1, 1, "d", ()=> markSelected("double"),     "⇧⌘D", "Double underline it"],
+  [1, 0, "b", ()=> markSelected("box"),        "⌘B", "Box it"],
+  [1, 1, "h", ()=> { const w = S.words[S.sel]; if(!w) return false;
+                     if(S.hits[w.uid]) delete S.hits[w.uid];
+                     else S.hits[w.uid] = COLORS[S.ci].tint;
+                     render(); saveSoon(); return true; },
+                                              "⇧⌘H", "Highlight it"],
+  [1, 0, "l", ()=> { const w = S.words[S.sel]; if(!w) return false;
+                     pushUndo();
+                     if(S.lemHi[w.lemma]) delete S.lemHi[w.lemma];
+                     else S.lemHi[w.lemma] = COLORS[S.ci].tint;
+                     render(); saveSoon(); return true; },
+                                              "⌘L", "Highlight every occurrence of its lemma"],
+  [1, 0, "enter", ()=> { const w = S.words[S.sel]; if(!w) return false;
+                     const line = S.lines.find(l => l.id === w.line);
+                     pushUndo();
+                     if(line && line.ids[0] === w.id) joinWordLine(w); else splitBefore(w);
+                     return true; },
+                                              "⌘↩", "Split the line here, or rejoin it"],
+  [1, 0, "backspace", ()=> { const w = S.words[S.sel]; if(!w) return false;
+                     if(!S.marks[w.uid] && !S.hits[w.uid]) return false;
+                     pushUndo();
+                     delete S.marks[w.uid]; delete S.hits[w.uid];
+                     render(); saveSoon(); return true; },
+                                              "⌘⌫", "Clear the marks on it"],
+  [1, 0, "k", ()=> { const w = S.words[S.sel]; if(!w) return false;
+                     const n = document.getElementById("i-note");
+                     if(n){ n.focus(); if(n.select) n.select(); }
+                     return true; },
+                                              "⌘K", "Write a note on it"],
+  [0, 0, "arrowright", ()=> moveSelection(isRTL() ? -1 : 1), "→", "Select the next word"],
+  [0, 0, "arrowleft",  ()=> moveSelection(isRTL() ? 1 : -1), "←", "Select the word before"],
+  [0, 0, "escape", ()=> { closePops();
+                     S.sel = null;
+                     document.getElementById("insp").classList.remove("show");
+                     render(); return true; },
+                                              "esc", "Put the panels away"],
+  [0, 0, "m", ()=> { pickTool("move"); return true; },      "M", "Move/Select"],
+  [0, 0, "s", ()=> { pickTool("split"); return true; },     "S", "Split/Join"],
+  [0, 0, "p", ()=> { pickTool("pen"); return true; },       "P", "Pen"],
+  [0, 0, "g", ()=> { pickTool("highlight"); return true; }, "G", "Highlighter"],
+  [0, 0, "e", ()=> { pickTool("erase"); return true; },     "E", "Eraser"]
+];
+
 document.addEventListener("keydown", e=>{
-  if(!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== "z") return;
   const t = e.target;
-  if(t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) return;  // let fields undo text
-  e.preventDefault();
-  e.shiftKey ? redo() : undo();
+  const typing = t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable);
+  const cmd = e.metaKey || e.ctrlKey;
+  const key = String(e.key || "").toLowerCase();
+
+  if(cmd && key === "z"){
+    if(typing) return;                       // let a text field undo its own text
+    e.preventDefault();
+    e.shiftKey ? redo() : undo();
+    return;
+  }
+  // Escape gets you out of a field; nothing else reaches one
+  if(typing){
+    if(key === "escape" && t.blur) t.blur();
+    return;
+  }
+
+  for(const [needCmd, needShift, k, run] of SHORTCUTS){
+    if(!!needCmd !== cmd) continue;
+    if(!!needShift !== e.shiftKey) continue;
+    if(k !== key) continue;
+    if(run() !== false) e.preventDefault();
+    return;
+  }
 });
+
 
 document.getElementById("pmode").onchange = e => S.pencilMode = e.target.checked;
 document.getElementById("passage").onchange = e =>{
@@ -5006,6 +5219,7 @@ function docSnapshot(){
     strokes:S.strokes.map(s => ({
       id:s.sid || (s.sid = newSid()),
       m:s.mode, a:s.anchor, c:s.color, st:s.style, r:s.ref || undefined,
+      nb:s.nib || undefined,
       p:s.pts.map(q => [r1(q.x), r1(q.y), Math.round((q.p == null ? .5 : q.p) * 100) / 100])
     })),
     conns:   S.conns.map(c => [c.a, c.b]),
@@ -5028,6 +5242,7 @@ function applyDoc(d, p){
   S.strokes = ((d && d.strokes) || []).map(s => ({
     sid:s.id || newSid(),
     mode:s.m, anchor:(s.a == null ? null : s.a), color:s.c, style:s.st, ref:s.r || "",
+    nib:s.nb || undefined,
     pts:(s.p || []).map(q => ({ x:q[0], y:q[1], p:q[2] }))
   })).filter(s => s.pts.length && (TAGMODES.has(s.mode) || s.pts.length >= 2));
   S.conns = ((d && d.conns) || []).map(([a,b]) => ({ a, b }));
@@ -5081,8 +5296,8 @@ function loadBookDoc(key, p){
 /* ---- settings ---- */
 function prefsSnapshot(){
   return {
-    key:S.key, chapter:S.chapter, ci:S.ci, ls:S.lineStyle, tool:S.tool,
-    pencil:S.pencilMode, wheel:[WH.x, WH.y, S.wheelOpen],
+    key:S.key, chapter:S.chapter, ci:S.ci, ls:S.lineStyle, nib:S.nib, tool:S.tool,
+    pencil:S.pencilMode,
     mods:[document.getElementById("mText").value, document.getElementById("mLex").value,
           document.getElementById("mEng").value,  document.getElementById("mHeb").value,
           document.getElementById("mHLex").value],
@@ -5104,10 +5319,10 @@ function applyPrefs(p){
   if(p.aiKey) document.getElementById("aiKey").value = p.aiKey;
   S.ci = (p.ci >= 0 && p.ci < COLORS.length) ? p.ci : 12;
   S.lineStyle = (LINESTYLE[p.ls] || p.ls === "thick") ? p.ls : "regular";
+  S.nib = NIBS[p.nib] ? p.nib : "fineliner";
   S.tool = (p.tool === "join") ? "split" : (p.tool || "move");
   S.pencilMode = p.pencil !== false;
   document.getElementById("pmode").checked = S.pencilMode;
-  if(p.wheel){ WH.x = p.wheel[0]; WH.y = p.wheel[1]; S.wheelOpen = !!p.wheel[2]; }
   document.querySelectorAll("[data-tool]").forEach(x =>
     x.classList.toggle("on", x.dataset.tool === S.tool));
   if(PASSAGES[p.key]){ S.key = p.key; S.chapter = p.chapter || "all"; }
@@ -5831,6 +6046,13 @@ function openWorkspace(snap){
   return true;
 }
 
+(function listShortcuts(){
+  const el = document.getElementById("keylist");
+  if(!el) return;
+  el.innerHTML = SHORTCUTS.map(([, , , , keys, what]) =>
+    '<div class="item"><div class="kbd">' + keys + '</div><div>' + what + '</div></div>').join("");
+})();
+
 document.getElementById("loadNewVersion").onclick = loadNewVersion;
 document.getElementById("saveFile").onclick = saveProjectFile;
 document.getElementById("forget").onclick = ()=>{
@@ -5849,7 +6071,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-08-10b";
+const BUILD = "2026-08-11a";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file
@@ -5912,7 +6134,7 @@ async function boot(){
   booted = true;
   await loadSaved();          // books, diagrams and settings from last time
   build(S.key); syncJoin(); syncUndo();
-  paintWheel(); paintLinePop(); paintMarkPop(); paintFindChips();
+  paintPalette(); paintLinePop(); paintMarkPop(); paintPenPop(); paintBoxPop(); paintFindChips();
   reportStorage();
 
   loadSyncSettings(); wireSync();
@@ -5946,9 +6168,11 @@ document.addEventListener("visibilitychange", ()=>{
 window.addEventListener("online",  ()=>{ if(SYNC.on) syncAll({ full:true }); });
 window.addEventListener("offline", ()=>{ if(SYNC.on) setSyncState("offline", "No connection — your work is safe on this device."); });
 window.addEventListener("resize", ()=>{
-  place();
+  // the menus hang off their buttons, which move when the window does
   if(linePop.classList.contains("show")) placeLinePop();
   if(document.getElementById("markPop").classList.contains("show")) placeMarkPop();
+  if(penPop.classList.contains("show")) placePenPop();
+  if(boxPop.classList.contains("show")) placeBoxPop();
 });
 boot();
 </script>

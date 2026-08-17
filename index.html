@@ -734,9 +734,13 @@
     weights. Thin, regular, dotted and double are ordinary strokes. <b>Extra thick</b> is
     different: it lays a section break across the page, opens a gap in the flow, and gives you a
     title to fill in. Tap the same boundary again to remove it.</div></div>
-  <div class="item"><div class="kbd">Lemma colour</div><div>Tap <b>Highlight lemma</b> on a word,
-    then tap any colour in the palette to change it — the same colours as everything else, in
-    their lighter tint.</div></div>
+  <div class="item"><div class="kbd">Selecting</div><div>Tap a word to select it. Tap it again
+    and every occurrence of its lemma lights up — tap twice more to put them out. With a
+    drawing tool in hand, a tap on a word (rather than a stroke) hands over to
+    <b>Move/Select</b> and selects it.</div></div>
+  <div class="item"><div class="kbd">Colouring</div><div>With a word selected, tapping a colour
+    highlights that word. If its lemma is lit, the colour goes to every occurrence instead. The
+    same colour again takes the highlight off, and <b>esc</b> deselects.</div></div>
   <div class="item"><div class="kbd">Colour</div><div>The palette runs down the left of the
     window, beside the page rather than over it. 18 colours, shown as tints while the
     highlighter is active, with the current one at the foot.</div></div>
@@ -2419,7 +2423,7 @@ hit.addEventListener("pointerup", e=>{
     return;
   }
   if(drag && drag.kind === "word" && !drag.moved && Date.now() - drag.t0 < 450){
-    select(drag.w);
+    tapWord(drag.w);
   }
   if(drag && drag.kind === "line"){
     showMergeHint(null);
@@ -2429,6 +2433,7 @@ hit.addEventListener("pointerup", e=>{
   // needs two) — drop it rather than accumulate invisible strokes
   if(drag && drag.kind === "ink" && !TAGMODES.has(drag.s.mode) && drag.s.pts.length < 2){
     S.strokes.splice(S.strokes.indexOf(drag.s), 1); redraw();
+    tapWasSelection(e);
   }
   // Discard a shape that was only tapped, not dragged out. Judged on how far
   // the pen actually travelled: area would call a horizontal rule nothing at
@@ -2438,6 +2443,7 @@ hit.addEventListener("pointerup", e=>{
     const travelled = Math.hypot(b.x - a.x, b.y - a.y);
     if(travelled < (drag.xref ? 24 : 12)){
       S.strokes.splice(S.strokes.indexOf(drag.s), 1); redraw(); drag = null;
+      tapWasSelection(e);
     }
     // a square drawn round a quotation asks what it is quoting
     if(drag && drag.xref){ const st = drag.s; drag = null; endPointer(e); saveSoon();
@@ -2448,6 +2454,30 @@ hit.addEventListener("pointerup", e=>{
   drag = null; endPointer(e); saveSoon();   // ink, shapes and word moves
 });
 hit.addEventListener("pointercancel", e=>{ drag = null; endPointer(e); });
+
+/* A drawing tool that was tapped rather than dragged has drawn nothing. If the
+   tap landed on a word, what was wanted was that word — so hand over to
+   Move/Select and select it, the same way reaching for a line's grip does. */
+function tapWasSelection(e){
+  if(!INKTOOLS.has(S.tool)) return;
+  const p = bpt(e);
+  const w = wordAt(p.x, p.y);
+  if(!w) return;
+  pickTool("move");
+  tapWord(w);
+}
+
+/* One tap selects a word; a second on the same word means every occurrence of
+   its lemma, which is the question you usually ask next. */
+function tapWord(w){
+  const now = Date.now();
+  const again = S._tap && S._tap.id === w.id && now - S._tap.t < 450;
+  // once a double has counted, start again — a third quick tap is the
+  // beginning of the next pair, not another double
+  S._tap = again ? null : { id:w.id, t:now };
+  select(w);
+  if(again) toggleLemma(w);
+}
 
 let mergeHintEl = null;
 function showMergeHint(line){
@@ -2634,13 +2664,7 @@ function select(w){
   const tlink = document.getElementById("i-text");
   tlink.href = "accord://read/" + textMod + "#" + encodeURIComponent(`${p.abbr}_${w.verse}`);
   tlink.textContent = "Open " + textMod;
-  const lemBtn = document.getElementById("i-lem");
-  lemBtn.onclick = ()=>{
-    pushUndo();
-    if(S.lemHi[w.lemma]) delete S.lemHi[w.lemma];
-    else S.lemHi[w.lemma] = COLORS[S.ci].tint;   // current wheel colour, as a tint
-    render(); syncLemBtn(w); paintLemHint(w); paintPalette();
-  };
+  document.getElementById("i-lem").onclick = ()=> toggleLemma(w);
   const note = document.getElementById("i-note");
   note.value = S.notes[w.uid] || "";
   note.oninput = ()=>{
@@ -2655,6 +2679,15 @@ function select(w){
 
   syncLemBtn(w); paintLemHint(w); paintPalette();
   insp.classList.add("show");
+}
+
+/* Light up every occurrence of a word's lemma, or put them all out. */
+function toggleLemma(w){
+  if(!w) return;
+  pushUndo();
+  if(S.lemHi[w.lemma]) delete S.lemHi[w.lemma];
+  else S.lemHi[w.lemma] = COLORS[S.ci].tint;     // the palette's colour, as a tint
+  render(); syncLemBtn(w); paintLemHint(w); paintPalette(); saveSoon();
 }
 
 function syncLemBtn(w){
@@ -2699,9 +2732,7 @@ const paletteEl = document.getElementById("palette");
 /* Show tints when a tint is what a tap would produce — the highlighter, or a
    lemma that is currently lit — so a swatch previews the result. */
 function tintMode(){
-  if(S.tool === "highlight") return true;
-  const w = (S.sel !== null) ? S.words[S.sel] : null;
-  return !!(w && S.lemHi[w.lemma]);
+  return S.tool === "highlight" || S.sel !== null;
 }
 function swatchColor(c){ return tintMode() ? c.tint : c.hue; }
 
@@ -2726,13 +2757,25 @@ function pickColor(i){
   if(penPop.classList.contains("show")) paintPenPop();
   if(boxPop.classList.contains("show")) paintBoxPop();
   saveSoon();
-  // recolour a highlighted lemma live if its word is open in the inspector
+
+  /* With a word selected, a colour is meant for that word. If its lemma is lit
+     — which is what a double tap does — the colour belongs to every occurrence;
+     otherwise it belongs to this word alone. Tapping the same colour again
+     takes the highlight off, so one swatch both gives and removes. */
   if(S.sel !== null){
     const w = S.words[S.sel];
-    if(S.lemHi[w.lemma] && S.lemHi[w.lemma] !== COLORS[i].tint){
+    const tint = COLORS[i].tint;
+    if(S.lemHi[w.lemma]){
+      if(S.lemHi[w.lemma] !== tint){
+        pushUndo();
+        S.lemHi[w.lemma] = tint;
+        render(); syncLemBtn(w); paintLemHint(w);
+      }
+    } else {
       pushUndo();
-      S.lemHi[w.lemma] = COLORS[i].tint;
-      render(); syncLemBtn(w); paintLemHint(w);
+      if(S.hits[w.uid] === tint) delete S.hits[w.uid];
+      else S.hits[w.uid] = tint;
+      render();
     }
   }
   paintPalette();
@@ -6070,7 +6113,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-08-11b";
+const BUILD = "2026-08-11c";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file

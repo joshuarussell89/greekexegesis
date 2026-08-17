@@ -156,6 +156,7 @@
     max-width:58px;}
   #palette hr{width:38px;border:0;border-top:1px solid var(--rule2);margin:4px 0 2px;}
   @media (max-width:640px){ #palette{width:44px;} #palette .grid{grid-template-columns:22px;} }
+  #palette .sw[data-kind="tint"]{border-radius:3px;}
   #board{position:relative;width:1120px;height:1750px;background:var(--paper);
     border:1px solid var(--rule);border-radius:4px;
     box-shadow:0 1px 2px rgba(0,0,0,.05),0 10px 30px rgba(0,0,0,.07);}
@@ -355,7 +356,6 @@
     padding:2px 6px;border-radius:6px;text-decoration:underline;}
   .lemhint .clr:hover{color:var(--ink);background:var(--chip);}
 
-  /* ---------- floating colour wheel ---------- */
   #wheel{position:fixed;z-index:120;touch-action:none;user-select:none;
     filter:drop-shadow(0 6px 18px rgba(0,0,0,.20));}
   #wheel svg{display:block;overflow:visible;}
@@ -366,7 +366,6 @@
     text-anchor:middle;pointer-events:none;letter-spacing:.06em;}
   #wheel .hubname{font:600 11px Inter,sans-serif;fill:var(--ink);
     text-anchor:middle;pointer-events:none;}
-  .w.float{box-shadow:0 2px 8px rgba(0,0,0,.14);background:#fff;}
   .vn{position:absolute;font-family:Inter,sans-serif;font-size:10px;font-weight:700;
     color:var(--accent);opacity:.7;z-index:1;width:34px;text-align:right;
     letter-spacing:.02em;}
@@ -478,8 +477,6 @@
         <button id="redoBtn" disabled title="Redo (⇧⌘Z)"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M17.8 9.8H8.4a4 4 0 000 8h5"/><path d="M14.4 6.2L18 9.8l-3.6 3.6"/></svg></button>
       </div>
       <div class="right">
-        <label class="toggle"><input type="checkbox" id="pmode" checked>
-        <span class="lbl-hide">Pencil draws, finger moves</span></label>
         <button id="findBtn" class="ghost" title="Find words by grammar, lemma or gloss"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="9.6" cy="9.6" r="5.8"/><path d="M13.9 13.9l4 4"/><path d="M7.4 9.6h4.4M9.6 7.4v4.4" stroke-width="1.3"/></svg><span class="lbl-hide">Find</span></button>
       <button id="helpBtn" class="ghost" title="Show the key"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4.2h8.6l3.4 3.4v10.2H5z"/><path d="M13.6 4.2v3.4H17"/><path d="M8.4 11.4h5.2M8.4 14.4h3.4" stroke-width="1.3"/></svg><span class="lbl-hide">Key</span></button>
       <span id="syncDot" class="syncdot off" style="display:none" title="Sync"></span>
@@ -499,7 +496,6 @@
         <button data-tool="chain" title="Tap a word to link it to somewhere else in this book"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="1.6" y="8.2" width="12.2" height="6.6" rx="3.3" transform="rotate(-45 7.7 11.5)"/><rect x="8.2" y="7.2" width="12.2" height="6.6" rx="3.3" transform="rotate(-45 14.3 10.5)"/></svg>Chain</button>
         <button data-tool="connect" title="Tap two words to draw a relation arrow"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.6 7c0 7.4 5.2 10.6 13.4 10.2"/><path d="M14.2 14.6l3.2 2.7-2.9 2.5"/><circle cx="3.6" cy="7" r="1.5" fill="currentColor" stroke="none"/></svg>Connect</button>
         <button data-tool="pen" id="penBtn" title="Freehand pen — tap for nibs"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15.8 3.4l2.8 2.8-8.5 8.5-4 1.2 1.2-4 8.5-8.5z"/><path d="M13.6 5.6l2.8 2.8"/><path d="M9 13l1.6 1.6"/></svg>Pen</button>
-        <button data-tool="highlight" title="Broad translucent highlighter"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6.4 12.6l6.2-6.2 3.6 3.6-6.2 6.2H6.4v-3.6z"/><path d="M13.4 5.6l2.2-2.2 3.6 3.6-2.2 2.2"/><path d="M3.6 19.4h14" stroke-width="2.6"/></svg>Highlight</button>
         <button data-tool="line" id="lineBtn" title="Straight line — tap for weights and patterns"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.4 17L18.6 5"/><circle cx="3.4" cy="17" r="1.4" fill="currentColor" stroke="none"/><circle cx="18.6" cy="5" r="1.4" fill="currentColor" stroke="none"/></svg>Line<svg class="car"
                viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"
                stroke-linecap="round"><path d="M1 1l4 4 4-4"/></svg></button>
@@ -712,14 +708,15 @@
     line above also rejoins it.</div></div>
   <div class="item"><div class="kbd">Indent</div><div>Drag a line's grip sideways; it snaps
     to a 36&nbsp;pt grid.</div></div>
-  <div class="item"><div class="kbd">Float a word</div><div>Drag any single word out of the
-    flow for fine placement.</div></div>
   <div class="item"><div class="kbd">Auto-split</div><div>Breaks at conjunctions, participles,
     infinitives and relatives — a first draft in one tap.</div></div>
   <hr>
   <h4>Annotating</h4>
   <div class="item"><div class="kbd">Anchoring</div><div>Every mark attaches to its nearest
-    word, so ink follows the text when you move it.</div></div>
+    word, so ink follows the text when the lines reflow.</div></div>
+  <div class="item"><div class="kbd">Pencil and finger</div><div>Once Nous has seen an Apple
+    Pencil, the Pencil draws and your finger handles the page — scrolling, selecting, reaching
+    for a grip. Without a Pencil, your finger draws. Overrule it under <b>⋯</b>.</div></div>
   <div class="item"><div class="kbd">Line</div><div>Snaps to true horizontal or vertical
     within 8°.</div></div>
   <div class="item"><div class="kbd">Box</div><div>Drag corner to corner. Erasing its empty
@@ -727,9 +724,10 @@
   <div class="item"><div class="kbd">Eraser</div><div>Rubs out whatever it passes over — ink,
     lines, boxes, arrows, and the underline, box or symbol on a word. Lemma highlights are left
     alone, since those belong to every occurrence; clear those from the word inspector.</div></div>
-  <div class="item"><div class="kbd">Nibs</div><div>Tapping <b>Pen</b> offers six: fineliner,
-    ballpoint, pencil, marker, brush and calligraphy. Each is kept with the stroke, so a page
-    can hold several, and they come through in the exported picture.</div></div>
+  <div class="item"><div class="kbd">Nibs</div><div>Tapping <b>Pen</b> offers seven: the
+    highlighter, then fineliner, ballpoint, pencil, marker, brush and calligraphy. The
+    highlighter lays a broad see-through band under the words; the rest write over them. Each
+    is kept with the stroke, so a page can hold several.</div></div>
   <div class="item"><div class="kbd">Line styles</div><div>Tapping <b>Line</b> opens a menu of
     weights. Thin, regular, dotted and double are ordinary strokes. <b>Extra thick</b> is
     different: it lays a section break across the page, opens a gap in the flow, and gives you a
@@ -742,8 +740,9 @@
     highlights that word. If its lemma is lit, the colour goes to every occurrence instead. The
     same colour again takes the highlight off, and <b>esc</b> deselects.</div></div>
   <div class="item"><div class="kbd">Colour</div><div>The palette runs down the left of the
-    window, beside the page rather than over it. 18 colours, shown as tints while the
-    highlighter is active, with the current one at the foot.</div></div>
+    window, beside the page rather than over it. The same 18 colours twice: full strength for
+    the pen, and their lighter tints for the highlighter. Reaching for a tint picks up the
+    highlighter; reaching for a full colour puts it down again.</div></div>
   <hr>
   <h4>With a keyboard</h4>
   <div id="keylist"></div>
@@ -849,6 +848,17 @@
   <div class="foot">Only needed for <b>Ask for one</b> in the symbol picker. Drawing your own
     needs nothing. The key stays on this device, and whatever comes back is checked as plain
     path data before it is drawn.</div>
+  <hr>
+  <h4>Drawing</h4>
+  <div class="fld"><label for="fingerMode">Your finger</label>
+    <select id="fingerMode">
+      <option value="auto" selected>Work it out — draws only if there is no Pencil</option>
+      <option value="move">Never draws — handles the page</option>
+      <option value="draw">Always draws</option>
+    </select></div>
+  <div class="foot">Left to itself, Nous watches for an Apple Pencil. Once it has seen one, the
+    Pencil draws and your finger scrolls, selects and reaches for the grips beside the lines.
+    Before then, your finger does the drawing.</div>
   <hr>
   <h4>Accordance links</h4>
   <div class="fld"><label for="mText">Greek text</label>
@@ -989,11 +999,11 @@ const LINESTYLE = {
 
 const S = {
   key:"", chapter:"all", docs:{}, undo:[], redo:[],
-  lineStarts:{}, floats:{}, byUid:{},
+  lineStarts:{}, byUid:{},
   hits:{}, marks:{}, notes:{}, summaries:{}, markMode:"underline", findQ:"", glyphs:[],
   words:[], lines:[], strokes:[], conns:[], sections:[],
   tool:"move", lastInk:"pen", ci:12, lineStyle:"regular", nib:"fineliner",
-  pencilMode:true, sel:null, lemHi:{}, connFrom:null, curLine:null, dpr:1
+  fingerMode:"auto", sawPen:false, sel:null, lemHi:{}, connFrom:null, curLine:null, dpr:1
 };
 
 const board = document.getElementById("board");
@@ -1410,7 +1420,7 @@ function build(key){
     S._loadedBook = null;
     S.key = ""; S.words = []; S.lines = []; S.strokes = []; S.conns = []; S.sections = [];
     S.hits = {}; S.marks = {}; S.lemHi = {}; S.sel = null;
-    S.notes = {}; S.lineStarts = {}; S.floats = {}; S.summaries = {}; S.byUid = {};
+    S.notes = {}; S.lineStarts = {}; S.summaries = {}; S.byUid = {};
     board.querySelectorAll(".w,.vn,.lh,.secbreak").forEach(n=>n.remove());
     document.getElementById("empty").classList.add("show");
     document.getElementById("wcount").textContent = "";
@@ -1467,7 +1477,7 @@ function buildPassage(key){
       const w = {
         id:S.words.length, uid, surface:t[0], lemma:t[1], pos:t[2], parse:t[3],
         strongs:t[4], gloss:t[5], verse:label, line:0,
-        lx:0, ly:0, fx:null, fy:null, w:0, h:0, el:null
+        lx:0, ly:0, w:0, h:0, el:null
       };
       const el = document.createElement("div");
       el.className = heb ? "w heb" : "w";
@@ -1476,12 +1486,6 @@ function buildPassage(key){
       board.appendChild(el); w.el = el;
       S.words.push(w); S.byUid[uid] = w;
     });
-  });
-
-  // floated positions saved earlier
-  S.words.forEach(w=>{
-    const f = S.floats[w.uid];
-    if(f){ w.fx = f[0]; w.fy = f[1]; }
   });
 
   rebuildLines();
@@ -1580,8 +1584,10 @@ function layout(){
   if(need > board.offsetHeight){ board.style.height = need + "px"; resizeCanvas(); }
 }
 
-function px(w){ return w.fx !== null ? w.fx : w.lx; }
-function py(w){ return w.fy !== null ? w.fy : w.ly; }
+/* A word sits where the line puts it. Dragging words out of the flow was a
+   feature; the shape of a clause is carried by the lines, not by nudged words. */
+function px(w){ return w.lx; }
+function py(w){ return w.ly; }
 function cx(w){ return px(w) + w.w/2; }
 function cy(w){ return py(w) + w.h/2; }
 
@@ -1596,13 +1602,13 @@ function render(){
 
     // a search hit wins over a lemma highlight, which wins over nothing
     const lc = S.hits[w.uid] || S.lemHi[w.lemma] || "";
-    if(w._wbg !== lc){ w.el.style.background = lc; w._wbg = lc; }   // beats .sel/.float
+    if(w._wbg !== lc){ w.el.style.background = lc; w._wbg = lc; }   // beats the selection ring
 
     const cls = "w"
       + (S.sel === w.id ? " sel" : "")
       + (lc ? " lem" : "")
       + (S.notes[w.uid] ? " hasnote" : "")
-      + (w.fx !== null ? " float" : "");
+;
     if(w._wcls !== cls){ w.el.className = cls; w._wcls = cls; }
 
     // underline / box / symbol. Outline is used for the box so it does not
@@ -1783,6 +1789,7 @@ function paintTag(g, st){
    Each is a way of turning a run of points into a line. Pressure comes from
    the Pencil; a finger reports none, so every nib has a sensible middle. */
 const NIBS = {
+  highlighter: { nm:"Highlighter",  sub:"Broad, see-through, under the text", w:22, var:0, alpha:1, tint:true },
   fineliner:   { nm:"Fineliner",    sub:"Even, fine, no pressure",        w:1.5, var:0,   alpha:1 },
   ballpoint:   { nm:"Ballpoint",    sub:"Even, with a little give",       w:2.1, var:0.9, alpha:1 },
   pencil:      { nm:"Pencil",       sub:"Soft and grainy",                w:2.4, var:1.6, alpha:.62, grain:true },
@@ -1790,7 +1797,8 @@ const NIBS = {
   brush:       { nm:"Brush",        sub:"Thin to thick with pressure",    w:2,   var:11,  alpha:1, taper:true },
   calligraphy: { nm:"Calligraphy",  sub:"Wide across, thin along",        w:1.4, var:8,   alpha:1, angle:-Math.PI/4 }
 };
-const NIBORDER = ["fineliner","ballpoint","pencil","marker","brush","calligraphy"];
+const NIBORDER = ["highlighter","fineliner","ballpoint","pencil","marker","brush","calligraphy"];
+const inking = ()=> S.tool === "pen" && S.nib === "highlighter";
 const nibOf = st => NIBS[st && st.nib] || NIBS.fineliner;
 
 /* Draw one pen stroke with whichever nib it was made with. Shared by the page
@@ -2111,18 +2119,30 @@ function bpt(e){
   return { x: e.clientX - r.left, y: e.clientY - r.top };
 }
 
-const INKTOOLS = new Set(["pen","highlight","line","rect"]);
+const INKTOOLS = new Set(["pen","line","rect"]);
 let boxMode = "rect";        // which kind of box the Box button currently means
 
+/* What a gesture means.
+
+   There is nothing to configure. If a Pencil has ever touched this device, the
+   Pencil is for drawing and the finger is for handling the page — selecting,
+   scrolling, reaching for a grip. If no Pencil has been seen, the finger has to
+   do both, so it draws. A mouse always draws, because a desktop has nothing
+   else. The setting under ⋯ exists only to overrule that guess. */
+function fingerDraws(){
+  if(S.fingerMode === "draw") return true;
+  if(S.fingerMode === "move") return false;
+  return !S.sawPen;                       // automatic
+}
+
 function activeTool(e){
-  if(S.pencilMode && e.pointerType === "pen"){
-    // "Pencil draws" means the pencil inks INSTEAD OF MOVING things — it must
-    // not override a tool you deliberately chose. Picking Mark or Split and
-    // then tapping with the pencil should mark or split, not draw.
+  if(e.pointerType === "pen"){
+    // The Pencil inks — but must not override a tool you deliberately chose.
+    // Picking Mark or Split and then tapping with the Pencil should mark or
+    // split, not draw.
     return (S.tool === "move") ? S.lastInk : S.tool;
   }
-  // finger never inks while pencil mode is on; a mouse still does (desktop testing)
-  if(S.pencilMode && e.pointerType === "touch" && INKTOOLS.has(S.tool)) return "move";
+  if(e.pointerType === "touch" && !fingerDraws() && INKTOOLS.has(S.tool)) return "move";
   return S.tool;
 }
 
@@ -2159,6 +2179,7 @@ hit.addEventListener("pointerdown", e=>{
   lastPointerAt = now;
   active.set(e.pointerId, {x:e.clientX, y:e.clientY, t:now, type:e.pointerType});
   S._lastInput = e.pointerType;
+  if(e.pointerType === "pen" && !S.sawPen){ S.sawPen = true; saveSoon(); }
   S._inputCount = (S._inputCount || 0) + 1;
 
   const vals = [...active.values()];
@@ -2238,11 +2259,14 @@ hit.addEventListener("pointerdown", e=>{
     const ox = aw ? px(aw) : 0;
     const oy = aw ? py(aw) : 0;
     const start = {x:p.x-ox, y:p.y-oy, p:e.pressure || 0.5};
+    const highlighting = (t === "pen" && S.nib === "highlighter");
     const s = {
       sid: newSid(),
-      nib: (t === "pen") ? S.nib : undefined,
-      mode: t, anchor: aw ? aw.uid : null,
-      color: COLORS[S.ci].hue,   // highlighter renders the same hue at low alpha
+      nib: (t === "pen" && !highlighting) ? S.nib : undefined,
+      // a highlight goes UNDER the words, so it keeps its own mode
+      mode: highlighting ? "highlight" : t,
+      anchor: aw ? aw.uid : null,
+      color: COLORS[S.ci].hue,   // the highlighter renders the same hue at low alpha
       style: S.lineStyle,        // only meaningful for mode === "line"
       // shapes keep exactly two points: origin and the live corner/endpoint
       pts: (t === "line" || t === "rect") ? [start, {x:start.x, y:start.y}] : [start]
@@ -2296,7 +2320,7 @@ hit.addEventListener("pointerdown", e=>{
   const w = wordAt(p.x, p.y);
   if(w){
     S.curLine = w.line; syncJoin();
-    drag = { kind:"word", w, sx:p.x, sy:p.y, ox:px(w), oy:py(w), moved:false, t0:Date.now() };
+    drag = { kind:"word", w, sx:p.x, sy:p.y, moved:false, t0:Date.now() };
     return;
   }
   // empty space: clear selection
@@ -2362,16 +2386,10 @@ hit.addEventListener("pointermove", e=>{
     return;
   }
   if(drag.kind === "word"){
+    // a word cannot be dragged out of its line; moving off it just means the
+    // tap was not meant as a selection
     const dx = p.x - drag.sx, dy = p.y - drag.sy;
-    if(Math.abs(dx) > 4 || Math.abs(dy) > 4){
-      if(!drag.moved) pushUndo();
-      drag.moved = true;
-    }
-    if(drag.moved){
-      drag.w.fx = drag.ox + dx; drag.w.fy = drag.oy + dy;
-      S.floats[drag.w.uid] = [Math.round(drag.w.fx), Math.round(drag.w.fy)];
-      render(); drawConns(); redraw();
-    }
+    if(Math.abs(dx) > 6 || Math.abs(dy) > 6) drag.moved = true;
   }
 });
 
@@ -2571,7 +2589,7 @@ function joinUp(li){
   delete S.lineStarts[first.uid];                 // no longer begins a line
   S.lines[li].ids.forEach(id=>{
     const w = S.words[id];
-    if(w){ w.fx = null; w.fy = null; delete S.floats[w.uid]; }
+
   });
   rebuildLines();
   S.curLine = Math.max(0, li - 1);
@@ -2732,21 +2750,23 @@ const paletteEl = document.getElementById("palette");
 /* Show tints when a tint is what a tap would produce — the highlighter, or a
    lemma that is currently lit — so a swatch previews the result. */
 function tintMode(){
-  return S.tool === "highlight" || S.sel !== null;
+  return inking() || S.sel !== null;
 }
 function swatchColor(c){ return tintMode() ? c.tint : c.hue; }
 
 function paintPalette(){
   const cur = COLORS[S.ci];
-  let out = '<div class="plbl">Ink</div><div class="grid">';
-  COLORS.forEach((c, i)=>{
-    out += '<div class="sw' + (i === S.ci ? " on" : "") + '" data-i="' + i + '"' +
-           ' title="' + c.n + '" style="background:' + swatchColor(c) + '"></div>';
-  });
-  out += '</div><hr>' +
-    '<div class="now" style="background:' + swatchColor(cur) + '"></div>' +
+  const row = (kind)=> COLORS.map((c, i)=>
+    '<div class="sw' + (i === S.ci && (kind === "tint") === tintMode() ? " on" : "") +
+    '" data-i="' + i + '" data-kind="' + kind + '" title="' + c.n + '"' +
+    ' style="background:' + (kind === "tint" ? c.tint : c.hue) + '"></div>').join("");
+
+  paletteEl.innerHTML =
+    '<div class="plbl">Ink</div><div class="grid">' + row("hue") + '</div>' +
+    '<div class="plbl" style="margin-top:8px">Highlight</div>' +
+    '<div class="grid">' + row("tint") + '</div>' +
+    '<hr><div class="now" style="background:' + swatchColor(cur) + '"></div>' +
     '<div class="nowname">' + cur.n + '</div>';
-  paletteEl.innerHTML = out;
 }
 
 function pickColor(i){
@@ -2782,10 +2802,24 @@ function pickColor(i){
 }
 
 paletteEl.addEventListener("pointerdown", e=>{
-  const sw = e.target && e.target.dataset ? e.target.dataset.i : null;
-  if(sw === undefined || sw === null || sw === "") return;
+  const d = e.target && e.target.dataset;
+  if(!d || d.i === undefined || d.i === null || d.i === "") return;
   e.preventDefault();
-  pickColor(+sw);
+  /* The two rows are the same eighteen colours; which row you reach for says
+     what you want to do with them. A tint means the highlighter; a full colour
+     means the pen at its own strength. */
+  if(S.tool === "pen" || S.tool === "move"){
+    if(d.kind === "tint" && S.nib !== "highlighter"){
+      S._lastNib = S.nib; S.nib = "highlighter";
+      if(penPop.classList.contains("show")) paintPenPop();
+      syncPenBtn();
+    } else if(d.kind === "hue" && S.nib === "highlighter"){
+      S.nib = NIBS[S._lastNib] && S._lastNib !== "highlighter" ? S._lastNib : "fineliner";
+      if(penPop.classList.contains("show")) paintPenPop();
+      syncPenBtn();
+    }
+  }
+  pickColor(+d.i);
 });
 
 /* One way in to changing tool, so the buttons, the menus and the state cannot
@@ -4965,6 +4999,14 @@ function nibPreview(name, hue){
   return d;
 }
 
+/* The Pen button wears the nib it is holding. */
+function syncPenBtn(){
+  const b = document.getElementById("penBtn");
+  if(!b) return;
+  const lbl = b.querySelector ? null : null;
+  b.title = "Pen — " + (NIBS[S.nib] ? NIBS[S.nib].nm.toLowerCase() : "nib") + ". Tap for others.";
+}
+
 function paintPenPop(){
   const hue = COLORS[S.ci].hue;
   penPop.innerHTML = "";
@@ -4978,7 +5020,8 @@ function paintPenPop(){
       `<svg class="prev" viewBox="0 0 62 16">${nibPreview(name, hue)}</svg>` +
       `<span class="txt"><span class="nm">${nib.nm}</span>` +
       `<span class="sub">${nib.sub}</span></span><span class="tick">\u2713</span>`;
-    b.onclick = ()=>{ S.nib = name; paintPenPop(); saveSoon(); closePops(); };
+    b.onclick = ()=>{ S.nib = name; paintPenPop(); syncPenBtn(); paintPalette();
+                      saveSoon(); closePops(); };
     penPop.appendChild(b);
   });
 }
@@ -5113,8 +5156,9 @@ const SHORTCUTS = [
                                               "esc", "Put the panels away"],
   [0, 0, "m", ()=> { pickTool("move"); return true; },      "M", "Move/Select"],
   [0, 0, "s", ()=> { pickTool("split"); return true; },     "S", "Split/Join"],
-  [0, 0, "p", ()=> { pickTool("pen"); return true; },       "P", "Pen"],
-  [0, 0, "g", ()=> { pickTool("highlight"); return true; }, "G", "Highlighter"],
+  [0, 0, "p", ()=> { if(S.nib === "highlighter") S.nib = "fineliner";
+                     pickTool("pen"); return true; },       "P", "Pen"],
+  [0, 0, "g", ()=> { S.nib = "highlighter"; pickTool("pen"); return true; }, "G", "Highlighter"],
   [0, 0, "e", ()=> { pickTool("erase"); return true; },     "E", "Eraser"]
 ];
 
@@ -5146,7 +5190,6 @@ document.addEventListener("keydown", e=>{
 });
 
 
-document.getElementById("pmode").onchange = e => S.pencilMode = e.target.checked;
 document.getElementById("passage").onchange = e =>{
   // the placeholder option is not a book; picking it should not blank the page
   if(!e.target.value || !PASSAGES[e.target.value]){
@@ -5257,7 +5300,6 @@ function docSnapshot(){
   return {
     v: 3, at: Date.now(), dev: deviceId(),
     lineStarts: Object.assign({}, S.lineStarts),
-    floats: Object.assign({}, S.floats),
     strokes:S.strokes.map(s => ({
       id:s.sid || (s.sid = newSid()),
       m:s.mode, a:s.anchor, c:s.color, st:s.style, r:s.ref || undefined,
@@ -5280,7 +5322,6 @@ function docSnapshot(){
 function applyDoc(d, p){
   S.lineStarts = Object.assign({}, (d && d.lineStarts) || {});
   if(!Object.keys(S.lineStarts).length && p) S.lineStarts = defaultLineStarts(p);
-  S.floats  = Object.assign({}, (d && d.floats) || {});
   S.strokes = ((d && d.strokes) || []).map(s => ({
     sid:s.id || newSid(),
     mode:s.m, anchor:(s.a == null ? null : s.a), color:s.c, style:s.st, ref:s.r || "",
@@ -5339,7 +5380,7 @@ function loadBookDoc(key, p){
 function prefsSnapshot(){
   return {
     key:S.key, chapter:S.chapter, ci:S.ci, ls:S.lineStyle, nib:S.nib, tool:S.tool,
-    pencil:S.pencilMode,
+    finger:S.fingerMode, sawPen:S.sawPen,
     mods:[document.getElementById("mText").value, document.getElementById("mLex").value,
           document.getElementById("mEng").value,  document.getElementById("mHeb").value,
           document.getElementById("mHLex").value],
@@ -5363,8 +5404,10 @@ function applyPrefs(p){
   S.lineStyle = (LINESTYLE[p.ls] || p.ls === "thick") ? p.ls : "regular";
   S.nib = NIBS[p.nib] ? p.nib : "fineliner";
   S.tool = (p.tool === "join") ? "split" : (p.tool || "move");
-  S.pencilMode = p.pencil !== false;
-  document.getElementById("pmode").checked = S.pencilMode;
+  S.fingerMode = ["auto","move","draw"].includes(p.finger) ? p.finger : "auto";
+  S.sawPen = !!p.sawPen;
+  const fm = document.getElementById("fingerMode");
+  if(fm) fm.value = S.fingerMode;
   document.querySelectorAll("[data-tool]").forEach(x =>
     x.classList.toggle("on", x.dataset.tool === S.tool));
   if(PASSAGES[p.key]){ S.key = p.key; S.chapter = p.chapter || "all"; }
@@ -5392,7 +5435,6 @@ function applySnap(d){
   S._restoring = true;
   try{ applyDoc(d, PASSAGES[S.key]); }finally{ S._restoring = false; }
   rebuildLines();
-  S.words.forEach(w=>{ const f = S.floats[w.uid]; w.fx = f ? f[0] : null; w.fy = f ? f[1] : null; });
   layout(); syncJoin(); syncUndo(); saveNow();
 }
 
@@ -5481,11 +5523,10 @@ function migrateDocs(docs){
       toks.forEach((t,i)=> uids.push(String(ref) + "#" + i));
     });
     const u = i => uids[i] ?? null;
-    const tgt = out[key] || (out[key] = { lineStarts:{}, floats:{}, strokes:[], conns:[],
+    const tgt = out[key] || (out[key] = { lineStarts:{}, strokes:[], conns:[],
                                           sections:[], lem:{}, notes:{}, hits:{}, marks:{} });
 
     (d.lines || []).forEach(l=>{ const head = u((l.ids || [])[0]); if(head != null) tgt.lineStarts[head] = l.i || 0; });
-    (d.floats || []).forEach(([id,x,y])=>{ const uu = u(id); if(uu) tgt.floats[uu] = [x,y]; });
     (d.strokes || []).forEach(st=>{
       const a = st.a == null ? null : u(st.a);
       if(st.a != null && a == null) return;
@@ -5543,7 +5584,7 @@ function docParts(d){
   };
   return {
     marks: d.marks || {}, hits: d.hits || {}, notes: d.notes || {},
-    lem: d.lem || {}, lineStarts: d.lineStarts || {}, floats: d.floats || {},
+    lem: d.lem || {}, lineStarts: d.lineStarts || {},
     summaries: d.summaries || {},
     strokes: byId(d.strokes, s => s.id),
     conns:   byId(d.conns, c => c[0] + ">" + c[1]),
@@ -5555,7 +5596,7 @@ function partsToDoc(parts, at, dev){
   return {
     v:3, at: at || Date.now(), dev: dev || deviceId(),
     marks:parts.marks, hits:parts.hits, notes:parts.notes, lem:parts.lem,
-    lineStarts:parts.lineStarts, floats:parts.floats,
+    lineStarts:parts.lineStarts,
     summaries:parts.summaries,
     strokes: Object.keys(parts.strokes).map(k => parts.strokes[k]),
     conns:   Object.keys(parts.conns).map(k => parts.conns[k]),
@@ -5741,8 +5782,7 @@ async function syncBook(key){
     S._restoring = true;
     try{ applyDoc(merged, PASSAGES[key]); }finally{ S._restoring = false; }
     rebuildLines();
-    S.words.forEach(w=>{ const f = S.floats[w.uid]; w.fx = f ? f[0] : null; w.fy = f ? f[1] : null; });
-    layout(); syncJoin();
+      layout(); syncJoin();
   }
 
   // A merge should never turn a book that had work in it into an empty one. If
@@ -6034,7 +6074,7 @@ async function reportStorage(){
   if(S._anyTarget) bits.push(`last touch landed on ${S._anyTarget} at ${S._anyXY}` +
     (S._anyEvTarget && S._anyEvTarget !== S._anyTarget ? ` (event went to ${S._anyEvTarget})` : ""));
   bits.push(S.words.length ? S.words.length + " words on screen" : "no passage loaded");
-  bits.push("pencil mode " + (S.pencilMode ? "on" : "off") + ", tool " + S.tool);
+  bits.push("finger " + S.fingerMode + (S.sawPen ? " (pencil seen)" : "") + ", tool " + S.tool);
   el.textContent = bits.join(" · ");
 }
 
@@ -6073,7 +6113,7 @@ function openWorkspace(snap){
       applyPrefs({ key:S.key, chapter:snap.chapter, ci:snap.ci, ls:snap.ls,
                    tool:snap.tool, pencil:snap.pencil, wheel:snap.wheel, mods:snap.mods });
       S.docs = migrateDocs({ [S.key + "|" + (snap.chapter || "all")]:
-        { lines:snap.lines, floats:snap.floats, strokes:snap.strokes,
+        { lines:snap.lines, strokes:snap.strokes,
           conns:snap.conns, sections:snap.sections, lem:snap.lem } });
       S._loadedBook = null;
     } else return false;
@@ -6095,6 +6135,10 @@ function openWorkspace(snap){
     '<div class="item"><div class="kbd">' + keys + '</div><div>' + what + '</div></div>').join("");
 })();
 
+document.getElementById("fingerMode").onchange = e =>{
+  S.fingerMode = e.target.value;
+  saveSoon();
+};
 document.getElementById("loadNewVersion").onclick = loadNewVersion;
 document.getElementById("saveFile").onclick = saveProjectFile;
 document.getElementById("forget").onclick = ()=>{
@@ -6113,7 +6157,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-08-11c";
+const BUILD = "2026-08-12a";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file

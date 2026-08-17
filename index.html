@@ -419,6 +419,8 @@
   .styleopt.on{background:var(--chip);}
   .styleopt.on .tick{opacity:1;}
   .styleopt .txt{display:flex;flex-direction:column;min-width:0;}
+  .marq{position:absolute;z-index:8;pointer-events:none;display:none;
+    border:1.5px dashed var(--accent);background:rgba(138,90,43,.07);border-radius:4px;}
   .mh{position:absolute;display:none;border:2px dashed var(--accent);border-radius:8px;
     background:rgba(138,90,43,.08);z-index:0;pointer-events:none;}
 
@@ -471,6 +473,7 @@
       <select id="chapter" title="Which part of the loaded book to lay out"
               style="display:none"></select>
       <span class="glbl" id="wcount"></span>
+      <span class="glbl" id="selcount" style="display:none"></span>
       <button id="auto" class="act" title="Break the passage into propositions"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.4 5.4h15.2"/><path d="M6.6 11h12"/><path d="M9.8 16.6h8.8"/><circle cx="3.4" cy="11" r="1.3" fill="currentColor" stroke="none"/><circle cx="6.6" cy="16.6" r="1.3" fill="currentColor" stroke="none"/></svg><span class="lbl-hide">Auto-split</span></button>
       <div class="grp">
         <button id="undoBtn" disabled title="Undo (⌘Z)"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4.2 9.8h9.4a4 4 0 010 8H8.6"/><path d="M7.6 6.2L4 9.8l3.6 3.6"/></svg><span class="lbl-hide">Undo</span></button>
@@ -732,13 +735,15 @@
     weights. Thin, regular, dotted and double are ordinary strokes. <b>Extra thick</b> is
     different: it lays a section break across the page, opens a gap in the flow, and gives you a
     title to fill in. Tap the same boundary again to remove it.</div></div>
-  <div class="item"><div class="kbd">Selecting</div><div>Tap a word to select it. Tap it again
-    and every occurrence of its lemma lights up — tap twice more to put them out. With a
-    drawing tool in hand, a tap on a word (rather than a stroke) hands over to
-    <b>Move/Select</b> and selects it.</div></div>
-  <div class="item"><div class="kbd">Colouring</div><div>With a word selected, tapping a colour
-    highlights that word. If its lemma is lit, the colour goes to every occurrence instead. The
-    same colour again takes the highlight off, and <b>esc</b> deselects.</div></div>
+  <div class="item"><div class="kbd">Selecting</div><div>Tap a word to select it. Tap it twice
+    and every occurrence of its lemma on the page is selected. In <b>Move/Select</b>, dragging
+    from bare paper draws a box that gathers up every word it touches. With a drawing tool in
+    hand, a tap on a word — rather than a stroke — hands over to Move/Select and selects it;
+    press <b>P</b> to pick the pen back up.</div></div>
+  <div class="item"><div class="kbd">Colouring</div><div>Nothing is coloured until you say so.
+    With a selection, tapping a colour highlights all of it. If the selection came from tapping
+    twice, the colour follows that lemma wherever it occurs; otherwise it is laid on those words
+    alone. The same colour again takes it off, and <b>esc</b> deselects.</div></div>
   <div class="item"><div class="kbd">Colour</div><div>The palette runs down the left of the
     window, beside the page rather than over it. The same 18 colours twice: full strength for
     the pen, and their lighter tints for the highlighter. Reaching for a tint picks up the
@@ -1003,7 +1008,8 @@ const S = {
   hits:{}, marks:{}, notes:{}, summaries:{}, markMode:"underline", findQ:"", glyphs:[],
   words:[], lines:[], strokes:[], conns:[], sections:[],
   tool:"move", lastInk:"pen", ci:12, lineStyle:"regular", nib:"fineliner",
-  fingerMode:"auto", sawPen:false, sel:null, lemHi:{}, connFrom:null, curLine:null, dpr:1
+  fingerMode:"auto", sawPen:false, sel:null, selSet:[], selLemma:null,
+  lemHi:{}, connFrom:null, curLine:null, dpr:1
 };
 
 const board = document.getElementById("board");
@@ -1595,6 +1601,7 @@ function cy(w){ return py(w) + w.h/2; }
    words) dragging one word would otherwise touch every element on every
    pointermove; this keeps it to the handful that moved. */
 function render(){
+  S._selNow = new Set(S.selSet || []);
   S.words.forEach(w=>{
     const x = px(w), y = py(w);
     if(w._wx !== x){ w.el.style.left = x + "px"; w._wx = x; }
@@ -1605,7 +1612,7 @@ function render(){
     if(w._wbg !== lc){ w.el.style.background = lc; w._wbg = lc; }   // beats the selection ring
 
     const cls = "w"
-      + (S.sel === w.id ? " sel" : "")
+      + (S._selNow && S._selNow.has(w.uid) ? " sel" : "")
       + (lc ? " lem" : "")
       + (S.notes[w.uid] ? " hasnote" : "")
 ;
@@ -2137,10 +2144,9 @@ function fingerDraws(){
 
 function activeTool(e){
   if(e.pointerType === "pen"){
-    // The Pencil inks — but must not override a tool you deliberately chose.
-    // Picking Mark or Split and then tapping with the Pencil should mark or
-    // split, not draw.
-    return (S.tool === "move") ? S.lastInk : S.tool;
+    // The Pencil inks with whatever tool is in hand. Move/Select is a
+    // deliberate choice, so there it selects rather than quietly drawing.
+    return S.tool;
   }
   if(e.pointerType === "touch" && !fingerDraws() && INKTOOLS.has(S.tool)) return "move";
   return S.tool;
@@ -2323,8 +2329,8 @@ hit.addEventListener("pointerdown", e=>{
     drag = { kind:"word", w, sx:p.x, sy:p.y, moved:false, t0:Date.now() };
     return;
   }
-  // empty space: clear selection
-  S.sel = null; document.getElementById("insp").classList.remove("show"); render();
+  // empty space: start a box that gathers up whatever it is dragged over
+  drag = { kind:"marq", sx:p.x, sy:p.y, x:p.x, y:p.y, moved:false };
 });
 
 hit.addEventListener("pointermove", e=>{
@@ -2391,7 +2397,39 @@ hit.addEventListener("pointermove", e=>{
     const dx = p.x - drag.sx, dy = p.y - drag.sy;
     if(Math.abs(dx) > 6 || Math.abs(dy) > 6) drag.moved = true;
   }
+  if(drag.kind === "marq"){
+    drag.x = p.x; drag.y = p.y;
+    if(Math.abs(p.x - drag.sx) > 5 || Math.abs(p.y - drag.sy) > 5) drag.moved = true;
+    showMarquee(drag);
+  }
 });
+
+/* The box you are dragging. A plain element rather than something on the ink
+   canvas, so it cannot end up in a stroke or in an exported picture. */
+let marqEl = null;
+function showMarquee(d){
+  if(!d){ if(marqEl) marqEl.style.display = "none"; return; }
+  if(!marqEl){
+    marqEl = document.createElement("div");
+    marqEl.className = "marq";
+    board.appendChild(marqEl);
+  }
+  marqEl.style.display = "block";
+  marqEl.style.left = Math.min(d.sx, d.x) + "px";
+  marqEl.style.top  = Math.min(d.sy, d.y) + "px";
+  marqEl.style.width  = Math.abs(d.x - d.sx) + "px";
+  marqEl.style.height = Math.abs(d.y - d.sy) + "px";
+}
+
+/* Any word the box touches, in reading order. */
+function wordsInBox(d){
+  const x0 = Math.min(d.sx, d.x), x1 = Math.max(d.sx, d.x);
+  const y0 = Math.min(d.sy, d.y), y1 = Math.max(d.sy, d.y);
+  return S.words.filter(w=>{
+    const wx = px(w), wy = py(w);
+    return wx < x1 && wx + w.w > x0 && wy < y1 && wy + w.h > y0;
+  });
+}
 
 function endPointer(e){
   lastPointerAt = Date.now();
@@ -2433,6 +2471,15 @@ window.addEventListener("pointerdown", e=>{
   }catch(err){ S._anyTarget = "could not test"; }
 }, true);
 hit.addEventListener("pointerup", e=>{
+  if(drag && drag.kind === "marq"){
+    const d = drag;
+    drag = null; showMarquee(null); endPointer(e);
+    if(d.moved){
+      const got = wordsInBox(d);
+      if(got.length) setSelection(got, null); else clearSelection();
+    } else clearSelection();          // a tap on bare page puts the selection down
+    return;
+  }
   // a tap on a tag follows it; a drag just moves it
   if(drag && drag.kind === "tag"){
     const st = drag.s, tapped = !drag.moved && Date.now() - drag.t0 < 600;
@@ -2471,7 +2518,7 @@ hit.addEventListener("pointerup", e=>{
   if(S._focusSec){ focusSectionTitle(S._focusSec); S._focusSec = null; }
   drag = null; endPointer(e); saveSoon();   // ink, shapes and word moves
 });
-hit.addEventListener("pointercancel", e=>{ drag = null; endPointer(e); });
+hit.addEventListener("pointercancel", e=>{ drag = null; showMarquee(null); endPointer(e); });
 
 /* A drawing tool that was tapped rather than dragged has drawn nothing. If the
    tap landed on a word, what was wanted was that word — so hand over to
@@ -2493,8 +2540,8 @@ function tapWord(w){
   // once a double has counted, start again — a third quick tap is the
   // beginning of the next pair, not another double
   S._tap = again ? null : { id:w.id, t:now };
-  select(w);
-  if(again) toggleLemma(w);
+  if(again) selectLemma(w);        // a second tap means every occurrence
+  else select(w);
 }
 
 let mergeHintEl = null;
@@ -2655,7 +2702,53 @@ function autoSplit(){
    ============================================================ */
 const insp = document.getElementById("insp");
 
-function select(w){
+
+/* ---- what is selected ----
+   One word, every occurrence of a lemma, or whatever a dragged box caught.
+   The palette and the mark shortcuts all act on this, so "select, then say what
+   colour" works the same however the selection was made. */
+function selectedWords(){
+  return (S.selSet || []).map(u => S.byUid[u]).filter(Boolean);
+}
+
+function setSelection(words, lemma){
+  S.selSet = words.map(w => w.uid);
+  S.selLemma = lemma || null;
+  S.sel = words.length === 1 ? words[0].id : null;
+  S.curLine = words.length ? words[0].line : S.curLine;
+  syncJoin();
+  const insp = document.getElementById("insp");
+  if(words.length === 1) showInspector(words[0]);
+  else insp.classList.remove("show");
+  showSelCount();
+  render(); paintPalette();
+}
+
+function clearSelection(){
+  S.selSet = []; S.selLemma = null; S.sel = null;
+  document.getElementById("insp").classList.remove("show");
+  showSelCount(); render(); paintPalette();
+}
+
+function showSelCount(){
+  const el = document.getElementById("selcount");
+  if(!el) return;
+  const n = (S.selSet || []).length;
+  el.style.display = n > 1 ? "" : "none";
+  if(n > 1) el.textContent = S.selLemma
+    ? n + " × " + S.selLemma
+    : n + " words selected";
+}
+
+/* Every occurrence of this word's lemma that is on the page. */
+function selectLemma(w){
+  const kin = S.words.filter(x => x.lemma === w.lemma);
+  setSelection(kin.length ? kin : [w], w.lemma);
+}
+
+function select(w){ setSelection([w], null); }
+
+function showInspector(w){
   S.sel = w.id; S.curLine = w.line; syncJoin(); render();
   const p = PASSAGES[S.key];
   const ref = `${p.title} ${w.verse}`;
@@ -2695,7 +2788,7 @@ function select(w){
   cb.textContent = occ ? "Concordance (" + occ + ")" : "Concordance";
   cb.onclick = ()=> showConcordance(w.lemma);
 
-  syncLemBtn(w); paintLemHint(w); paintPalette();
+  syncLemBtn(w); paintLemHint(w);
   insp.classList.add("show");
 }
 
@@ -2703,8 +2796,12 @@ function select(w){
 function toggleLemma(w){
   if(!w) return;
   pushUndo();
-  if(S.lemHi[w.lemma]) delete S.lemHi[w.lemma];
-  else S.lemHi[w.lemma] = COLORS[S.ci].tint;     // the palette's colour, as a tint
+  const lighting = !S.lemHi[w.lemma];
+  if(lighting) S.lemHi[w.lemma] = COLORS[S.ci].tint;   // the palette's colour, as a tint
+  else delete S.lemHi[w.lemma];
+  // lighting a lemma also selects it, so the next colour you tap goes to the
+  // lemma rather than to the one word you happened to have in hand
+  if(lighting) selectLemma(w); else select(w);
   render(); syncLemBtn(w); paintLemHint(w); paintPalette(); saveSoon();
 }
 
@@ -2733,8 +2830,7 @@ function paintLemHint(w){
 }
 
 document.getElementById("i-close").onclick = ()=>{
-  insp.classList.remove("show"); S.sel = null; render();   // highlights persist
-  paintPalette();
+  clearSelection();                                         // highlights persist
 };
 
 /* ============================================================
@@ -2750,7 +2846,7 @@ const paletteEl = document.getElementById("palette");
 /* Show tints when a tint is what a tap would produce — the highlighter, or a
    lemma that is currently lit — so a swatch previews the result. */
 function tintMode(){
-  return inking() || S.sel !== null;
+  return inking() || (S.selSet && S.selSet.length > 0);
 }
 function swatchColor(c){ return tintMode() ? c.tint : c.hue; }
 
@@ -2778,25 +2874,23 @@ function pickColor(i){
   if(boxPop.classList.contains("show")) paintBoxPop();
   saveSoon();
 
-  /* With a word selected, a colour is meant for that word. If its lemma is lit
-     — which is what a double tap does — the colour belongs to every occurrence;
-     otherwise it belongs to this word alone. Tapping the same colour again
-     takes the highlight off, so one swatch both gives and removes. */
-  if(S.sel !== null){
-    const w = S.words[S.sel];
+  /* A colour is for whatever is selected. A selection made by tapping twice is
+     a lemma, so its colour follows the lemma wherever it occurs; anything else
+     is coloured word by word. The same colour again takes the highlight off, so
+     one swatch both gives and removes. */
+  const sel = selectedWords();
+  if(sel.length){
     const tint = COLORS[i].tint;
-    if(S.lemHi[w.lemma]){
-      if(S.lemHi[w.lemma] !== tint){
-        pushUndo();
-        S.lemHi[w.lemma] = tint;
-        render(); syncLemBtn(w); paintLemHint(w);
-      }
+    pushUndo();
+    if(S.selLemma){
+      if(S.lemHi[S.selLemma] === tint) delete S.lemHi[S.selLemma];
+      else S.lemHi[S.selLemma] = tint;
     } else {
-      pushUndo();
-      if(S.hits[w.uid] === tint) delete S.hits[w.uid];
-      else S.hits[w.uid] = tint;
-      render();
+      const allSame = sel.every(w => S.hits[w.uid] === tint);
+      sel.forEach(w => { if(allSame) delete S.hits[w.uid]; else S.hits[w.uid] = tint; });
     }
+    render();
+    if(S.sel !== null){ syncLemBtn(S.words[S.sel]); paintLemHint(S.words[S.sel]); }
   }
   paintPalette();
 }
@@ -4086,8 +4180,8 @@ function placeMarkPop(){
 }
 
 /* Toggle the current mark on a word. */
-function markWord(w){
-  pushUndo();
+function markWord(w, noUndo){
+  if(!noUndo) pushUndo();
   const mk = S.marks[w.uid] || {};
   const c = COLORS[S.ci];
   if(S.markMode === "underline"){ mk.u = mk.u ? null : c.hue; mk.u2 = null; }
@@ -5095,11 +5189,12 @@ document.getElementById("redoBtn").onclick = redo;
    intercepted.
    ============================================================ */
 function markSelected(mode){
-  const w = S.words[S.sel];
-  if(!w) return false;
+  const sel = selectedWords();
+  if(!sel.length) return false;
   const was = S.markMode;
   S.markMode = mode;
-  markWord(w);
+  pushUndo();
+  sel.forEach(w => markWord(w, true));
   S.markMode = was;
   paintMarkPop();
   return true;
@@ -5119,9 +5214,11 @@ const SHORTCUTS = [
   [1, 0, "u", ()=> markSelected("underline"),  "⌘U", "Underline the selected word"],
   [1, 1, "d", ()=> markSelected("double"),     "⇧⌘D", "Double underline it"],
   [1, 0, "b", ()=> markSelected("box"),        "⌘B", "Box it"],
-  [1, 1, "h", ()=> { const w = S.words[S.sel]; if(!w) return false;
-                     if(S.hits[w.uid]) delete S.hits[w.uid];
-                     else S.hits[w.uid] = COLORS[S.ci].tint;
+  [1, 1, "h", ()=> { const sel = selectedWords(); if(!sel.length) return false;
+                     pushUndo();
+                     const off = sel.every(w => S.hits[w.uid]);
+                     sel.forEach(w => { if(off) delete S.hits[w.uid];
+                                        else S.hits[w.uid] = COLORS[S.ci].tint; });
                      render(); saveSoon(); return true; },
                                               "⇧⌘H", "Highlight it"],
   [1, 0, "l", ()=> { const w = S.words[S.sel]; if(!w) return false;
@@ -5136,10 +5233,10 @@ const SHORTCUTS = [
                      if(line && line.ids[0] === w.id) joinWordLine(w); else splitBefore(w);
                      return true; },
                                               "⌘↩", "Split the line here, or rejoin it"],
-  [1, 0, "backspace", ()=> { const w = S.words[S.sel]; if(!w) return false;
-                     if(!S.marks[w.uid] && !S.hits[w.uid]) return false;
+  [1, 0, "backspace", ()=> { const sel = selectedWords(); if(!sel.length) return false;
+                     if(!sel.some(w => S.marks[w.uid] || S.hits[w.uid])) return false;
                      pushUndo();
-                     delete S.marks[w.uid]; delete S.hits[w.uid];
+                     sel.forEach(w => { delete S.marks[w.uid]; delete S.hits[w.uid]; });
                      render(); saveSoon(); return true; },
                                               "⌘⌫", "Clear the marks on it"],
   [1, 0, "k", ()=> { const w = S.words[S.sel]; if(!w) return false;
@@ -5149,10 +5246,7 @@ const SHORTCUTS = [
                                               "⌘K", "Write a note on it"],
   [0, 0, "arrowright", ()=> moveSelection(isRTL() ? -1 : 1), "→", "Select the next word"],
   [0, 0, "arrowleft",  ()=> moveSelection(isRTL() ? 1 : -1), "←", "Select the word before"],
-  [0, 0, "escape", ()=> { closePops();
-                     S.sel = null;
-                     document.getElementById("insp").classList.remove("show");
-                     render(); return true; },
+  [0, 0, "escape", ()=> { closePops(); clearSelection(); return true; },
                                               "esc", "Put the panels away"],
   [0, 0, "m", ()=> { pickTool("move"); return true; },      "M", "Move/Select"],
   [0, 0, "s", ()=> { pickTool("split"); return true; },     "S", "Split/Join"],
@@ -6157,7 +6251,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-08-12a";
+const BUILD = "2026-08-12b";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file

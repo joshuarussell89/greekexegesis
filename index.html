@@ -567,8 +567,8 @@
         </div>
       </div>
     </div>
-  <aside id="marks" aria-label="Marks"></aside>
   </div>
+  <aside id="marks" aria-label="Marks"></aside>
 </div>
 
 <aside id="conc">
@@ -1651,16 +1651,20 @@ function render(){
     // underline / box / symbol. Outline is used for the box so it does not
     // collide with the selection ring, which is a box-shadow.
     const mk  = S.marks[w.uid] || null;
-    const und = mk && mk.u ? (mk.u + (mk.u2 ? "|2" : "")) : "";
+    const und = mk && mk.u ? (mk.u + "|" + (mk.us || "regular")) : "";
     const box = mk && mk.b ? mk.b : "";
     const sym = mk && mk.s ? mk.s : "";
     if(w._und !== und){
       const hue = mk && mk.u ? mk.u : "";
-      // The second rule is a child, not a shadow: a shadow copies the whole
-      // silhouette and shows down the sides, which is why it never read as two
-      // lines. This matches the Double line style — 1.3pt rules, 4.2pt apart.
-      w.el.style.borderBottom = hue ? (mk.u2 ? "1.4px solid " : "2.5px solid ") + hue : "";
-      if(hue && mk.u2){
+      const us  = (mk && mk.us) || "regular";
+      // The rule under a word is drawn in the same weights and patterns as the
+      // Line tool, since that is the tool that puts it there. The second rule of
+      // a double is a child, not a shadow: a shadow copies the whole silhouette
+      // and shows down the sides, which is why it never read as two lines.
+      const WEIGHT = { thin:"1.2px solid", regular:"2.5px solid",
+                       dotted:"2.5px dotted", double:"1.4px solid" };
+      w.el.style.borderBottom = hue ? (WEIGHT[us] || WEIGHT.regular) + " " + hue : "";
+      if(hue && us === "double"){
         if(!w._u2El){
           w._u2El = document.createElement("span");
           w._u2El.className = "u2";
@@ -2288,6 +2292,19 @@ hit.addEventListener("pointerdown", e=>{
     return;
   }
 
+  /* The Line and Box tools mark a word when they are tapped on one rather than
+     dragged across the page: a rule under a word is an underline, and a box
+     round a word is a box. Which line style is chosen decides which underline. */
+  if(t === "line" || t === "rect"){
+    const tapped = wordAt(p.x, p.y);
+    if(tapped){
+      drag = { kind:"maybemark", w:tapped, kindOf:(t === "line" ? S.lineStyle : "box"),
+               sx:p.x, sy:p.y, moved:false, t0:Date.now(),
+               tool:t, start:{ x:p.x, y:p.y } };
+      return;
+    }
+  }
+
   if(INKTOOLS.has(t)){
     pushUndo();
     const anchor = nearestWord(p.x, p.y, 110);
@@ -2340,7 +2357,7 @@ hit.addEventListener("pointerdown", e=>{
 
   if(t === "mark"){
     const w = wordAt(p.x, p.y);
-    if(w) markWord(w);
+    if(w) markHere(w, S.markMode);
     return;
   }
 
@@ -2427,6 +2444,24 @@ hit.addEventListener("pointermove", e=>{
     const dx = p.x - drag.sx, dy = p.y - drag.sy;
     if(Math.abs(dx) > 6 || Math.abs(dy) > 6) drag.moved = true;
   }
+  if(drag.kind === "maybemark"){
+    // moved off: this was a stroke, not a tap — begin the shape properly
+    if(Math.abs(p.x - drag.sx) > 8 || Math.abs(p.y - drag.sy) > 8){
+      const t = drag.tool;
+      const anchor = nearestWord(drag.sx, drag.sy, 200);
+      const aw = anchor !== null ? S.words[anchor] : null;
+      const ox = aw ? px(aw) : 0, oy = aw ? py(aw) : 0;
+      pushUndo();
+      const start = { x:drag.sx - ox, y:drag.sy - oy, p:.5 };
+      const st = { sid:newSid(), mode:t, anchor: aw ? aw.uid : null,
+                   color:COLORS[S.ci].hue, style:S.lineStyle,
+                   pts:[start, { x:p.x - ox, y:p.y - oy }] };
+      S.strokes.push(st);
+      drag = { kind:"shape", s:st, ox, oy };
+      redraw();
+    }
+    return;
+  }
   if(drag.kind === "marq"){
     drag.x = p.x; drag.y = p.y;
     if(Math.abs(p.x - drag.sx) > 5 || Math.abs(p.y - drag.sy) > 5) drag.moved = true;
@@ -2501,6 +2536,12 @@ window.addEventListener("pointerdown", e=>{
   }catch(err){ S._anyTarget = "could not test"; }
 }, true);
 hit.addEventListener("pointerup", e=>{
+  if(drag && drag.kind === "maybemark"){
+    const d = drag; drag = null; endPointer(e);
+    markHere(d.w, d.kindOf);           // a tap: mark the word
+    saveSoon();
+    return;
+  }
   if(drag && drag.kind === "marq"){
     const d = drag;
     drag = null; showMarquee(null); endPointer(e);
@@ -4126,7 +4167,7 @@ function useMark(mode){
   const sel = selectedWords();
   if(sel.length){
     pushUndo();
-    sel.forEach(w => markWord(w, true));
+    sel.forEach(w => markWord(w, mode, true));
   }
   paintMarks();
 }
@@ -4134,30 +4175,7 @@ function useMark(mode){
 function paintMarks(){
   if(!marksEl) return;
   const hue = COLORS[S.ci].hue;
-  const MARKPREV = {
-    underline: `<text x="4" y="12" font-family="Cardo,serif" font-size="13" fill="${hue}">λόγος</text>
-                <path d="M3 14.5h34" stroke="${hue}" stroke-width="2.5" stroke-linecap="round"/>`,
-    double:    `<text x="4" y="11" font-family="Cardo,serif" font-size="13" fill="${hue}">λόγος</text>
-                <path d="M3 12.6h34" stroke="${hue}" stroke-width="1.3"/>
-                <path d="M3 16.8h34" stroke="${hue}" stroke-width="1.3"/>`,
-    box:       `<text x="6" y="12" font-family="Cardo,serif" font-size="13" fill="${hue}">λόγος</text>
-                <rect x="3" y="1.5" width="36" height="14" rx="2" fill="none" stroke="${hue}"
-                      stroke-width="2"/>`
-  };
-
-  marksEl.innerHTML = '<div class="plbl">Mark</div>';
-  [["underline","Underline"],["double","Double underline"],["box","Box"]].forEach(([v,label])=>{
-    const b = document.createElement("div");
-    b.className = "mstyle" + (S.markMode === v ? " on" : "");
-    b.title = label;
-    b.innerHTML = `<svg viewBox="0 0 44 18" width="44" height="18">${MARKPREV[v]}</svg>`;
-    b.onclick = ()=> useMark(v);
-    marksEl.appendChild(b);
-  });
-
-  const hr = document.createElement("hr"); marksEl.appendChild(hr);
-  const lbl = document.createElement("div");
-  lbl.className = "plbl"; lbl.textContent = "Symbols"; marksEl.appendChild(lbl);
+  marksEl.innerHTML = '<div class="plbl">Symbols</div>';
 
   const search = document.createElement("input");
   search.className = "msearch"; search.type = "text";
@@ -4213,24 +4231,46 @@ function paintMarks(){
 
   const foot = document.createElement("div");
   foot.className = "foot";
-  foot.textContent = "Select words, then tap a mark. Or pick Mark and tap words one by one.";
+  foot.textContent = "Select words, then tap a symbol. Underlines and boxes come from the " +
+                     "Line and Box tools — tap a word with one rather than dragging.";
   marksEl.appendChild(foot);
 }
 
 
 /* Toggle the current mark on a word. */
-function markWord(w, noUndo){
+/* Lay a mark on one word, or take it off again if it is already there.
+   kind is "underline" (in one of the line styles), "box", or a symbol's name. */
+function markWord(w, kind, noUndo){
+  if(!w) return;
+  if(kind === undefined || kind === null) kind = S.markMode;
   if(!noUndo) pushUndo();
   const mk = S.marks[w.uid] || {};
   const c = COLORS[S.ci];
-  if(S.markMode === "underline"){ mk.u = mk.u ? null : c.hue; mk.u2 = null; }
-  else if(S.markMode === "double"){ const on = mk.u && mk.u2;
-                                    mk.u = on ? null : c.hue; mk.u2 = on ? null : true; }
-  else if(S.markMode === "box")   mk.b = mk.b ? null : c.hue;
-  else { mk.s = (mk.s === S.markMode) ? null : S.markMode; mk.sc = c.hue; }
+
+  if(kind === "underline" || LINESTYLE[kind]){
+    const style = LINESTYLE[kind] ? kind : "regular";
+    const on = mk.u && (mk.us || "regular") === style;
+    mk.u  = on ? null : c.hue;
+    mk.us = on ? null : style;
+  } else if(kind === "box"){
+    mk.b = mk.b ? null : c.hue;
+  } else {
+    mk.s = (mk.s === kind) ? null : kind;
+    mk.sc = c.hue;
+  }
   if(!mk.u && !mk.b && !mk.s) delete S.marks[w.uid];
   else S.marks[w.uid] = mk;
   render(); saveSoon();
+}
+
+/* Whatever a tap should mark: the whole selection if the word tapped is part
+   of it, otherwise just that word. */
+function markHere(w, kind){
+  const sel = selectedWords();
+  const inSel = sel.some(x => x.uid === w.uid);
+  const targets = (inSel && sel.length > 1) ? sel : [w];
+  pushUndo();
+  targets.forEach(x => markWord(x, kind, true));
 }
 
 
@@ -4593,12 +4633,16 @@ function paintBoard(g){
     if(mk && mk.b){ g.strokeStyle = mk.b; g.lineWidth = 2;
                     g.strokeRect(x - 1, y - 1, wd.w + 2, wd.h + 2); }
     if(mk && mk.u){
+      const us = mk.us || "regular";
+      const sty = LINESTYLE[us] || LINESTYLE.regular;
       g.strokeStyle = mk.u;
-      g.lineWidth = mk.u2 ? 1.4 : 2.5;             // the Double line style's weight
+      g.lineWidth = us === "double" ? 1.4 : sty.w;
+      if(sty.dash) g.setLineDash(sty.dash);
       g.beginPath(); g.moveTo(x, y + wd.h); g.lineTo(x + wd.w, y + wd.h); g.stroke();
-      if(mk.u2){
+      if(us === "double"){
         g.beginPath(); g.moveTo(x, y + wd.h + 4.2); g.lineTo(x + wd.w, y + wd.h + 4.2); g.stroke();
       }
+      g.setLineDash([]);
     }
     g.fillStyle = "#211d18";
     g.font = heb ? '29px "SBL Hebrew", "Ezra SIL", "Noto Serif Hebrew", Cardo, serif'
@@ -5227,14 +5271,11 @@ document.getElementById("redoBtn").onclick = redo;
    the caret is in a text field, so typing a note or a section title is never
    intercepted.
    ============================================================ */
-function markSelected(mode){
+function markSelected(kind){
   const sel = selectedWords();
   if(!sel.length) return false;
-  const was = S.markMode;
-  S.markMode = mode;
   pushUndo();
-  sel.forEach(w => markWord(w, true));
-  S.markMode = was;
+  sel.forEach(w => markWord(w, kind, true));
   paintMarks();
   return true;
 }
@@ -5250,7 +5291,7 @@ function moveSelection(step){
 
 const SHORTCUTS = [
   // [needs cmd, needs shift, key, what it does, how to describe it]
-  [1, 0, "u", ()=> markSelected("underline"),  "⌘U", "Underline the selected word"],
+  [1, 0, "u", ()=> markSelected("regular"),   "⌘U", "Underline the selection"],
   [1, 1, "d", ()=> markSelected("double"),     "⇧⌘D", "Double underline it"],
   [1, 0, "b", ()=> markSelected("box"),        "⌘B", "Box it"],
   [1, 1, "h", ()=> { const sel = selectedWords(); if(!sel.length) return false;
@@ -5469,6 +5510,11 @@ function applyDoc(d, p){
   S.notes = Object.assign({}, (d && d.notes) || {});
   S.hits  = Object.assign({}, (d && d.hits) || {});
   S.marks = JSON.parse(JSON.stringify((d && d.marks) || {}));
+  // work saved when a double underline was a flag rather than a named style
+  Object.keys(S.marks).forEach(k=>{
+    const mk = S.marks[k];
+    if(mk && mk.u2 !== undefined){ if(mk.u2) mk.us = "double"; delete mk.u2; }
+  });
   S.findQ = (d && d.findQ) || "";
   S.summaries = Object.assign({}, (d && d.summaries) || {});
   if(d && d.aim && !S.summaries.all) S.summaries.all = d.aim;   // the old book-wide field
@@ -6290,7 +6336,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-08-13a";
+const BUILD = "2026-08-13b";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file

@@ -1035,7 +1035,7 @@ const LINESTYLE = {
 const S = {
   key:"", chapter:"all", docs:{}, undo:[], redo:[],
   lineStarts:{}, byUid:{},
-  hits:{}, marks:{}, notes:{}, summaries:{}, markMode:"underline", findQ:"", glyphs:[],
+  hits:{}, marks:{}, notes:{}, summaries:{}, markMode:"emphasis", findQ:"", glyphs:[],
   words:[], lines:[], strokes:[], conns:[], sections:[],
   tool:"move", lastInk:"pen", ci:12, lineStyle:"regular", nib:"fineliner",
   fingerMode:"auto", sawPen:false, sel:null, selSet:[], selLemma:null,
@@ -2972,23 +2972,36 @@ paletteEl.addEventListener("pointerdown", e=>{
   /* The two rows are the same eighteen colours; which row you reach for says
      what you want to do with them. A tint means the highlighter; a full colour
      means the pen at its own strength. */
-  if(S.tool === "pen" || S.tool === "move"){
+  const hasSel = selectedWords().length > 0;
+  if(!hasSel && (S.tool === "pen" || S.tool === "move")){
+    /* Nothing is selected, so a colour is for drawing with. Reaching for a tint
+       means the highlighter; reaching for a full colour means writing again —
+       and either way the pen has to be in your hand, or the next stroke would
+       come out of whatever tool happened to be selected. */
     if(d.kind === "tint" && S.nib !== "highlighter"){
       S._lastNib = S.nib; S.nib = "highlighter";
-      if(penPop.classList.contains("show")) paintPenPop();
-      syncPenBtn();
     } else if(d.kind === "hue" && S.nib === "highlighter"){
       S.nib = NIBS[S._lastNib] && S._lastNib !== "highlighter" ? S._lastNib : "fineliner";
-      if(penPop.classList.contains("show")) paintPenPop();
-      syncPenBtn();
     }
+    if(S.tool !== "pen") pickTool("pen");
+    if(penPop.classList.contains("show")) paintPenPop();
+    syncPenBtn();
   }
   pickColor(+d.i);
 });
 
 /* One way in to changing tool, so the buttons, the menus and the state cannot
    disagree — whether it was a button, a key, or reaching for a line's grip. */
+function anyGlyphId(id){
+  if(!id) return false;
+  if((S.glyphs || []).some(gl => gl.id === id)) return true;
+  return GLYPHS.some(cat => cat.g.some(gl => gl.id === id));
+}
+
 function pickTool(name){
+  // Mark lays down a symbol; underlines and boxes come from Line and Box now,
+  // so make sure a symbol is actually armed before the tool is handed over.
+  if(name === "mark" && !anyGlyphId(S.markMode)) S.markMode = "emphasis";
   S.tool = name;
   if(INKTOOLS.has(name)) S.lastInk = name;
   if(name !== "connect") S.connFrom = null;
@@ -4126,7 +4139,7 @@ function applyFind(kind){
     if(kind === "highlight") S.hits[w.uid] = c.tint;
     else {
       const mk = S.marks[w.uid] || (S.marks[w.uid] = {});
-      if(kind === "underline"){ mk.u = c.hue; mk.u2 = (S.markMode === "double") || null; }
+      if(kind === "underline"){ mk.u = c.hue; mk.us = S.lineStyle === "thick" ? "regular" : S.lineStyle; }
       if(kind === "box")       mk.b = c.hue;
     }
   });
@@ -4162,6 +4175,9 @@ const marksEl = document.getElementById("marks");
 
 /* Lay this mark on every selected word, or if nothing is selected, remember it
    for the next word you tap with the Mark tool. */
+/* Choosing a symbol says what to lay down. It also has to say how: without
+   arming the Mark tool, the next tap on a word would merely select it, and the
+   symbol you just chose would sit there doing nothing. */
 function useMark(mode){
   S.markMode = mode;
   const sel = selectedWords();
@@ -4169,7 +4185,9 @@ function useMark(mode){
     pushUndo();
     sel.forEach(w => markWord(w, mode, true));
   }
+  if(S.tool !== "mark") pickTool("mark");
   paintMarks();
+  saveSoon();
 }
 
 function paintMarks(){
@@ -4438,9 +4456,8 @@ function saveGlyph(name, paths){
   S.glyphs = S.glyphs || [];
   const id = "u:" + (++S.glyphSeq || (S.glyphSeq = 1));
   S.glyphs.push({ id, n:name, d:paths.map(safePath).filter(Boolean) });
-  S.markMode = id;
   kvSet("glyphs", { seq:S.glyphSeq, list:S.glyphs });
-  paintMarks();
+  useMark(id);                      // the one you just made is the one you want
 }
 
 
@@ -5558,7 +5575,8 @@ function loadBookDoc(key, p){
 /* ---- settings ---- */
 function prefsSnapshot(){
   return {
-    key:S.key, chapter:S.chapter, ci:S.ci, ls:S.lineStyle, nib:S.nib, tool:S.tool,
+    key:S.key, chapter:S.chapter, ci:S.ci, ls:S.lineStyle, nib:S.nib, mk:S.markMode,
+    tool:S.tool,
     finger:S.fingerMode, sawPen:S.sawPen,
     mods:[document.getElementById("mText").value, document.getElementById("mLex").value,
           document.getElementById("mEng").value,  document.getElementById("mHeb").value,
@@ -5582,6 +5600,7 @@ function applyPrefs(p){
   S.ci = (p.ci >= 0 && p.ci < COLORS.length) ? p.ci : 12;
   S.lineStyle = (LINESTYLE[p.ls] || p.ls === "thick") ? p.ls : "regular";
   S.nib = NIBS[p.nib] ? p.nib : "fineliner";
+  if(p.mk) S.markMode = p.mk;
   S.tool = (p.tool === "join") ? "split" : (p.tool || "move");
   S.fingerMode = ["auto","move","draw"].includes(p.finger) ? p.finger : "auto";
   S.sawPen = !!p.sawPen;
@@ -6336,7 +6355,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-08-13b";
+const BUILD = "2026-08-14a";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file

@@ -11,7 +11,7 @@
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./icon-180.png">
 <link rel="icon" href="./icon-192.png">
-<title>Nous — Greek NT Flow Diagrams</title>
+<title>Nous — Flow Diagrams for Biblical Exegesis</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cardo:wght@400;700&family=Inter:wght@400;500;600&family=Noto+Serif+Hebrew:wght@400;600&display=swap" rel="stylesheet">
@@ -553,10 +553,10 @@
       <div id="empty">
         <div class="card">
           <svg class="glyph" viewBox="0 0 100 100" aria-hidden="true"><path d="M29.2 22.8C41.5 19.4 58.5 19.4 70.8 22.8C74.2 47.8 62.8 78.6 50.0 91.8C37.2 78.6 25.8 47.8 29.2 22.8Z" fill="currentColor"/><circle cx="50" cy="45.2" r="5.5" fill="var(--paper)"/><path d="M47.3 45.2L52.7 45.2L50.5 90.5L49.5 90.5Z" fill="var(--paper)"/><path d="M35.2 29.4C32.0 47.4 37.2 65.6 44.8 77.4" fill="none" stroke="var(--paper)" stroke-width="1.7" stroke-linecap="round"/><path d="M64.8 29.4C68.0 47.4 62.8 65.6 55.2 77.4" fill="none" stroke="var(--paper)" stroke-width="1.7" stroke-linecap="round"/><path d="M44.4 37.6C47.0 34.2 53.0 34.2 55.6 37.6" fill="none" stroke="var(--paper)" stroke-width="1.6" stroke-linecap="round"/><path d="M38.6 26.8C44.0 25.0 56.0 25.0 61.4 26.8" fill="none" stroke="var(--paper)" stroke-width="1.6" stroke-linecap="round"/></svg>
-          <h2>Install the Greek New Testament</h2>
-          <p>All 27 books with full morphological parsing, from the MorphGNT
-             edition of the SBL Greek New Testament. About 8&nbsp;MB, fetched once
-             and kept on this device.</p>
+          <h2>Install the Scriptures</h2>
+          <p>Both Testaments in their own languages, fully parsed: the Greek New
+             Testament and the Hebrew Old Testament. Fetched once and kept on this
+             device, ready to work on whether or not you have a connection.</p>
           <button id="installNT" class="act big">Install the New Testament</button>
           <button id="installOT" class="act big alt2">Install the Old Testament</button>
           <div class="prog" id="installProg"></div>
@@ -727,7 +727,7 @@
     <button id="fHi" class="act">Highlight</button>
     <button id="fUnd">Underline</button>
     <button id="fBox">Box</button>
-    <button id="fClear">Clear all</button>
+    <button id="fClear">Clear these</button>
   </div>
 </div>
 
@@ -789,6 +789,14 @@
   <div id="keylist"></div>
   <div class="foot">Everything but the tool keys needs a word selected — tap one first.
     Nothing fires while you are typing in a box.</div>
+  <hr>
+  <h4>If something disappears</h4>
+  <div class="item"><div class="kbd">The log</div><div>Under <b>⋯</b>, <b>What has been
+    removed</b> lists everything Nous has taken away or replaced, with the time and the reason —
+    an erased stroke, a sync that rewrote the page, a cleared search. If work goes missing, look
+    there first and it will say what happened.</div></div>
+  <div class="item"><div class="kbd">Undo</div><div>Goes back forty steps, including a page
+    rewritten by a sync. It is emptied when you open a different book.</div></div>
   <hr>
   <h4>Where the text comes from</h4>
   <div class="item"><div class="kbd">Greek</div><div>SBLGNT, © 2010 Society of Biblical
@@ -961,8 +969,10 @@
       Your work is saved first; nothing is lost by loading it now.</div>
     <button class="rowbtn" id="loadNewVersion">Load the new version</button>
   </div>
+  <button class="rowbtn" id="logBtn">What has been removed…</button>
+  <div id="logWrap" style="display:none"><div id="logBody"></div></div>
   <button class="rowbtn" id="saveFile">Save a copy as a file…</button>
-  <button class="rowbtn" id="forget">Forget saved work</button>
+  <button class="rowbtn danger" id="forget">Forget every book and every diagram…</button>
   <hr>
   <h4>Sync between devices</h4>
   <div class="foot" style="padding-top:0">Keeps your work the same on the iPad and the
@@ -1004,9 +1014,9 @@
     "Save to Files" produces a PDF.</div>
   <hr>
   <h4>Page</h4>
-  <button class="rowbtn" id="reset">Reset layout — keep ink and sections</button>
-  <button class="rowbtn" id="clear">Clear all ink and arrows</button>
-  <button class="rowbtn" id="clearSec">Remove all section breaks</button>
+  <button class="rowbtn danger" id="reset">Reset the line structure of this book…</button>
+  <button class="rowbtn danger" id="clear">Clear all ink and arrows in this book…</button>
+  <button class="rowbtn danger" id="clearSec">Remove all section breaks in this book…</button>
 </div>
 
 <script>
@@ -1459,8 +1469,11 @@ function build(key){
     // Put the book that was open safely away BEFORE clearing the page, and then
     // let go of it. Otherwise the next book switch would snapshot this emptied
     // state over a week's work.
-    if(S._loadedBook && PASSAGES[S._loadedBook])
+    if(S._loadedBook && PASSAGES[S._loadedBook]){
       S.docs[S._loadedBook] = currentDoc(S._loadedBook);
+      note("Page cleared", "no passage to show; " +
+           ((PASSAGES[S._loadedBook] || {}).title || S._loadedBook) + " was filed away first");
+    }
     S._loadedBook = null;
     S.key = ""; S.words = []; S.lines = []; S.strokes = []; S.conns = []; S.sections = [];
     S.hits = {}; S.marks = {}; S.lemHi = {}; S.sel = null;
@@ -2408,7 +2421,12 @@ hit.addEventListener("pointerdown", e=>{
 
   // two or more FINGERS (never the pen) → pan the page instead of drawing
   if(e.pointerType !== "pen" && touches >= 2){
-    if(drag && (drag.kind === "ink" || drag.kind === "shape")){ S.strokes.pop(); redraw(); }
+    if(drag && (drag.kind === "ink" || drag.kind === "shape")){
+      // remove the one being drawn, which is not necessarily the last in the list
+      const i = S.strokes.indexOf(drag.s);
+      if(i >= 0) S.strokes.splice(i, 1);
+      redraw();
+    }
     drag = null; panning = true; panRef = e.pointerId;
     return;
   }
@@ -2501,7 +2519,7 @@ hit.addEventListener("pointerdown", e=>{
       pts: (t === "line" || SHAPES.has(t)) ? [start, {x:start.x, y:start.y}] : [start]
     };
     S.strokes.push(s);
-    drag = { kind:(t === "line" || SHAPES.has(t)) ? "shape" : "ink", s, ox, oy };
+    drag = { kind:(t === "line" || SHAPES.has(t)) ? "shape" : "ink", s, ox, oy, t0:Date.now() };
     return;
   }
 
@@ -2790,8 +2808,11 @@ hit.addEventListener("pointerup", e=>{
   if(drag && drag.kind === "shape"){
     const [a,b] = drag.s.pts;
     const travelled = Math.hypot(b.x - a.x, b.y - a.y);
-    if(travelled < (drag.xref ? 24 : 12)){
+    const heldLong = Date.now() - (drag.t0 || 0) > 400;
+    // a tap draws nothing and is thrown away; a small, careful shape is not a tap
+    if(travelled < (drag.xref ? 20 : 8) && !heldLong){
       S.strokes.splice(S.strokes.indexOf(drag.s), 1); redraw(); drag = null;
+      note("Shape discarded", "it was a tap, not a drag");
       tapWasSelection(e);
     }
     // a square drawn round a quotation asks what it is quoting
@@ -4382,8 +4403,14 @@ document.getElementById("fHi").onclick    = ()=> applyFind("highlight");
 document.getElementById("fUnd").onclick   = ()=> applyFind("underline");
 document.getElementById("fBox").onclick   = ()=> applyFind("box");
 document.getElementById("fClear").onclick = ()=>{
+  /* Its three neighbours act on the matches; so does this. It used to empty
+     every highlight and every mark in the book — a week's work behind one
+     small button, in a panel you open to search. */
+  const hits = S._hits || [];
+  if(!hits.length) return;
   pushUndo();
-  S.hits = {}; S.marks = {};
+  hits.forEach(w=>{ delete S.hits[w.uid]; delete S.marks[w.uid]; });
+  note("Cleared the matches", hits.length + " word" + (hits.length === 1 ? "" : "s"));
   render(); saveSoon();
 };
 document.getElementById("findBtn").onclick = ()=>{
@@ -5673,18 +5700,30 @@ document.getElementById("passage").onchange = e =>{
 };
 document.getElementById("auto").onclick  = ()=>{ pushUndo(); autoSplit(); };
 document.getElementById("reset").onclick = ()=>{
+  if(!confirm("Put every line of " + ((PASSAGES[S.key] || {}).title || "this book") +
+              " back to one per verse? Your ink, marks and sections are kept.")) return;
   pushUndo();
+  note("Line structure reset", (PASSAGES[S.key] || {}).title || S.key);
   const ink = S.strokes, cn = S.conns, sec = S.sections;
   build(S.key); S.strokes = ink; S.conns = cn; S.sections = sec;
-  layout(); syncJoin(); closePops();
+  layout(); syncJoin(); closePops(); saveSoon();
 };
 document.getElementById("clear").onclick = ()=>{
+  const n = S.strokes.length + S.conns.length;
+  if(!n) return;
+  if(!confirm("Remove all " + n + " strokes and arrows from " +
+              ((PASSAGES[S.key] || {}).title || "this book") + "?")) return;
   pushUndo();
+  note("Cleared all ink", n + " strokes and arrows");
   S.strokes = []; S.conns = []; drawConns(); redraw(); closePops();
+  saveSoon();
 };
 document.getElementById("clearSec").onclick = ()=>{
+  if(!S.sections.length) return;
+  if(!confirm("Remove all " + S.sections.length + " section breaks and their titles?")) return;
   pushUndo();
-  S.sections = []; layout(); closePops();
+  note("Section breaks removed", S.sections.length + " of them");
+  S.sections = []; layout(); closePops(); saveSoon();
 };
 
 window.addEventListener("resize", resizeCanvas);
@@ -5906,6 +5945,7 @@ function pushUndo(){
 }
 
 function applySnap(d){
+  note("Undo or redo", "the page was put back");
   S._restoring = true;
   try{ applyDoc(d, PASSAGES[S.key]); }finally{ S._restoring = false; }
   rebuildLines();
@@ -5930,6 +5970,33 @@ function syncUndo(){
   if(r) r.disabled = !S.redo.length;
 }
 
+
+/* ============================================================
+   THE LOG
+   Whenever something is removed, thrown away, replaced or restored, it is
+   written down here with the reason. Nothing that disappears should be a
+   mystery: the last hundred events are kept and shown under ⋯.
+   ============================================================ */
+const LOGMAX = 100;
+function note(what, detail){
+  S.log = S.log || [];
+  S.log.push({ t:Date.now(), w:what, d:detail || "" });
+  if(S.log.length > LOGMAX) S.log.shift();
+  const el = document.getElementById("logBody");
+  if(el && el.parentNode && el.parentNode.style.display !== "none") paintLog();
+}
+
+function paintLog(){
+  const el = document.getElementById("logBody");
+  if(!el) return;
+  const rows = (S.log || []).slice(-40).reverse();
+  el.innerHTML = rows.length
+    ? rows.map(r => '<div class="logrow"><span class="logt">' +
+        new Date(r.t).toLocaleTimeString([], {hour:"2-digit", minute:"2-digit", second:"2-digit"}) +
+        '</span><span>' + xmlEsc(r.w) + (r.d ? ' — ' + xmlEsc(r.d) : "") + '</span></div>').join("")
+    : '<div class="foot" style="padding-top:0">Nothing has been removed or replaced.</div>';
+}
+
 /* ---- saving ---- */
 function saveSoon(){
   if(S._restoring) return;
@@ -5940,13 +6007,14 @@ function saveSoon(){
 }
 
 function saveNow(){
-  if(S._restoring) return;
+  if(S._restoring) return Promise.resolve(false);
   if(S.key) S.docs[docKey()] = currentDoc(S.key);
   mirrorSync();                       // synchronous, so it survives a sudden close
-  if(!storageOK) return;
-  Promise.all([kvSet("docs", S.docs), kvSet("prefs", prefsSnapshot())])
-    .then(([a, b])=>{ if(a && b) stampSaved(Date.now()); })
-    .catch(()=>{});
+  if(!storageOK) return Promise.resolve(false);
+  return Promise.all([kvSet("docs", S.docs), kvSet("prefs", prefsSnapshot())])
+    .then(([a, b])=>{ if(a && b){ stampSaved(Date.now()); return true; }
+                      note("Could not save", "storage refused the write"); return false; })
+    .catch(()=>{ note("Could not save", "storage threw"); return false; });
 }
 
 /* IndexedDB writes are asynchronous, and iPadOS often tears the page down on
@@ -6253,6 +6321,9 @@ async function syncBook(key){
   const movedOn = !live || JSON.stringify(docParts(live)) !== JSON.stringify(docParts(merged));
   S.docs[key] = merged;
   if(S._loadedBook === key && movedOn){
+    // a merge rewrites the page, so leave a way back from it
+    pushUndo();
+    note("Sync changed this page", (PASSAGES[key] || {}).title || key);
     S._restoring = true;
     try{ applyDoc(merged, PASSAGES[key]); }finally{ S._restoring = false; }
     rebuildLines();
@@ -6263,6 +6334,7 @@ async function syncBook(key){
   // it has, something upstream is wrong and the safe thing is to leave the
   // other device alone and say so, rather than propagate the loss.
   if(docWeight(theirs) > 0 && docWeight(merged) === 0){
+    note("Sync refused", "it would have emptied " + ((PASSAGES[key] || {}).title || key));
     setSyncState("error",
       "Stopped: syncing would have emptied " + ((PASSAGES[key] || {}).title || key) +
       ", which had work in it. Nothing was sent. Your other device still has it.");
@@ -6304,8 +6376,11 @@ async function syncAll(opts){
       if(r && !r.skipped){ books++; added += r.added || 0; changed += r.changed || 0;
                            if(r.pushed) pushed++; }
     }
-    saveNow();
-    kvSet("sync", { base:SYNC.base, shas:SYNC.shas, at:Date.now() });
+    /* Record where we got to only once the local copy is safely written. The
+       other order lets a sudden close leave a note saying work was synced that
+       was never stored — and the next merge reads that as a deletion. */
+    await saveNow();
+    await kvSet("sync", { base:SYNC.base, shas:SYNC.shas, at:Date.now() });
     SYNC.at = Date.now();
     if(refused) return;                          // the reason is already showing
     const what = added || changed
@@ -6613,9 +6688,19 @@ document.getElementById("fingerMode").onchange = e =>{
   S.fingerMode = e.target.value;
   saveSoon();
 };
+document.getElementById("logBtn").onclick = ()=>{
+  const w = document.getElementById("logWrap");
+  const showing = w.style.display === "none";
+  w.style.display = showing ? "" : "none";
+  if(showing) paintLog();
+};
 document.getElementById("loadNewVersion").onclick = loadNewVersion;
 document.getElementById("saveFile").onclick = saveProjectFile;
 document.getElementById("forget").onclick = ()=>{
+  if(!confirm("Forget every book and every diagram on this device? " +
+              "This cannot be undone. Work already synced to GitHub is not affected."))
+    return;
+  note("Everything forgotten", "from the settings panel");
   S.docs = {}; S.corpusFiles = []; S._loadedBook = null;
   Object.keys(PASSAGES).filter(k=>BOOKKEY.test(k)).forEach(k=>delete PASSAGES[k]);
   kvSet("docs", {}); kvSet("corpus", {files:[]}); kvSet("prefs", {});
@@ -6631,7 +6716,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-08-15b";
+const BUILD = "2026-08-16a";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file

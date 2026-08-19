@@ -1,5 +1,9 @@
 # Getting Nous onto your iPad
 
+Nous is a workbench for reading the Scriptures closely in their own languages —
+Greek and Hebrew — laying them out as flow diagrams and marking them up with a
+Pencil.
+
 There is no App Store build — that needs Xcode, a paid developer account and a
 native rewrite. What you can have today is an **installable web app**: a real
 icon on your Home Screen, full screen with no Safari chrome, working offline,
@@ -28,10 +32,15 @@ The free tier is fine for this and the site stays up. Anyone with the URL can
 reach it, so don't treat it as private. If you want it private, make a free
 Netlify account and the same drop page will let you password-protect it.
 
-**Then load the New Testament once:** download
-`https://github.com/morphgnt/sblgnt/archive/refs/heads/master.zip` on the iPad,
-open Nous, tap **⋯ → Files**, and pick the zip from Downloads. All 27 books
-load in one go and are remembered from then on.
+**Then load the Scriptures once.** On the welcome page, tap **Install the New
+Testament** and **Install the Old Testament**. Nous fetches them itself — the
+SBL Greek New Testament with MorphGNT parsing, and the Westminster Leningrad
+Codex with Open Scriptures morphology — and keeps them on the device from then
+on. The Old Testament is roughly four times the size and takes a few minutes.
+
+If you would rather do it by hand, tap **⋯ → Files** and drop in MorphGNT
+`.txt` files, the SBLGNT repository `.zip`, or OSIS `.xml` files from
+`openscriptures/morphhb`.
 
 ---
 
@@ -97,7 +106,7 @@ saved books and diagrams are untouched by updates.
 
 ## If you later want a real App Store app
 
-The technical spec (`greek-nt-app-spec.md`) covers this. Short version: a
+The technical spec covers this. Short version: a
 native iPadOS rewrite in SwiftUI + PencilKit, roughly 3–4 months part-time,
 needing a Mac with Xcode and a $99/year Apple Developer account. The reason to
 do it is ink quality — PencilKit's ~9ms latency, tilt and pressure against

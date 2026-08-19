@@ -1,7 +1,7 @@
 {
-  "name": "Nous — Greek NT Flow Diagrams",
+  "name": "Nous — Flow Diagrams for Biblical Exegesis",
   "short_name": "Nous",
-  "description": "Read the Greek New Testament closely: flow-diagram, annotate and parse with an Apple Pencil.",
+  "description": "Read the Scriptures closely in Greek and Hebrew: flow-diagram, annotate and parse with an Apple Pencil.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

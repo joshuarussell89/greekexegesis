@@ -777,7 +777,9 @@
   <div class="item"><div class="kbd">Colouring</div><div>Nothing is coloured until you say so.
     With a selection, tapping a colour highlights all of it. If the selection came from tapping
     twice, the colour follows that lemma wherever it occurs; otherwise it is laid on those words
-    alone. The same colour again takes it off, and <b>esc</b> deselects.</div></div>
+    alone. Tapping the <em>same</em> colour straight afterwards takes it off again — but a colour
+    never removes anything on its own, so a selection you had forgotten about cannot lose its
+    marks. <b>esc</b> deselects.</div></div>
   <div class="item"><div class="kbd">Colour</div><div>The palette runs down the left of the
     window, beside the page rather than over it. The same 18 colours twice: full strength for
     the pen, and their lighter tints for the highlighter. Reaching for a tint picks up the
@@ -3170,18 +3172,21 @@ function pickColor(i){
 
   /* A colour is for whatever is selected. A selection made by tapping twice is
      a lemma, so its colour follows the lemma wherever it occurs; anything else
-     is coloured word by word. The same colour again takes the highlight off, so
-     one swatch both gives and removes. */
+     is coloured word by word.
+
+     It always goes ON — unless you have just tapped the same colour, which is
+     how you take it off. It used to come off whenever the selection already had
+     that colour, which meant a selection left over from earlier could lose its
+     highlight to a tap meant for the pen. */
   const sel = selectedWords();
   if(sel.length){
     const tint = COLORS[i].tint;
+    const on = !isRepeat("colour:" + i + ":" + (S.selLemma || S.selSet.join(",")));
     pushUndo();
     if(S.selLemma){
-      if(S.lemHi[S.selLemma] === tint) delete S.lemHi[S.selLemma];
-      else S.lemHi[S.selLemma] = tint;
+      if(on) S.lemHi[S.selLemma] = tint; else delete S.lemHi[S.selLemma];
     } else {
-      const allSame = sel.every(w => S.hits[w.uid] === tint);
-      sel.forEach(w => { if(allSame) delete S.hits[w.uid]; else S.hits[w.uid] = tint; });
+      sel.forEach(w => { if(on) S.hits[w.uid] = tint; else delete S.hits[w.uid]; });
     }
     render();
     if(S.sel !== null){ syncLemBtn(S.words[S.sel]); paintLemHint(S.words[S.sel]); }
@@ -4405,10 +4410,7 @@ const marksEl = document.getElementById("marks");
 function useMark(mode){
   S.markMode = mode;
   const sel = selectedWords();
-  if(sel.length){
-    pushUndo();
-    sel.forEach(w => markWord(w, mode, true));
-  }
+  if(sel.length) applyMarkTo(sel, mode);
   if(S.tool !== "mark") pickTool("mark");
   paintMarks();
   saveSoon();
@@ -4482,26 +4484,61 @@ function paintMarks(){
 /* Toggle the current mark on a word. */
 /* Lay a mark on one word, or take it off again if it is already there.
    kind is "underline" (in one of the line styles), "box", or a symbol's name. */
+function setMark(w, kind, on){
+  if(!w) return;
+  const mk = S.marks[w.uid] || {};
+  const c = COLORS[S.ci];
+  if(kind === "underline" || LINESTYLE[kind]){
+    const style = LINESTYLE[kind] ? kind : "regular";
+    mk.u  = on ? c.hue : null;
+    mk.us = on ? style : null;
+  } else if(kind === "box"){
+    mk.b = on ? c.hue : null;
+  } else {
+    mk.s  = on ? kind : null;
+    mk.sc = on ? c.hue : mk.sc;
+  }
+  if(!mk.u && !mk.b && !mk.s) delete S.marks[w.uid];
+  else S.marks[w.uid] = mk;
+}
+
+function hasMark(w, kind){
+  const mk = S.marks[w.uid];
+  if(!mk) return false;
+  if(kind === "underline" || LINESTYLE[kind])
+    return !!mk.u && (mk.us || "regular") === (LINESTYLE[kind] ? kind : "regular");
+  if(kind === "box") return !!mk.b;
+  return mk.s === kind;
+}
+
+/* One word, tapped on its own: a tap puts the mark on, a second takes it off. */
 function markWord(w, kind, noUndo){
   if(!w) return;
   if(kind === undefined || kind === null) kind = S.markMode;
   if(!noUndo) pushUndo();
-  const mk = S.marks[w.uid] || {};
-  const c = COLORS[S.ci];
+  setMark(w, kind, !hasMark(w, kind));
+  render(); saveSoon();
+}
 
-  if(kind === "underline" || LINESTYLE[kind]){
-    const style = LINESTYLE[kind] ? kind : "regular";
-    const on = mk.u && (mk.us || "regular") === style;
-    mk.u  = on ? null : c.hue;
-    mk.us = on ? null : style;
-  } else if(kind === "box"){
-    mk.b = mk.b ? null : c.hue;
-  } else {
-    mk.s = (mk.s === kind) ? null : kind;
-    mk.sc = c.hue;
-  }
-  if(!mk.u && !mk.b && !mk.s) delete S.marks[w.uid];
-  else S.marks[w.uid] = mk;
+/* Was this the very same action a moment ago? Applying something to a group is
+   a thing you do on purpose; taking it away again should also be on purpose,
+   not something that happens because the group already had it. */
+function isRepeat(tag){
+  const r = S._repeat;
+  const same = r && r.what === tag && Date.now() - r.at < 2500;
+  S._repeat = { what:tag, at:Date.now() };
+  return !!same;
+}
+
+/* Lay a mark on a group of words. It goes ON — every time — unless you have
+   just done the same thing, which is how you take it off again. Toggling each
+   word separately meant that applying a mark to a selection could quietly strip
+   it from whichever words already had it. */
+function applyMarkTo(words, kind){
+  if(!words.length) return;
+  const on = !isRepeat("mark:" + kind);
+  pushUndo();
+  words.forEach(w => setMark(w, kind, on));
   render(); saveSoon();
 }
 
@@ -4510,9 +4547,8 @@ function markWord(w, kind, noUndo){
 function markHere(w, kind){
   const sel = selectedWords();
   const inSel = sel.some(x => x.uid === w.uid);
-  const targets = (inSel && sel.length > 1) ? sel : [w];
-  pushUndo();
-  targets.forEach(x => markWord(x, kind, true));
+  if(inSel && sel.length > 1) applyMarkTo(sel, kind);
+  else markWord(w, kind);
 }
 
 
@@ -5523,8 +5559,7 @@ document.getElementById("redoBtn").onclick = redo;
 function markSelected(kind){
   const sel = selectedWords();
   if(!sel.length) return false;
-  pushUndo();
-  sel.forEach(w => markWord(w, kind, true));
+  applyMarkTo(sel, kind);
   paintMarks();
   return true;
 }
@@ -6596,7 +6631,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-08-15a";
+const BUILD = "2026-08-15b";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file

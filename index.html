@@ -531,7 +531,7 @@
         <button data-tool="line" id="lineBtn" title="Straight line — tap for weights and patterns"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.4 17L18.6 5"/><circle cx="3.4" cy="17" r="1.4" fill="currentColor" stroke="none"/><circle cx="18.6" cy="5" r="1.4" fill="currentColor" stroke="none"/></svg>Line<svg class="car"
                viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"
                stroke-linecap="round"><path d="M1 1l4 4 4-4"/></svg></button>
-        <button data-tool="rect" id="boxBtn" title="Rectangle — tap for the cross-reference square"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.6" y="6" width="14.8" height="10" rx="1.6"/><circle cx="3.6" cy="6" r="1.3" fill="currentColor" stroke="none"/><circle cx="18.4" cy="16" r="1.3" fill="currentColor" stroke="none"/></svg>Box<svg class="car" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M1 1l4 4 4-4"/></svg></button>
+        <button data-tool="rect" id="boxBtn" title="Shapes — box, oval, triangle, cross-reference"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.6" y="6" width="14.8" height="10" rx="1.6"/><circle cx="3.6" cy="6" r="1.3" fill="currentColor" stroke="none"/><circle cx="18.4" cy="16" r="1.3" fill="currentColor" stroke="none"/></svg>Shapes<svg class="car" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M1 1l4 4 4-4"/></svg></button>
         <button data-tool="mark" id="markBtn" title="Underline, box or badge a word"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.2h10v16l-5-3.6-5 3.6v-16z"/><path d="M11 7l1 2.1 2.3.3-1.7 1.6.4 2.3-2-1.1-2 1.1.4-2.3L7.7 9.4 10 9.1 11 7z" stroke-width="1.1"/></svg>Mark</button>
         <button data-tool="erase" title="Erase whole strokes"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8.4 17.4H5.2l-1.8-1.8a1.6 1.6 0 010-2.3l8-8 5.5 5.5-6.5 6.6z"/><path d="M8.4 17.4H18"/><path d="M9.6 8.2l5.5 5.5"/></svg>Erase</button>
       </div>
@@ -750,8 +750,14 @@
     for a grip. Without a Pencil, your finger draws. Overrule it under <b>⋯</b>.</div></div>
   <div class="item"><div class="kbd">Line</div><div>Snaps to true horizontal or vertical
     within 8°.</div></div>
-  <div class="item"><div class="kbd">Box</div><div>Drag corner to corner. Erasing its empty
-    interior is ignored.</div></div>
+  <div class="item"><div class="kbd">Shapes</div><div>Box, oval, triangle and the
+    cross-reference square, all dragged corner to corner. Tapping a word with the oval or the
+    triangle fits one round it. Erasing a shape's empty interior is ignored — go over its
+    edge.</div></div>
+  <div class="item"><div class="kbd">Moving things</div><div>In <b>Move/Select</b>, touching
+    anything already drawn picks it up: drag to move it, or pull a corner to resize. Lines and
+    shapes have handles at their corners; freehand strokes and chains just move.
+    <b>⌘⌫</b> takes away whatever is held, and tapping the paper puts it down.</div></div>
   <div class="item"><div class="kbd">Eraser</div><div>Rubs out whatever it passes over — ink,
     lines, boxes, arrows, and the underline, box or symbol on a word. Lemma highlights are left
     alone, since those belong to every occurrence; clear those from the word inspector.</div></div>
@@ -1038,7 +1044,7 @@ const S = {
   hits:{}, marks:{}, notes:{}, summaries:{}, markMode:"emphasis", findQ:"", glyphs:[],
   words:[], lines:[], strokes:[], conns:[], sections:[],
   tool:"move", lastInk:"pen", ci:12, lineStyle:"regular", nib:"fineliner",
-  fingerMode:"auto", sawPen:false, sel:null, selSet:[], selLemma:null,
+  fingerMode:"auto", sawPen:false, sel:null, selSet:[], selLemma:null, selStroke:null,
   lemHi:{}, connFrom:null, curLine:null, dpr:1
 };
 
@@ -1876,13 +1882,183 @@ function strokePen(g, st, pts){
   g.globalAlpha = a0;
 }
 
+
+/* The outline of a two-corner shape, as a path on whichever context is given.
+   One definition, so the page, the eraser and the exported picture agree. */
+function shapePath(g, mode, a, b){
+  const x0 = Math.min(a.x, b.x), y0 = Math.min(a.y, b.y);
+  const x1 = Math.max(a.x, b.x), y1 = Math.max(a.y, b.y);
+  const w = x1 - x0, h = y1 - y0;
+  g.beginPath();
+  if(mode === "oval"){
+    const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+    const rx = Math.max(0.5, w / 2), ry = Math.max(0.5, h / 2);
+    // built from arcs so it needs nothing beyond what every canvas has
+    const N = 40;
+    for(let i = 0; i <= N; i++){
+      const t = i / N * Math.PI * 2;
+      const px2 = cx + Math.cos(t) * rx, py2 = cy + Math.sin(t) * ry;
+      if(i === 0) g.moveTo(px2, py2); else g.lineTo(px2, py2);
+    }
+  } else if(mode === "tri"){
+    g.moveTo((x0 + x1) / 2, y0);
+    g.lineTo(x1, y1);
+    g.lineTo(x0, y1);
+    g.closePath();
+  } else {
+    g.moveTo(x0, y0); g.lineTo(x1, y0); g.lineTo(x1, y1); g.lineTo(x0, y1); g.closePath();
+  }
+}
+
+/* Points around a shape's outline, for the eraser and for hit-testing. */
+function shapeOutline(mode, a, b){
+  const x0 = Math.min(a.x, b.x), y0 = Math.min(a.y, b.y);
+  const x1 = Math.max(a.x, b.x), y1 = Math.max(a.y, b.y);
+  const out = [];
+  const seg = (p, q)=>{ for(let i = 0; i <= 20; i++)
+    out.push({ x:p.x + (q.x - p.x) * i / 20, y:p.y + (q.y - p.y) * i / 20 }); };
+  if(mode === "oval"){
+    const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, rx = (x1 - x0) / 2, ry = (y1 - y0) / 2;
+    for(let i = 0; i < 44; i++){
+      const t = i / 44 * Math.PI * 2;
+      out.push({ x:cx + Math.cos(t) * rx, y:cy + Math.sin(t) * ry });
+    }
+  } else if(mode === "tri"){
+    const apex = { x:(x0 + x1) / 2, y:y0 }, br = { x:x1, y:y1 }, bl = { x:x0, y:y1 };
+    seg(apex, br); seg(br, bl); seg(bl, apex);
+  } else {
+    const c1 = {x:x0,y:y0}, c2 = {x:x1,y:y0}, c3 = {x:x1,y:y1}, c4 = {x:x0,y:y1};
+    seg(c1,c2); seg(c2,c3); seg(c3,c4); seg(c4,c1);
+  }
+  return out;
+}
+
+
+/* ============================================================
+   MOVING AND RESIZING WHAT IS ALREADY THERE
+   In Move/Select, anything drawn can be picked up again. Two-cornered things —
+   lines, boxes, ovals, triangles, cross-references — get handles at their
+   corners; freehand strokes and chains just move. Handles are drawn on the page
+   only, never into an exported picture.
+   ============================================================ */
+const GRABBABLE = new Set(["line","rect","oval","tri","xref","pen"]);
+const HANDLE = 9;
+
+function strokeOf(sid){ return S.strokes.find(st => st.sid === sid) || null; }
+
+/* The corners you can take hold of, in page coordinates. */
+function handlesOf(st){
+  const pts = strokePoints(st);
+  if(!st || pts.length < 2) return [];
+  if(st.mode === "line") return [ {x:pts[0].x, y:pts[0].y, i:0}, {x:pts[1].x, y:pts[1].y, i:1} ];
+  if(!SHAPES.has(st.mode)) return [];
+  const a = pts[0], b = pts[1];
+  return [ {x:a.x, y:a.y, c:0}, {x:b.x, y:a.y, c:1},
+           {x:b.x, y:b.y, c:2}, {x:a.x, y:b.y, c:3} ];
+}
+
+function handleAt(x, y){
+  const st = strokeOf(S.selStroke);
+  if(!st) return null;
+  const r = HANDLE + 5;
+  for(const h of handlesOf(st)){
+    if(Math.abs(x - h.x) <= r && Math.abs(y - h.y) <= r) return { st, h };
+  }
+  return null;
+}
+
+/* The topmost thing under the finger that can be picked up. Highlighter strokes
+   are left out: they are a broad wash over the words, and would swallow every
+   tap meant for the text underneath. */
+/* How far a point is from a run of line segments. Measuring to the sampled
+   points instead leaves gaps between them — a long line sampled every 18px
+   cannot be grabbed anywhere but near a sample. */
+function distToPath(pts, x, y){
+  let best = Infinity;
+  for(let i = 1; i < pts.length; i++){
+    const a = pts[i-1], b = pts[i];
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const len2 = dx*dx + dy*dy;
+    let t = len2 ? ((x - a.x) * dx + (y - a.y) * dy) / len2 : 0;
+    t = Math.max(0, Math.min(1, t));
+    const qx = a.x + dx * t, qy = a.y + dy * t;
+    const d = Math.hypot(x - qx, y - qy);
+    if(d < best) best = d;
+  }
+  if(pts.length === 1) best = Math.hypot(x - pts[0].x, y - pts[0].y);
+  return best;
+}
+
+function strokeAt(x, y){
+  for(let i = S.strokes.length - 1; i >= 0; i--){
+    const st = S.strokes[i];
+    if(!GRABBABLE.has(st.mode)) continue;
+    const pts = hitPoints(st);
+    if(pts.length && distToPath(pts, x, y) <= 8) return st;
+  }
+  return null;
+}
+
+function selectStroke(st){
+  S.selStroke = st ? st.sid : null;
+  if(st) clearSelection();
+  redraw();
+}
+
+/* Shift a stroke bodily. Its points are kept relative to the word it is
+   anchored to, so moving it is simply moving every point. */
+function moveStroke(st, dx, dy){
+  st.pts = st.pts.map(q => ({ x:q.x + dx, y:q.y + dy, p:q.p }));
+}
+
+/* Drag one corner. For a line that is an end; for a shape it is a corner, and
+   the two stored points are adjusted so the other corners follow. */
+function resizeStroke(st, h, x, y){
+  const pts = strokePoints(st);
+  const off = { x:pts[0].x - st.pts[0].x, y:pts[0].y - st.pts[0].y };  // anchor offset
+  const lx = x - off.x, ly = y - off.y;
+  if(st.mode === "line"){ st.pts[h.i] = { x:lx, y:ly, p:st.pts[h.i].p }; return; }
+  const a = st.pts[0], b = st.pts[1];
+  if(h.c === 0){ a.x = lx; a.y = ly; }
+  else if(h.c === 1){ b.x = lx; a.y = ly; }
+  else if(h.c === 2){ b.x = lx; b.y = ly; }
+  else { a.x = lx; b.y = ly; }
+}
+
+/* The handles themselves, drawn on the page and nowhere else. */
+function paintHandles(g){
+  const st = strokeOf(S.selStroke);
+  if(!st) return;
+  const hs = handlesOf(st);
+  g.save();
+  g.lineWidth = 1.5;
+  if(!hs.length){
+    // freehand or a chain: show it is held, without corners to pull
+    const pts = strokePoints(st);
+    if(pts.length){
+      let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
+      pts.forEach(q=>{ x0=Math.min(x0,q.x); y0=Math.min(y0,q.y);
+                       x1=Math.max(x1,q.x); y1=Math.max(y1,q.y); });
+      g.strokeStyle = "#8a5a2b"; g.setLineDash([4,4]);
+      g.strokeRect(x0-5, y0-5, x1-x0+10, y1-y0+10);
+      g.setLineDash([]);
+    }
+  }
+  hs.forEach(h=>{
+    g.fillStyle = "#fffefb"; g.strokeStyle = "#1c1a17";
+    g.fillRect(h.x - HANDLE/2, h.y - HANDLE/2, HANDLE, HANDLE);
+    g.strokeRect(h.x - HANDLE/2, h.y - HANDLE/2, HANDLE, HANDLE);
+  });
+  g.restore();
+}
+
 function redraw(){
   ctx.setTransform(S.dpr,0,0,S.dpr,0,0);
   ctx.clearRect(0,0,cv.width,cv.height);
   ctx.lineCap = "round"; ctx.lineJoin = "round";
 
   // highlighter first so it sits underneath everything else
-  for(const pass of ["highlight","pen","line","rect"]){
+  for(const pass of ["highlight","pen","line","rect","oval","tri","xref"]){
     S.strokes.filter(s=>s.mode===pass).forEach(s=>{
       const pts = strokePoints(s);
       if(pts.length < 2) return;
@@ -1918,16 +2094,16 @@ function redraw(){
         }
         ctx.setLineDash([]);
 
-      } else {                                    // rect
+      } else {                                    // box, oval, triangle, cross-ref
         ctx.lineWidth = 2.2;
-        const x = Math.min(pts[0].x, pts[1].x), y = Math.min(pts[0].y, pts[1].y);
-        const w = Math.abs(pts[1].x - pts[0].x), h = Math.abs(pts[1].y - pts[0].y);
-        ctx.beginPath(); ctx.rect(x, y, w, h); ctx.stroke();
+        shapePath(ctx, s.mode, pts[0], pts[1]);
+        ctx.stroke();
       }
       ctx.globalAlpha = 1;
     });
   }
   S.strokes.filter(s => TAGMODES.has(s.mode)).forEach(s => paintTag(ctx, s));
+  paintHandles(ctx);          // on the page only; never in an exported picture
 }
 
 /* Points to test the eraser against. Freehand strokes are already dense;
@@ -1944,12 +2120,8 @@ function hitPoints(s){
   const a = pts[0], b = pts[1], out = [];
   const seg = (p,q)=>{ for(let i=0;i<=20;i++)
     out.push({x:p.x+(q.x-p.x)*i/20, y:p.y+(q.y-p.y)*i/20}); };
-  if(s.mode === "line") seg(a,b);
-  else {                                        // rect and xref: the four sides
-    const c1={x:a.x,y:a.y}, c2={x:b.x,y:a.y}, c3={x:b.x,y:b.y}, c4={x:a.x,y:b.y};
-    seg(c1,c2); seg(c2,c3); seg(c3,c4); seg(c4,c1);
-  }
-  return out;
+  if(s.mode === "line"){ seg(a,b); return out; }
+  return shapeOutline(s.mode, a, b);
 }
 
 
@@ -2160,7 +2332,7 @@ function bpt(e){
   return { x: e.clientX - r.left, y: e.clientY - r.top };
 }
 
-const INKTOOLS = new Set(["pen","line","rect"]);
+const INKTOOLS = new Set(["pen","line","rect","oval","tri"]);
 let boxMode = "rect";        // which kind of box the Box button currently means
 
 /* What a gesture means.
@@ -2295,10 +2467,12 @@ hit.addEventListener("pointerdown", e=>{
   /* The Line and Box tools mark a word when they are tapped on one rather than
      dragged across the page: a rule under a word is an underline, and a box
      round a word is a box. Which line style is chosen decides which underline. */
-  if(t === "line" || t === "rect"){
+  if(t === "line" || SHAPES.has(t)){
     const tapped = wordAt(p.x, p.y);
     if(tapped){
-      drag = { kind:"maybemark", w:tapped, kindOf:(t === "line" ? S.lineStyle : "box"),
+      drag = { kind:"maybemark", w:tapped,
+               kindOf:(t === "line" ? S.lineStyle : (t === "rect" ? "box" : null)),
+               shape:(t === "rect" || t === "line") ? null : t,
                sx:p.x, sy:p.y, moved:false, t0:Date.now(),
                tool:t, start:{ x:p.x, y:p.y } };
       return;
@@ -2322,10 +2496,10 @@ hit.addEventListener("pointerdown", e=>{
       color: COLORS[S.ci].hue,   // the highlighter renders the same hue at low alpha
       style: S.lineStyle,        // only meaningful for mode === "line"
       // shapes keep exactly two points: origin and the live corner/endpoint
-      pts: (t === "line" || t === "rect") ? [start, {x:start.x, y:start.y}] : [start]
+      pts: (t === "line" || SHAPES.has(t)) ? [start, {x:start.x, y:start.y}] : [start]
     };
     S.strokes.push(s);
-    drag = { kind:(t === "line" || t === "rect") ? "shape" : "ink", s, ox, oy };
+    drag = { kind:(t === "line" || SHAPES.has(t)) ? "shape" : "ink", s, ox, oy };
     return;
   }
 
@@ -2362,6 +2536,14 @@ hit.addEventListener("pointerdown", e=>{
   }
 
   // ---- move ----
+  // a corner of whatever is already held comes first, so it can be resized
+  const grip2 = handleAt(p.x, p.y);
+  if(grip2){
+    pushUndo();
+    drag = { kind:"resize", s:grip2.st, h:grip2.h };
+    return;
+  }
+
   // a tag is a link before it is a thing to be dragged
   const tag = tagAt(p.x, p.y);
   if(tag){
@@ -2370,8 +2552,17 @@ hit.addEventListener("pointerdown", e=>{
     return;
   }
 
+  // something already drawn: pick it up
+  const st = strokeAt(p.x, p.y);
+  if(st){
+    selectStroke(st);
+    drag = { kind:"movestroke", s:st, sx:p.x, sy:p.y, moved:false };
+    return;
+  }
+
   const w = wordAt(p.x, p.y);
   if(w){
+    if(S.selStroke){ S.selStroke = null; redraw(); }
     S.curLine = w.line; syncJoin();
     drag = { kind:"word", w, sx:p.x, sy:p.y, moved:false, t0:Date.now() };
     return;
@@ -2462,6 +2653,21 @@ hit.addEventListener("pointermove", e=>{
     }
     return;
   }
+  if(drag.kind === "movestroke"){
+    const dx = p.x - drag.sx, dy = p.y - drag.sy;
+    if(!drag.moved && (Math.abs(dx) > 3 || Math.abs(dy) > 3)){ drag.moved = true; pushUndo(); }
+    if(drag.moved){
+      moveStroke(drag.s, dx, dy);
+      drag.sx = p.x; drag.sy = p.y;
+      redraw();
+    }
+    return;
+  }
+  if(drag.kind === "resize"){
+    resizeStroke(drag.s, drag.h, p.x, p.y);
+    redraw();
+    return;
+  }
   if(drag.kind === "marq"){
     drag.x = p.x; drag.y = p.y;
     if(Math.abs(p.x - drag.sx) > 5 || Math.abs(p.y - drag.sy) > 5) drag.moved = true;
@@ -2536,9 +2742,14 @@ window.addEventListener("pointerdown", e=>{
   }catch(err){ S._anyTarget = "could not test"; }
 }, true);
 hit.addEventListener("pointerup", e=>{
+  if(drag && (drag.kind === "movestroke" || drag.kind === "resize")){
+    drag = null; endPointer(e); redraw(); saveSoon();
+    return;
+  }
   if(drag && drag.kind === "maybemark"){
     const d = drag; drag = null; endPointer(e);
-    markHere(d.w, d.kindOf);           // a tap: mark the word
+    if(d.shape) shapeRound(d.w, d.shape);   // an oval or triangle fitted to the word
+    else markHere(d.w, d.kindOf);           // a box or an underline, as a mark
     saveSoon();
     return;
   }
@@ -2548,7 +2759,7 @@ hit.addEventListener("pointerup", e=>{
     if(d.moved){
       const got = wordsInBox(d);
       if(got.length) setSelection(got, null); else clearSelection();
-    } else clearSelection();          // a tap on bare page puts the selection down
+    } else { clearSelection(); if(S.selStroke){ S.selStroke = null; redraw(); } }
     return;
   }
   // a tap on a tag follows it; a drag just moves it
@@ -2613,6 +2824,19 @@ function tapWord(w){
   S._tap = again ? null : { id:w.id, t:now };
   if(again) selectLemma(w);        // a second tap means every occurrence
   else select(w);
+}
+
+/* An oval or a triangle drawn to fit a word, anchored to it so it travels when
+   the lines reflow. */
+function shapeRound(w, mode){
+  pushUndo();
+  const padX = mode === "tri" ? 4 : 7, padY = mode === "tri" ? 3 : 6;
+  S.strokes.push({
+    sid:newSid(), mode, anchor:w.uid, color:COLORS[S.ci].hue, style:"regular",
+    pts:[ { x:-padX, y:-padY, p:.5 },
+          { x:w.w + padX, y:w.h + padY, p:.5 } ]
+  });
+  redraw(); saveSoon();
 }
 
 let mergeHintEl = null;
@@ -3006,7 +3230,7 @@ function pickTool(name){
   if(INKTOOLS.has(name)) S.lastInk = name;
   if(name !== "connect") S.connFrom = null;
   // the cross-reference square lives under the Box button, so light that one
-  const lit = (name === "xref") ? "rect" : name;
+  const lit = SHAPES.has(name) ? "rect" : name;
   document.querySelectorAll("[data-tool]").forEach(x =>
     x.classList.toggle("on", x.dataset.tool === lit));
 
@@ -3015,7 +3239,7 @@ function pickTool(name){
      plain box. Close it by choosing something, or by tapping the page. */
   if(name === "line"){ paintLinePop(); placeLinePop(); showPop(linePop); }
   else if(name === "pen"){ paintPenPop(); placePenPop(); showPop(penPop); }
-  else if(name === "rect" || name === "xref"){ paintBoxPop(); placeBoxPop(); showPop(boxPop); }
+  else if(SHAPES.has(name)){ paintBoxPop(); placeBoxPop(); showPop(boxPop); }
   else closePops();
   paintPalette(); drawConns();  // the palette previews tints or hues per tool
 }
@@ -4692,7 +4916,7 @@ function paintBoard(g){
 
   // ink last, so it sits over the text as it does on screen
   g.lineCap = "round"; g.lineJoin = "round";
-  ["highlight","pen","line","rect"].forEach(pass=>{
+  ["highlight","pen","line","rect","oval","tri","xref"].forEach(pass=>{
     S.strokes.filter(st => st.mode === pass).forEach(st=>{
       const pts = strokePoints(st);
       if(pts.length < 2) return;
@@ -4716,8 +4940,8 @@ function paintBoard(g){
         g.setLineDash([]);
       } else {
         g.lineWidth = 2.2;
-        const x0=Math.min(pts[0].x,pts[1].x), y0=Math.min(pts[0].y,pts[1].y);
-        g.strokeRect(x0, y0, Math.abs(pts[1].x-pts[0].x), Math.abs(pts[1].y-pts[0].y));
+        shapePath(g, st.mode, pts[0], pts[1]);
+        g.stroke();
       }
       g.globalAlpha = 1;
     });
@@ -5229,23 +5453,31 @@ function placePenPop(){
 /* ---- the Box menu: a plain square, or one that carries a reference ---- */
 const boxPop = document.getElementById("boxPop");
 const BOXOPTS = [
-  { v:"rect", nm:"Plain box", sub:"Drag corner to corner" },
+  { v:"rect", nm:"Box",       sub:"Drag corner to corner" },
+  { v:"oval", nm:"Oval",      sub:"Round a word or a clause" },
+  { v:"tri",  nm:"Triangle",  sub:"Three sides, drag to size" },
   { v:"xref", nm:"Cross-reference", sub:"Round a quotation \u2014 opens Accordance" }
 ];
+const SHAPES = new Set(["rect", "oval", "tri", "xref"]);
 
 function boxPreview(kind, hue){
-  return kind === "rect"
-    ? `<rect x="6" y="3" width="50" height="10" rx="2" fill="none" stroke="${hue}" stroke-width="2"/>`
-    : `<rect x="6" y="4" width="50" height="9" rx="2" fill="none" stroke="${hue}" stroke-width="2"/>` +
-      `<rect x="4" y="0" width="26" height="8" rx="1.6" fill="var(--paper)" stroke="${hue}" stroke-width="1.2"/>` +
-      `<text x="7" y="6.2" font-size="5.4" font-family="Inter,sans-serif" fill="${hue}">Isa 49:8</text>`;
+  if(kind === "rect")
+    return `<rect x="6" y="3" width="50" height="10" rx="2" fill="none" stroke="${hue}" stroke-width="2"/>`;
+  if(kind === "oval")
+    return `<ellipse cx="31" cy="8" rx="25" ry="5.5" fill="none" stroke="${hue}" stroke-width="2"/>`;
+  if(kind === "tri")
+    return `<path d="M31 2.5L56 13.5H6Z" fill="none" stroke="${hue}" stroke-width="2"
+             stroke-linejoin="round"/>`;
+  return `<rect x="6" y="4" width="50" height="9" rx="2" fill="none" stroke="${hue}" stroke-width="2"/>` +
+    `<rect x="4" y="0" width="26" height="8" rx="1.6" fill="var(--paper)" stroke="${hue}" stroke-width="1.2"/>` +
+    `<text x="7" y="6.2" font-size="5.4" font-family="Inter,sans-serif" fill="${hue}">Isa 49:8</text>`;
 }
 
 function paintBoxPop(){
   const hue = COLORS[S.ci].hue;
   boxPop.innerHTML = "";
   const h = document.createElement("h4");
-  h.textContent = "Box"; boxPop.appendChild(h);
+  h.textContent = "Shapes"; boxPop.appendChild(h);
   BOXOPTS.forEach(o=>{
     const b = document.createElement("button");
     b.className = "styleopt" + (S.tool === o.v ? " on" : "");
@@ -5330,7 +5562,14 @@ const SHORTCUTS = [
                      if(line && line.ids[0] === w.id) joinWordLine(w); else splitBefore(w);
                      return true; },
                                               "⌘↩", "Split the line here, or rejoin it"],
-  [1, 0, "backspace", ()=> { const sel = selectedWords(); if(!sel.length) return false;
+  [1, 0, "backspace", ()=> {
+                     // something drawn is held: take it away
+                     if(S.selStroke){
+                       const st = strokeOf(S.selStroke);
+                       if(st){ pushUndo(); S.strokes.splice(S.strokes.indexOf(st), 1);
+                               S.selStroke = null; redraw(); saveSoon(); return true; }
+                     }
+                     const sel = selectedWords(); if(!sel.length) return false;
                      if(!sel.some(w => S.marks[w.uid] || S.hits[w.uid])) return false;
                      pushUndo();
                      sel.forEach(w => { delete S.marks[w.uid]; delete S.hits[w.uid]; });
@@ -5343,7 +5582,9 @@ const SHORTCUTS = [
                                               "⌘K", "Write a note on it"],
   [0, 0, "arrowright", ()=> moveSelection(isRTL() ? -1 : 1), "→", "Select the next word"],
   [0, 0, "arrowleft",  ()=> moveSelection(isRTL() ? 1 : -1), "←", "Select the word before"],
-  [0, 0, "escape", ()=> { closePops(); clearSelection(); return true; },
+  [0, 0, "escape", ()=> { closePops(); clearSelection();
+                     if(S.selStroke){ S.selStroke = null; redraw(); }
+                     return true; },
                                               "esc", "Put the panels away"],
   [0, 0, "m", ()=> { pickTool("move"); return true; },      "M", "Move/Select"],
   [0, 0, "s", ()=> { pickTool("split"); return true; },     "S", "Split/Join"],
@@ -6355,7 +6596,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-08-14a";
+const BUILD = "2026-08-15a";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file

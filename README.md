@@ -1,2 +1,2 @@
-# greekexegesis
-An app for doing New Testament greek exegesis
+# biblicalexegesis
+An app for doing Biblical exegesis

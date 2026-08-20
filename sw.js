@@ -9,7 +9,7 @@
    having instantly.
 
    Books and diagrams live in IndexedDB and are never touched here. */
-const VERSION = "2026-08-17b";
+const VERSION = "2026-08-18a";
 const CACHE   = "nous-" + VERSION;
 const SHELL = [
   "./",

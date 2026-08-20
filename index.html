@@ -178,6 +178,9 @@
     border:1px solid transparent;border-radius:7px;cursor:pointer;}
   #marks .s:hover{background:var(--chip);}
   #marks .s.on{border-color:var(--ink);background:var(--chip);}
+  #marks .gback{font:inherit;font-size:10px;color:var(--dim);background:none;border:0;
+    padding:6px 2px;cursor:pointer;text-decoration:underline;width:100%;text-align:left;}
+  #marks .gback:hover{color:var(--ink);}
   #marks .gacts{display:flex;flex-direction:column;gap:4px;margin-top:8px;}
   #marks .gacts button{font:inherit;font-size:10.5px;padding:5px 6px;border:1px solid var(--rule);
     border-radius:7px;background:var(--paper);color:var(--muted);cursor:pointer;}
@@ -341,6 +344,8 @@
   #drawPad{border:2px dashed var(--rule);border-radius:12px;background:#fffdf6;touch-action:none;
     cursor:crosshair;}
   .drawside{display:flex;flex-direction:column;gap:8px;flex:1;min-width:0;}
+  .drawside select{font:inherit;font-size:13px;padding:8px 10px;border:1px solid var(--rule);
+    border-radius:9px;background:var(--paper);color:inherit;width:100%;}
   .drawside input,#askWhat{font:inherit;font-size:14px;padding:10px 12px;border-radius:9px;
     border:1px solid var(--rule);background:var(--paper);color:var(--ink);}
   #askWhat{width:100%;font-size:17px;padding:14px;}
@@ -585,6 +590,9 @@
       <div class="drawside">
         <div class="prevbox"><div class="pv" id="drawPrev"></div><span>actual size</span></div>
         <input type="text" id="drawName" placeholder="Name it" spellcheck="false">
+        <select id="drawCat"></select>
+        <input type="text" id="drawNewCat" placeholder="New category" spellcheck="false"
+               style="display:none">
         <button id="drawUndo" class="ghost">Undo stroke</button>
         <button id="drawClear" class="ghost">Clear</button>
       </div>
@@ -596,22 +604,6 @@
   </div>
 </div>
 
-<div id="askSheet" class="sheet">
-  <div class="ws">
-    <div class="wslbl">Describe a symbol and it will be drawn as a simple line glyph.</div>
-    <input type="text" id="askWhat" placeholder="a millstone · a broken cistern · a plumb line"
-           spellcheck="false" enterkeyhint="go">
-    <div class="askrow">
-      <div class="prevbox"><div class="pv" id="askPrev"></div><span>preview</span></div>
-      <div class="askstate" id="askState">Needs an API key — add one in <b>⋯ → Symbol generation</b>.</div>
-    </div>
-    <div class="wsbtns">
-      <button id="askCancel">Cancel</button>
-      <button id="askGo" class="ghost">Draw it</button>
-      <button id="askOk" class="act" disabled>✓ Save symbol</button>
-    </div>
-  </div>
-</div>
 
 <div id="outlineSheet" class="sheet">
   <div class="ws">
@@ -665,6 +657,20 @@
     <div class="wsbtns">
       <button id="writeCancel">Cancel</button>
       <button id="writeOk" class="act">✓ Use this</button>
+    </div>
+  </div>
+</div>
+
+<div id="noteSheet" class="sheet">
+  <div class="ws">
+    <div class="wslbl">Write the note with your Pencil — iPadOS turns the handwriting into
+      text as you go. Then tap ✓.</div>
+    <textarea id="noteIn" rows="5" spellcheck="true" autocapitalize="sentences"
+              placeholder="Write here"></textarea>
+    <div class="wsbtns">
+      <button id="noteDel">Remove</button>
+      <button id="noteCancel">Cancel</button>
+      <button id="noteOk" class="act">✓ Use this</button>
     </div>
   </div>
 </div>
@@ -821,9 +827,10 @@
     to left: lines begin at the right margin and each level of indent steps in from the right.
     Everything else behaves the same. The word inspector links to <b>HALOT</b> rather than BDAG,
     and to your Hebrew text rather than the Greek — both set under <b>⋯</b>.</div></div>
-  <div class="item"><div class="kbd">Chain</div><div>Tap a word and write a reference to link it
-    to another part of this book — two rings and the reference, as on the worksheet. Tapping the
-    rings in <b>Move/Select</b> takes you there.</div></div>
+  <div class="item"><div class="kbd">Chain</div><div>Tap a word and write a reference — two rings
+    and the reference, as on the worksheet. Numbers alone mean this book. Tapping the rings in
+    <b>Move/Select</b> takes you there; if the reference is to a book you have not loaded, it
+    opens in Accordance instead.</div></div>
   <div class="item"><div class="kbd">Cross-ref</div><div>Drag a square round a quotation or
     allusion and write what it quotes — <b>Isaiah 49:8</b>. Tapping its label opens that passage
     in Accordance, in the English translation set under <b>⋯</b>.</div></div>
@@ -892,13 +899,6 @@
   <button class="rowbtn" id="installNT2">Install the New Testament from GitHub…</button>
   <button class="rowbtn" id="installOT2">Install the Old Testament from GitHub…</button>
   <div class="foot" id="installProg2"></div>
-  <hr>
-  <h4>Symbol generation</h4>
-  <div class="fld"><label for="aiKey">API key</label>
-    <input type="text" id="aiKey" spellcheck="false" placeholder="optional"></div>
-  <div class="foot">Only needed for <b>Ask for one</b> in the symbol picker. Drawing your own
-    needs nothing. The key stays on this device, and whatever comes back is checked as plain
-    path data before it is drawn.</div>
   <hr>
   <h4>Drawing</h4>
   <div class="fld"><label for="fingerMode">Your finger</label>
@@ -1054,6 +1054,7 @@ const S = {
   key:"", chapter:"all", docs:{}, undo:[], redo:[],
   lineStarts:{}, byUid:{},
   hits:{}, marks:{}, notes:{}, summaries:{}, markMode:"emphasis", findQ:"", glyphs:[],
+  glyphUse:{}, glyphHidden:{},
   words:[], lines:[], strokes:[], conns:[], sections:[],
   tool:"move", lastInk:"pen", ci:12, lineStyle:"regular", nib:"fineliner",
   fingerMode:"auto", sawPen:false, zoom:1,
@@ -1748,17 +1749,35 @@ function twoFingers(){
 function startPinch(){
   const f = twoFingers();
   if(!f){ pinch = null; return; }
-  pinch = { d:Math.hypot(f[0].x - f[1].x, f[0].y - f[1].y), z:S.zoom || 1 };
+  pinch = {
+    d: Math.hypot(f[0].x - f[1].x, f[0].y - f[1].y),
+    mx: (f[0].x + f[1].x) / 2, my: (f[0].y + f[1].y) / 2,
+    z: S.zoom || 1,
+    mode: null                       // undecided: scroll or resize
+  };
 }
 
+/* Two fingers can mean two things, and switching between them halfway is what
+   makes a page feel unsteady. So the first real movement decides, and the
+   decision holds until the fingers come off: if the gap between them changes
+   more than they travel together, you are resizing; otherwise you are
+   scrolling. */
 function stepPinch(){
   const f = twoFingers();
   if(!f || !pinch){ pinch = null; return false; }
   const d = Math.hypot(f[0].x - f[1].x, f[0].y - f[1].y);
+  const mx = (f[0].x + f[1].x) / 2, my = (f[0].y + f[1].y) / 2;
   if(pinch.d < 20 || d < 20) return false;
-  const ratio = d / pinch.d;
-  if(Math.abs(ratio - 1) < 0.02) return false;        // a steady grip is a pan
-  setZoom(pinch.z * ratio, (f[0].x + f[1].x) / 2, (f[0].y + f[1].y) / 2);
+
+  if(!pinch.mode){
+    const spread = Math.abs(d - pinch.d);                    // the gap changing
+    const carried = Math.hypot(mx - pinch.mx, my - pinch.my); // the hand travelling
+    if(spread < 14 && carried < 14) return false;            // not enough to tell yet
+    pinch.mode = (spread > carried * 0.9) ? "zoom" : "scroll";
+  }
+  if(pinch.mode === "scroll") return false;                  // leave it to the pan
+
+  setZoom(pinch.z * (d / pinch.d), mx, my);
   return true;
 }
 
@@ -1895,8 +1914,95 @@ function paintChain(g, cx, cy, col){
   chainLink(g, cx + dx, cy + dy, LEN, WID, B); g.stroke();
 }
 
+
+/* ---- note boxes ----
+   A box you drag out and then write in. The writing is done in a large plain
+   textarea, which is all iPadOS Scribble needs to turn Pencil strokes into
+   text; Nous does no handwriting recognition of its own. */
+let noteTarget = null;
+
+function openNoteSheet(st){
+  noteTarget = st;
+  const sheet = document.getElementById("noteSheet");
+  const inp = document.getElementById("noteIn");
+  inp.value = st.text || "";
+  document.getElementById("noteDel").style.display = st.text ? "" : "none";
+  sheet.classList.add("show");
+  inp.focus();                      // inside the gesture, so Scribble is ready
+  if(inp.select) inp.select();
+}
+
+function closeNoteSheet(action){
+  const sheet = document.getElementById("noteSheet");
+  const inp = document.getElementById("noteIn");
+  const st = noteTarget;
+  if(st){
+    if(action === "delete"){
+      const i = S.strokes.indexOf(st);
+      if(i >= 0){ pushUndo(); S.strokes.splice(i, 1); note("Note box removed", ""); }
+    } else if(action === "ok"){
+      const v = inp.value.replace(/\s+$/, "");
+      if(!v && !st.text){ const i = S.strokes.indexOf(st); if(i >= 0) S.strokes.splice(i, 1); }
+      else { pushUndo(); st.text = v; }
+    } else if(!st.text){
+      const i = S.strokes.indexOf(st); if(i >= 0) S.strokes.splice(i, 1);
+    }
+  }
+  sheet.classList.remove("show");
+  noteTarget = null;
+  redraw(); saveSoon();
+}
+
+/* The words inside a note box, broken to its width. */
+function wrapNote(g, text, width){
+  const out = [];
+  String(text || "").split(/\n/).forEach(para=>{
+    let line = "";
+    para.split(/\s+/).filter(Boolean).forEach(word=>{
+      const test = line ? line + " " + word : word;
+      if(g.measureText(test).width > width && line){ out.push(line); line = word; }
+      else line = test;
+    });
+    out.push(line);
+  });
+  return out;
+}
+
+function paintNote(g, st){
+  const pts = strokePoints(st);
+  if(pts.length < 2) return;
+  const a = pts[0], b = pts[1];
+  const x = Math.min(a.x, b.x), y = Math.min(a.y, b.y);
+  const w = Math.abs(b.x - a.x), h = Math.abs(b.y - a.y);
+  g.save();
+  g.fillStyle = "#fffdf4";
+  g.fillRect(x, y, w, h);
+  g.strokeStyle = st.color || "#8a5a2b";
+  g.lineWidth = 1.4;
+  g.strokeRect(x, y, w, h);
+  if(st.text){
+    g.fillStyle = "#2c2721";
+    g.font = "15px Inter, -apple-system, sans-serif";
+    g.textBaseline = "top";
+    const lines = wrapNote(g, st.text, w - 16);
+    let ly = y + 8;
+    for(const ln of lines){
+      if(ly + 18 > y + h - 2) break;         // it holds what it holds
+      g.fillText(ln, x + 8, ly);
+      ly += 19;
+    }
+  } else {
+    g.fillStyle = "#b9b2a6";
+    g.font = "italic 14px Inter, -apple-system, sans-serif";
+    g.textBaseline = "top";
+    g.fillText("tap to write", x + 8, y + 8);
+  }
+  g.restore();
+}
+
 /* A tag, drawn the same way on the page and in an exported picture. */
 function paintTag(g, st){
+  if(st.mode === "note") return paintNote(g, st);
   const pts = strokePoints(st);
   if(!pts.length) return;
   const col = st.color || "#8a5a2b";
@@ -2044,7 +2150,7 @@ function shapeOutline(mode, a, b){
    corners; freehand strokes and chains just move. Handles are drawn on the page
    only, never into an exported picture.
    ============================================================ */
-const GRABBABLE = new Set(["line","rect","oval","tri","xref","pen"]);
+const GRABBABLE = new Set(["line","rect","oval","tri","xref","note","pen"]);
 const HANDLE = 9;
 
 function strokeOf(sid){ return S.strokes.find(st => st.sid === sid) || null; }
@@ -2161,7 +2267,7 @@ function redraw(){
   ctx.lineCap = "round"; ctx.lineJoin = "round";
 
   // highlighter first so it sits underneath everything else
-  for(const pass of ["highlight","pen","line","rect","oval","tri","xref"]){
+  for(const pass of ["highlight","pen","line","rect","oval","tri","xref","note"]){
     S.strokes.filter(s=>s.mode===pass).forEach(s=>{
       const pts = strokePoints(s);
       if(pts.length < 2) return;
@@ -2436,7 +2542,7 @@ function bpt(e){
   return { x: (e.clientX - r.left) / z, y: (e.clientY - r.top) / z };
 }
 
-const INKTOOLS = new Set(["pen","line","rect","oval","tri"]);
+const INKTOOLS = new Set(["pen","line","rect","oval","tri","note"]);
 let boxMode = "rect";        // which kind of box the Box button currently means
 
 /* What a gesture means.
@@ -2914,6 +3020,11 @@ hit.addEventListener("pointerup", e=>{
     // a square drawn round a quotation asks what it is quoting
     if(drag && drag.xref){ const st = drag.s; drag = null; endPointer(e); saveSoon();
                            openRefSheet(st); return; }
+    // a note box asks what to write in it
+    if(drag && drag.s && drag.s.mode === "note"){
+      const st = drag.s; drag = null; endPointer(e); saveSoon();
+      openNoteSheet(st); return;
+    }
   }
   // second chance to raise the iPad keyboard, still inside the user's gesture
   if(S._focusSec){ focusSectionTitle(S._focusSec); S._focusSec = null; }
@@ -3279,7 +3390,42 @@ function paintPalette(){
     '<div class="nowname">' + cur.n + '</div>';
 }
 
+
+/* ---- colours that belong to a thing ----
+   A section break is orange, a cross-reference violet, a linking word yellow, a
+   command red — the conventions of a marked-up page. Choosing the tool sets the
+   palette to its colour; choosing a colour afterwards overrules it, and Nous
+   remembers that you did for the rest of the session. */
+function colourNamed(n){
+  const i = COLORS.findIndex(c => c.n === n);
+  return i < 0 ? 12 : i;
+}
+const TOOLCOLOUR = {
+  thick: "Orange",         // a section break
+  xref:  "Violet",         // a cross-reference square
+  chain: "Brown",          // a chain
+  note:  "Slate"           // a note box
+};
+const FINDCOLOUR = {
+  Conjunction: "Yellow",   // linking words
+  imperative:  "Red"       // commands
+};
+
+function useColourFor(what){
+  const name = TOOLCOLOUR[what];
+  if(!name) return;
+  S._chosen = S._chosen || {};
+  if(S._chosen[what]) return;                 // you have already said otherwise
+  const i = colourNamed(name);
+  if(i !== S.ci){ S.ci = i; paintPalette(); paintMarks(); }
+}
+
 function pickColor(i){
+  S._chosen = S._chosen || {};
+  const what = (S.tool === "line" && S.lineStyle === "thick") ? "thick" : S.tool;
+  if(TOOLCOLOUR[what]) S._chosen[what] = true;
+  const fp = document.getElementById("findPop");
+  if(fp && fp.classList.contains("show")) S._chosen.find = true;
   S.ci = i;
   // the menus preview in the live colour, so refresh whichever is open
   if(linePop.classList.contains("show")) paintLinePop();
@@ -3349,6 +3495,7 @@ function pickTool(name){
   // so make sure a symbol is actually armed before the tool is handed over.
   if(name === "mark" && !anyGlyphId(S.markMode)) S.markMode = "emphasis";
   S.tool = name;
+  useColourFor(name === "line" && S.lineStyle === "thick" ? "thick" : name);
   if(INKTOOLS.has(name)) S.lastInk = name;
   if(name !== "connect") S.connFrom = null;
   // the cross-reference square lives under the Box button, so light that one
@@ -3970,7 +4117,7 @@ document.getElementById("refBox").addEventListener("keydown", e=>{
    Both are strokes, so saving, syncing, merging, undo, erasing and the
    picture exports all work on them already.
    ============================================================ */
-const TAGMODES = new Set(["chain", "xref"]);
+const TAGMODES = new Set(["chain", "xref", "note"]);
 let refTarget = null;
 
 function openRefSheet(st){
@@ -3979,9 +4126,11 @@ function openRefSheet(st){
   const inp = document.getElementById("refIn");
   const chain = st.mode === "chain";
   document.getElementById("refSheetLbl").textContent = chain
-    ? "Which part of this book does it point to? Write it with your Pencil — 5:21, or 1:12–2:4."
+    ? "Where does it point? Numbers alone mean this book — 5:21, or 1:12–2:4. " +
+      "A full reference works too: Isaiah 49:8 opens there if the book is loaded, " +
+      "and in Accordance if it is not."
     : "What is being quoted? Write the reference — Isaiah 49:8, Ps. 110:1.";
-  inp.placeholder = chain ? "5:21" : "Isaiah 49:8";
+  inp.placeholder = chain ? "5:21  ·  Isaiah 49:8" : "Isaiah 49:8";
   inp.value = st.ref || "";
   document.getElementById("refSheetState").textContent = "";
   document.getElementById("refSheetDel").style.display = st.ref ? "" : "none";
@@ -3992,14 +4141,18 @@ function openRefSheet(st){
 
 /* What a chain points at, resolved inside the book being read. */
 function chainTarget(ref){
-  const p = PASSAGES[S.key];
-  if(!p) return null;
   const t = String(ref || "").trim();
   if(!t) return null;
-  if(/^[\d:\s\u2013-]+$/.test(t))                     // bare numbers: this book
+  const p = PASSAGES[S.key];
+  if(/^[\d:\s\u2013-]+$/.test(t)){                    // bare numbers: this book
+    if(!p) return null;
     return { key:S.key, range:parseNums(t.replace(/\u2013/g,"-").replace(/\s+/g,""), p.chapters) };
-  const r = lookupRef(t);                             // or a book you have loaded
-  return r.error ? null : r;
+  }
+  const r = lookupRef(t);                             // a book you have loaded
+  if(!r.error) return r;
+  // anywhere else in the Bible: hand it to Accordance, as a cross-reference does
+  const c = canonRef(t);
+  return c ? { away:true, ref:t, label:c.label } : null;
 }
 
 function closeRefSheet(action){
@@ -4032,6 +4185,13 @@ function closeRefSheet(action){
   refTarget = null;
   redraw(); saveSoon();
 }
+document.getElementById("noteOk").onclick     = ()=> closeNoteSheet("ok");
+document.getElementById("noteCancel").onclick = ()=> closeNoteSheet("cancel");
+document.getElementById("noteDel").onclick    = ()=> closeNoteSheet("delete");
+document.getElementById("noteIn").addEventListener("keydown", e=>{
+  if(e.key === "Escape") closeNoteSheet("cancel");
+});
+
 document.getElementById("refSheetOk").onclick     = ()=> closeRefSheet("ok");
 document.getElementById("refSheetCancel").onclick = ()=> closeRefSheet("cancel");
 document.getElementById("refSheetDel").onclick    = ()=> closeRefSheet("delete");
@@ -4056,11 +4216,14 @@ function tagBox(st){
 function tagAt(x, y){
   for(let i = S.strokes.length - 1; i >= 0; i--){
     const st = S.strokes[i];
-    if(!TAGMODES.has(st.mode) || !st.ref) continue;
+    if(!TAGMODES.has(st.mode)) continue;
+    if(st.mode !== "note" && !st.ref) continue;
     const bx = tagBox(st);
     if(!bx) continue;
     if(st.mode === "chain"){
       if(x >= bx.x - 4 && x <= bx.x + bx.w + 4 && y >= bx.y - 4 && y <= bx.y + bx.h + 4) return st;
+    } else if(st.mode === "note"){
+      if(x >= bx.x && x <= bx.x + bx.w && y >= bx.y && y <= bx.y + bx.h) return st;
     } else {
       const chipW = 9 + st.ref.length * 6.2, chipH = 17;
       if(x >= bx.x && x <= bx.x + chipW && y >= bx.y - chipH && y <= bx.y + 3) return st;
@@ -4070,9 +4233,15 @@ function tagAt(x, y){
 }
 
 function followTag(st){
+  if(st.mode === "note"){ openNoteSheet(st); return true; }
   if(st.mode === "chain"){
     const t = chainTarget(st.ref);
     if(!t) return false;
+    if(t.away){                       // not a book you have loaded
+      const url = accordEnglish(t.ref);
+      if(url) window.location.href = url;
+      return !!url;
+    }
     saveNow();
     S.key = t.key; S.chapter = t.range;
     document.getElementById("passage").value = t.key;
@@ -4476,11 +4645,22 @@ function runFind(){
   paintFindChips();
 }
 
+function findColour(){
+  // a search for linking words highlights yellow, for commands red — unless you
+  // have picked a colour yourself since opening the panel
+  if(S._chosen && S._chosen.find) return COLORS[S.ci];
+  const q = (S.findQ || "").toLowerCase();
+  for(const key of Object.keys(FINDCOLOUR)){
+    if(q.includes(key.toLowerCase())) return COLORS[colourNamed(FINDCOLOUR[key])];
+  }
+  return COLORS[S.ci];
+}
+
 function applyFind(kind){
   const hits = S._hits || [];
   if(!hits.length) return;
   pushUndo();
-  const c = COLORS[S.ci];
+  const c = findColour();
   hits.forEach(w=>{
     if(kind === "highlight") S.hits[w.uid] = c.tint;
     else {
@@ -4519,6 +4699,29 @@ document.getElementById("findBtn").onclick = ()=>{
    ============================================================ */
 const MARKSYMS = ["♥","🩸","✝","★","✓","✗","!","?","→","↑","☾","✿","☞","※","🔥","👑"];
 
+
+/* Holding a symbol down offers to take it out of the list. One you drew is
+   deleted outright; one of the ninety-five that came with Nous is only hidden,
+   and can be brought back. */
+function offerRemoveGlyph(gl){
+  const mine = (S.glyphs || []).some(g2 => g2.id === gl.id);
+  const msg = mine
+    ? "Delete “" + gl.n + "”? You drew this one, so it will be gone for good."
+    : "Hide “" + gl.n + "” from the list? You can bring it back at the foot of the rail.";
+  if(!confirm(msg)) return;
+  if(mine){
+    S.glyphs = (S.glyphs || []).filter(g2 => g2.id !== gl.id);
+    kvSet("glyphs", { seq:S.glyphSeq, list:S.glyphs });
+    note("Symbol deleted", gl.n);
+  } else {
+    S.glyphHidden = S.glyphHidden || {};
+    S.glyphHidden[gl.id] = 1;
+    note("Symbol hidden", gl.n);
+  }
+  if(S.markMode === gl.id) S.markMode = "emphasis";
+  saveSoon(); paintMarks(); render();
+}
+
 /* ---- the marks rail ----
    The mirror of the palette: underline, double underline, box, then the whole
    symbol library. Choosing one lays it on whatever is selected; with nothing
@@ -4532,6 +4735,10 @@ const marksEl = document.getElementById("marks");
    symbol you just chose would sit there doing nothing. */
 function useMark(mode){
   S.markMode = mode;
+  if(anyGlyphId(mode)){
+    S.glyphUse = S.glyphUse || {};
+    S.glyphUse[mode] = (S.glyphUse[mode] || 0) + 1;
+  }
   const sel = selectedWords();
   if(sel.length) applyMarkTo(sel, mode);
   if(S.tool !== "mark") pickTool("mark");
@@ -4559,18 +4766,57 @@ function paintMarks(){
     b.className = "s" + (S.markMode === gl.id ? " on" : "");
     b.setAttribute("title", gl.n);
     b.innerHTML = glyphSVG(gl.id, hue, 22) || "";
-    b.onclick = ()=> useMark(gl.id);
+    b.onclick = ()=>{ if(!b._held) useMark(gl.id); b._held = false; };
+
+    /* Hold one down, as you would an app on a phone, and it offers to go. */
+    let timer = null;
+    const start = ()=>{ clearTimeout(timer);
+      timer = setTimeout(()=>{ b._held = true; offerRemoveGlyph(gl); }, 550); };
+    const stop  = ()=> clearTimeout(timer);
+    b.addEventListener("pointerdown", start);
+    b.addEventListener("pointerup", stop);
+    b.addEventListener("pointerleave", stop);
+    b.addEventListener("pointercancel", stop);
+    b.addEventListener("contextmenu", e=>{ e.preventDefault(); offerRemoveGlyph(gl); });
     return b;
+  }
+
+  /* The handful you actually reach for, kept at the top. */
+  function oftenUsed(){
+    const used = S.glyphUse || {};
+    return Object.keys(used)
+      .filter(id => used[id] > 1 && !(S.glyphHidden || {})[id] && anyGlyph(id))
+      .sort((a, b) => used[b] - used[a])
+      .slice(0, 8)
+      .map(anyGlyph)
+      .filter(Boolean);
   }
 
   function drawGrid(){
     wrap.innerHTML = "";
     const q = (S.glyphQ || "").trim().toLowerCase();
+    const hidden = S.glyphHidden || {};
     const mine = (S.glyphs || []);
-    const cats = (mine.length ? [{c:"Your own", g:mine}] : []).concat(GLYPHS);
+
+    // a symbol you drew sits in the category you filed it under
+    const own = {};
+    mine.forEach(gl=>{ const c = gl.cat || "Your own"; (own[c] || (own[c] = [])).push(gl); });
+
+    const cats = [];
+    const often = q ? [] : oftenUsed();
+    if(often.length) cats.push({ c:"Often used", g:often, top:true });
+    GLYPHS.forEach(cat=>{
+      const extra = own[cat.c] || [];
+      cats.push({ c:cat.c, g:cat.g.concat(extra) });
+      delete own[cat.c];
+    });
+    Object.keys(own).forEach(c => cats.push({ c, g:own[c] }));
+
     let shown = 0;
     cats.forEach(cat=>{
-      const hits = cat.g.filter(gl => !q || gl.n.toLowerCase().includes(q) || gl.id.includes(q));
+      const hits = cat.g.filter(gl =>
+        (cat.top || !hidden[gl.id]) &&
+        (!q || gl.n.toLowerCase().includes(q) || gl.id.includes(q)));
       if(!hits.length) return;
       shown += hits.length;
       const hd = document.createElement("div"); hd.className = "gcat"; hd.textContent = cat.c;
@@ -4580,8 +4826,16 @@ function paintMarks(){
     });
     if(!shown){
       const none = document.createElement("div");
-      none.className = "foot"; none.textContent = "Nothing matches.";
+      none.className = "foot";
+      none.textContent = q ? "Nothing matches." : "Every symbol is hidden.";
       wrap.appendChild(none);
+    }
+    if(Object.keys(hidden).length && !q){
+      const back = document.createElement("button");
+      back.className = "gback";
+      back.textContent = "Show the " + Object.keys(hidden).length + " hidden again";
+      back.onclick = ()=>{ S.glyphHidden = {}; saveSoon(); paintMarks(); };
+      wrap.appendChild(back);
     }
   }
   drawGrid();
@@ -4590,10 +4844,7 @@ function paintMarks(){
   const drawBtn = document.createElement("button");
   drawBtn.textContent = "✎ Draw one";
   drawBtn.onclick = ()=> openDrawSheet();
-  const aiBtn = document.createElement("button");
-  aiBtn.textContent = "✨ Ask for one";
-  aiBtn.onclick = ()=> openAskSheet();
-  acts.appendChild(drawBtn); acts.appendChild(aiBtn);
+  acts.appendChild(drawBtn);
   marksEl.appendChild(acts);
 
   const foot = document.createElement("div");
@@ -4732,8 +4983,30 @@ function strokesToPaths(){
 function openDrawSheet(){
   drawStrokes = [];
   document.getElementById("drawName").value = "";
+  fillDrawCats();
   document.getElementById("drawSheet").classList.add("show");
   repaintPad();
+}
+
+/* Where a symbol you have drawn will live: one of the groups already in the
+   rail, or a new one of your own. */
+function fillDrawCats(){
+  const sel = document.getElementById("drawCat");
+  const nu  = document.getElementById("drawNewCat");
+  if(!sel) return;
+  const mine = [...new Set((S.glyphs || []).map(g2 => g2.cat).filter(Boolean))];
+  const all = [...new Set(GLYPHS.map(c => c.c).concat(mine))];
+  sel.innerHTML = all.map(c => '<option value="' + c.replace(/"/g,"&quot;") + '">' + c + '</option>')
+                     .join("") + '<option value="__new">New category…</option>';
+  sel.value = S.lastGlyphCat && all.includes(S.lastGlyphCat)
+    ? S.lastGlyphCat : "Structure & emphasis";
+  if(nu){ nu.style.display = "none"; nu.value = ""; }
+  sel.onchange = ()=>{
+    if(!nu) return;
+    const isNew = sel.value === "__new";
+    nu.style.display = isNew ? "" : "none";
+    if(isNew) nu.focus();
+  };
 }
 function closeDrawSheet(){ document.getElementById("drawSheet").classList.remove("show"); }
 
@@ -4761,84 +5034,20 @@ document.getElementById("drawOk").onclick    = ()=>{
   const d = strokesToPaths();
   if(!d.length) return;
   const name = (document.getElementById("drawName").value || "").trim() || "My symbol";
-  saveGlyph(name, d);
+  const sel = document.getElementById("drawCat");
+  const nu  = document.getElementById("drawNewCat");
+  let cat = sel ? sel.value : "Structure & emphasis";
+  if(cat === "__new") cat = ((nu && nu.value) || "").trim() || "Your own";
+  S.lastGlyphCat = cat;
+  saveGlyph(name, d, cat);
   closeDrawSheet();
 };
 
-/* ---- asking a model ---- */
-let askPaths = null;
-
-function openAskSheet(){
-  askPaths = null;
-  document.getElementById("askPrev").innerHTML = "";
-  document.getElementById("askOk").disabled = true;
-  const key = (document.getElementById("aiKey").value || "").trim();
-  document.getElementById("askState").innerHTML = key
-    ? "Describe it, then tap <b>Draw it</b>."
-    : "Needs an API key — add one in <b>⋯ → Symbol generation</b>.";
-  document.getElementById("askSheet").classList.add("show");
-  document.getElementById("askWhat").focus();
-}
-function closeAskSheet(){ document.getElementById("askSheet").classList.remove("show"); }
-
-async function askForGlyph(){
-  const key  = (document.getElementById("aiKey").value || "").trim();
-  const what = (document.getElementById("askWhat").value || "").trim();
-  const st   = document.getElementById("askState");
-  if(!key){ st.innerHTML = "Add an API key in <b>⋯ → Symbol generation</b> first."; return; }
-  if(!what){ st.textContent = "Describe the symbol first."; return; }
-  st.textContent = "Drawing…";
-  try{
-    const prompt = "Draw a simple monochrome line icon of: " + what +
-      ". Reply with ONLY a JSON array of SVG path 'd' strings, no prose, no code fence. " +
-      "Coordinates must sit inside a 24x24 box with a 2 unit margin. Use no more than 4 paths. " +
-      "It will be stroked, not filled, at about 17 pixels, so keep it bold and simple.";
-    const r = await fetch("https://api.anthropic.com/v1/messages", {
-      method:"POST",
-      headers:{ "content-type":"application/json", "x-api-key":key,
-                "anthropic-version":"2023-06-01",
-                "anthropic-dangerous-direct-browser-access":"true" },
-      body: JSON.stringify({ model:"claude-sonnet-5", max_tokens:400,
-                             messages:[{role:"user",content:prompt}] })
-    });
-    if(r.status === 401) throw new Error("that key was refused");
-    if(!r.ok) throw new Error("the service replied " + r.status);
-    const j = await r.json();
-    const txt = ((j.content||[]).map(c=>c.text||"").join("")).trim();
-    const m = txt.match(/\[[\s\S]*\]/);
-    if(!m) throw new Error("no drawing came back");
-    const raw = JSON.parse(m[0]);
-    const paths = raw.map(safePath).filter(Boolean).slice(0,4);   // validated, always
-    if(!paths.length) throw new Error("the drawing was not usable");
-    askPaths = paths;
-    S.glyphs.push({ id:"__ask", n:"preview", d:paths });
-    document.getElementById("askPrev").innerHTML = glyphSVG("__ask", COLORS[S.ci].hue, 24) || "";
-    S.glyphs = S.glyphs.filter(g=>g.id !== "__ask");
-    document.getElementById("askOk").disabled = false;
-    st.textContent = "If that looks right, save it. Otherwise try describing it differently.";
-  }catch(err){
-    askPaths = null;
-    document.getElementById("askOk").disabled = true;
-    st.textContent = "Could not draw it: " + (err.message || err) + ".";
-  }
-}
-document.getElementById("askGo").onclick     = askForGlyph;
-document.getElementById("askCancel").onclick = ()=> closeAskSheet();
-document.getElementById("askOk").onclick     = ()=>{
-  if(!askPaths) return;
-  const name = (document.getElementById("askWhat").value || "").trim() || "Symbol";
-  saveGlyph(name, askPaths);
-  closeAskSheet();
-};
-document.getElementById("askWhat").addEventListener("keydown", e=>{
-  if(e.key === "Enter"){ e.preventDefault(); askForGlyph(); }
-});
-
 /* ---- storing them ---- */
-function saveGlyph(name, paths){
+function saveGlyph(name, paths, cat){
   S.glyphs = S.glyphs || [];
   const id = "u:" + (++S.glyphSeq || (S.glyphSeq = 1));
-  S.glyphs.push({ id, n:name, d:paths.map(safePath).filter(Boolean) });
+  S.glyphs.push({ id, n:name, cat:cat || "Your own", d:paths.map(safePath).filter(Boolean) });
   kvSet("glyphs", { seq:S.glyphSeq, list:S.glyphs });
   useMark(id);                      // the one you just made is the one you want
 }
@@ -5075,7 +5284,7 @@ function paintBoard(g){
 
   // ink last, so it sits over the text as it does on screen
   g.lineCap = "round"; g.lineJoin = "round";
-  ["highlight","pen","line","rect","oval","tri","xref"].forEach(pass=>{
+  ["highlight","pen","line","rect","oval","tri","xref","note"].forEach(pass=>{
     S.strokes.filter(st => st.mode === pass).forEach(st=>{
       const pts = strokePoints(st);
       if(pts.length < 2) return;
@@ -5539,6 +5748,7 @@ function paintLinePop(){
       `<span class="tick">✓</span>`;
     b.onclick = ()=>{
       S.lineStyle = o.v;
+      if(o.v === "thick") useColourFor("thick");
       paintLinePop();
       closePops();
     };
@@ -5615,9 +5825,10 @@ const BOXOPTS = [
   { v:"rect", nm:"Box",       sub:"Drag corner to corner" },
   { v:"oval", nm:"Oval",      sub:"Round a word or a clause" },
   { v:"tri",  nm:"Triangle",  sub:"Three sides, drag to size" },
+  { v:"note", nm:"Note",      sub:"A box to write in \u2014 the Pencil becomes text" },
   { v:"xref", nm:"Cross-reference", sub:"Round a quotation \u2014 opens Accordance" }
 ];
-const SHAPES = new Set(["rect", "oval", "tri", "xref"]);
+const SHAPES = new Set(["rect", "oval", "tri", "xref", "note"]);
 
 function boxPreview(kind, hue){
   if(kind === "rect")
@@ -5627,6 +5838,10 @@ function boxPreview(kind, hue){
   if(kind === "tri")
     return `<path d="M31 2.5L56 13.5H6Z" fill="none" stroke="${hue}" stroke-width="2"
              stroke-linejoin="round"/>`;
+  if(kind === "note")
+    return `<rect x="6" y="2" width="50" height="12" rx="2" fill="none" stroke="${hue}"
+             stroke-width="1.6"/><path d="M10 6h34M10 9h34M10 12h20" stroke="${hue}"
+             stroke-width="1.1" opacity=".75"/>`;
   return `<rect x="6" y="4" width="50" height="9" rx="2" fill="none" stroke="${hue}" stroke-width="2"/>` +
     `<rect x="4" y="0" width="26" height="8" rx="1.6" fill="var(--paper)" stroke="${hue}" stroke-width="1.2"/>` +
     `<text x="7" y="6.2" font-size="5.4" font-family="Inter,sans-serif" fill="${hue}">Isa 49:8</text>`;
@@ -5909,6 +6124,7 @@ function docSnapshot(){
     strokes:S.strokes.map(s => ({
       id:s.sid || (s.sid = newSid()),
       m:s.mode, a:s.anchor, c:s.color, st:s.style, r:s.ref || undefined,
+      tx:s.text || undefined,
       nb:s.nib || undefined,
       p:s.pts.map(q => [r1(q.x), r1(q.y), Math.round((q.p == null ? .5 : q.p) * 100) / 100])
     })),
@@ -5931,6 +6147,7 @@ function applyDoc(d, p){
   S.strokes = ((d && d.strokes) || []).map(s => ({
     sid:s.id || newSid(),
     mode:s.m, anchor:(s.a == null ? null : s.a), color:s.c, style:s.st, ref:s.r || "",
+    text:s.tx || "",
     nib:s.nb || undefined,
     pts:(s.p || []).map(q => ({ x:q[0], y:q[1], p:q[2] }))
   })).filter(s => s.pts.length && (TAGMODES.has(s.mode) || s.pts.length >= 2));
@@ -5997,7 +6214,7 @@ function prefsSnapshot(){
           document.getElementById("mEng").value,  document.getElementById("mHeb").value,
           document.getElementById("mHLex").value],
     abbr:document.getElementById("mgAbbr").value,
-    aiKey:document.getElementById("aiKey").value
+    use:S.glyphUse, hidden:S.glyphHidden
   };
 }
 
@@ -6011,11 +6228,12 @@ function applyPrefs(p){
     document.getElementById("mHLex").value = p.mods[4] || "HALOT";
   }
   if(p.abbr) document.getElementById("mgAbbr").value = p.abbr;
-  if(p.aiKey) document.getElementById("aiKey").value = p.aiKey;
   S.ci = (p.ci >= 0 && p.ci < COLORS.length) ? p.ci : 12;
   S.lineStyle = (LINESTYLE[p.ls] || p.ls === "thick") ? p.ls : "regular";
   S.nib = NIBS[p.nib] ? p.nib : "fineliner";
   if(p.mk) S.markMode = p.mk;
+  S.glyphUse    = p.use    || {};
+  S.glyphHidden = p.hidden || {};
   S.tool = (p.tool === "join") ? "split" : (p.tool || "move");
   S.fingerMode = ["auto","move","draw"].includes(p.finger) ? p.finger : "auto";
   S.sawPen = !!p.sawPen;
@@ -6816,7 +7034,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-08-17b";
+const BUILD = "2026-08-18a";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file

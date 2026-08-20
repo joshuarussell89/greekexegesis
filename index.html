@@ -186,7 +186,8 @@
   #marks .foot{font-size:9.5px;line-height:1.45;color:var(--dim);padding-top:6px;}
   @media (max-width:640px){ #marks{width:60px;} #marks .ggrid{grid-template-columns:1fr;} }
   #palette .sw[data-kind="tint"]{border-radius:3px;}
-  #board{position:relative;width:1120px;height:1750px;background:var(--paper);
+  #page{position:relative;width:1120px;height:1750px;}
+  #board{position:relative;width:1120px;height:1750px;transform-origin:0 0;background:var(--paper);
     border:1px solid var(--rule);border-radius:4px;
     box-shadow:0 1px 2px rgba(0,0,0,.05),0 10px 30px rgba(0,0,0,.07);}
   /* faint ruled margin, like a printed text block */
@@ -385,16 +386,6 @@
     padding:2px 6px;border-radius:6px;text-decoration:underline;}
   .lemhint .clr:hover{color:var(--ink);background:var(--chip);}
 
-  #wheel{position:fixed;z-index:120;touch-action:none;user-select:none;
-    filter:drop-shadow(0 6px 18px rgba(0,0,0,.20));}
-  #wheel svg{display:block;overflow:visible;}
-  #wheel .sec{cursor:pointer;}
-  #wheel .sec:hover{opacity:.82;}
-  #wheel .hub{cursor:grab;}
-  #wheel .hublbl{font:600 9px Inter,sans-serif;fill:var(--muted);
-    text-anchor:middle;pointer-events:none;letter-spacing:.06em;}
-  #wheel .hubname{font:600 11px Inter,sans-serif;fill:var(--ink);
-    text-anchor:middle;pointer-events:none;}
   .vn{position:absolute;font-family:Inter,sans-serif;font-size:10px;font-weight:700;
     color:var(--accent);opacity:.7;z-index:1;width:34px;text-align:right;
     letter-spacing:.02em;}
@@ -503,6 +494,7 @@
               style="display:none"></select>
       <span class="glbl" id="wcount"></span>
       <span class="glbl" id="selcount" style="display:none"></span>
+      <span class="glbl" id="zoomLbl" style="display:none"></span>
       <button id="auto" class="act" title="Break the passage into propositions"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.4 5.4h15.2"/><path d="M6.6 11h12"/><path d="M9.8 16.6h8.8"/><circle cx="3.4" cy="11" r="1.3" fill="currentColor" stroke="none"/><circle cx="6.6" cy="16.6" r="1.3" fill="currentColor" stroke="none"/></svg><span class="lbl-hide">Auto-split</span></button>
       <div class="grp">
         <button id="undoBtn" disabled title="Undo (⌘Z)"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4.2 9.8h9.4a4 4 0 010 8H8.6"/><path d="M7.6 6.2L4 9.8l3.6 3.6"/></svg><span class="lbl-hide">Undo</span></button>
@@ -543,6 +535,7 @@
   <div id="body">
   <aside id="palette" aria-label="Colours"></aside>
   <div id="scroll">
+   <div id="page">
     <div id="board">
       <div id="pagesum"><span class="sumlbl">Big idea</span><input type="text" id="sumBox"
            spellcheck="true" autocapitalize="sentences" enterkeyhint="done"
@@ -567,6 +560,7 @@
         </div>
       </div>
     </div>
+   </div>
   </div>
   <aside id="marks" aria-label="Marks"></aside>
 </div>
@@ -780,6 +774,12 @@
     alone. Tapping the <em>same</em> colour straight afterwards takes it off again — but a colour
     never removes anything on its own, so a selection you had forgotten about cannot lose its
     marks. <b>esc</b> deselects.</div></div>
+  <div class="item"><div class="kbd">Size of the page</div><div>Nous opens at whatever fits
+    between the two rails, so nothing is ever hidden behind them. From there, pinch with two
+    fingers to make the page larger or smaller; panning carries on at the same time.
+    <b>⌘0</b> is its own size, <b>⌘9</b> fits it again. Turning the iPad refits it, unless you
+    have already chosen a size yourself. The size is only how close you are looking: the
+    diagram, the ink and the exported picture are unchanged by it.</div></div>
   <div class="item"><div class="kbd">Colour</div><div>The palette runs down the left of the
     window, beside the page rather than over it. The same 18 colours twice: full strength for
     the pen, and their lighter tints for the highlighter. Reaching for a tint picks up the
@@ -1056,7 +1056,8 @@ const S = {
   hits:{}, marks:{}, notes:{}, summaries:{}, markMode:"emphasis", findQ:"", glyphs:[],
   words:[], lines:[], strokes:[], conns:[], sections:[],
   tool:"move", lastInk:"pen", ci:12, lineStyle:"regular", nib:"fineliner",
-  fingerMode:"auto", sawPen:false, sel:null, selSet:[], selLemma:null, selStroke:null,
+  fingerMode:"auto", sawPen:false, zoom:1,
+  sel:null, selSet:[], selLemma:null, selStroke:null,
   lemHi:{}, connFrom:null, curLine:null, dpr:1
 };
 
@@ -1638,7 +1639,7 @@ function layout(){
 
   render(); drawConns(); redraw(); renderSections(); saveSoon();
   const need = y + 120;
-  if(need > board.offsetHeight){ board.style.height = need + "px"; resizeCanvas(); }
+  if(need > board.offsetHeight){ board.style.height = need + "px"; applyZoom(); }
 }
 
 /* A word sits where the line puts it. Dragging words out of the flow was a
@@ -1733,11 +1734,98 @@ function symSize(w){ return Math.round(((w && w.h) || 34) * SYMGROW); }
 const CANVAS_BUDGET = 12e6;    // safely under iOS Safari's ~16.7M pixel ceiling
 const CANVAS_MAXDIM = 8192;    // and under the per-dimension texture limit
 
+
+
+/* Two fingers on the glass: the distance between them is the size of the page.
+   Panning carries on at the same time, which is what a hand expects. */
+let pinch = null;
+
+function twoFingers(){
+  const f = [...active.values()].filter(p => p.type === "touch");
+  return f.length >= 2 ? [f[0], f[1]] : null;
+}
+
+function startPinch(){
+  const f = twoFingers();
+  if(!f){ pinch = null; return; }
+  pinch = { d:Math.hypot(f[0].x - f[1].x, f[0].y - f[1].y), z:S.zoom || 1 };
+}
+
+function stepPinch(){
+  const f = twoFingers();
+  if(!f || !pinch){ pinch = null; return false; }
+  const d = Math.hypot(f[0].x - f[1].x, f[0].y - f[1].y);
+  if(pinch.d < 20 || d < 20) return false;
+  const ratio = d / pinch.d;
+  if(Math.abs(ratio - 1) < 0.02) return false;        // a steady grip is a pan
+  setZoom(pinch.z * ratio, (f[0].x + f[1].x) / 2, (f[0].y + f[1].y) / 2);
+  return true;
+}
+
+/* ============================================================
+   THE SIZE OF THE PAGE
+   Two fingers pinch it larger or smaller. The board keeps its own coordinates
+   throughout — only its appearance is scaled — so ink, marks and the exported
+   picture are unaffected by how close you happen to be looking.
+   ============================================================ */
+const ZOOM_MIN = 0.35, ZOOM_MAX = 3;
+const pageEl = document.getElementById("page");
+
+function setZoom(z, cx, cy){
+  S._zoomTouched = true;
+  const was = S.zoom || 1;
+  const now = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, z));
+  if(Math.abs(now - was) < 0.0005) return;
+
+  // keep whatever is under the fingers under the fingers
+  const r = scroller.getBoundingClientRect();
+  const ax = (cx === undefined ? r.width / 2 : cx - r.left) + scroller.scrollLeft;
+  const ay = (cy === undefined ? r.height / 2 : cy - r.top) + scroller.scrollTop;
+
+  S.zoom = now;
+  applyZoom();
+
+  const k = now / was;
+  scroller.scrollLeft += ax * (k - 1);
+  scroller.scrollTop  += ay * (k - 1);
+  showZoom();
+}
+
+function applyZoom(){
+  const z = S.zoom || 1;
+  board.style.transform = z === 1 ? "" : "scale(" + z + ")";
+  if(pageEl){
+    pageEl.style.width  = Math.round(board.offsetWidth  * z) + "px";
+    pageEl.style.height = Math.round(board.offsetHeight * z) + "px";
+  }
+  resizeCanvas();                  // the ink is redrawn at the new resolution
+}
+
+function showZoom(){
+  const el = document.getElementById("zoomLbl");
+  if(!el) return;
+  const z = Math.round((S.zoom || 1) * 100);
+  el.textContent = z + "%";
+  el.style.display = z === 100 ? "none" : "";
+}
+
+/* Fit the page to the space left between the two rails. Never larger than its
+   own size: the page is set at a width meant for reading, and blowing it up on
+   a wide screen only makes the lines harder to follow. */
+function zoomToFit(){
+  const avail = scroller.clientWidth - 24;
+  if(avail <= 0 || !board.offsetWidth) return;
+  const wasTouched = S._zoomTouched;
+  setZoom(Math.min(1, avail / board.offsetWidth));
+  S._zoomTouched = wasTouched;         // fitting is not you choosing a size
+}
+
 function resizeCanvas(){
   const w = board.offsetWidth, h = board.offsetHeight;
   // Drop resolution before exceeding the budget: a blurry ink layer is far
   // better than an invalid one, which silently kills the whole canvas.
-  let dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const z = S.zoom || 1;
+  let dpr = Math.min(window.devicePixelRatio || 1, 2) * z;
   const area = Math.max(1, w * h);
   if(area * dpr * dpr > CANVAS_BUDGET) dpr = Math.sqrt(CANVAS_BUDGET / area);
   let cw = Math.max(1, Math.floor(w * dpr)), chh = Math.max(1, Math.floor(h * dpr));
@@ -2343,8 +2431,9 @@ let panning = false, panRef = null, lastPointerAt = 0;
 const STALE_POINTER = 700;   // ms a tracked pointer may go silent before it is dropped
 
 function bpt(e){
-  const r = board.getBoundingClientRect();
-  return { x: e.clientX - r.left, y: e.clientY - r.top };
+  const r = board.getBoundingClientRect();      // already scaled by the zoom
+  const z = S.zoom || 1;
+  return { x: (e.clientX - r.left) / z, y: (e.clientY - r.top) / z };
 }
 
 const INKTOOLS = new Set(["pen","line","rect","oval","tri"]);
@@ -2401,7 +2490,7 @@ hit.addEventListener("pointerdown", e=>{
   for(const [id, p] of active){
     if(now - (p.t || 0) > STALE_POINTER) active.delete(id);
   }
-  if(!active.size){ panning = false; panRef = null; drag = null; }
+  if(!active.size){ panning = false; panRef = null; drag = null; pinch = null; }
 
   lastPointerAt = now;
   active.set(e.pointerId, {x:e.clientX, y:e.clientY, t:now, type:e.pointerType});
@@ -2428,6 +2517,7 @@ hit.addEventListener("pointerdown", e=>{
       redraw();
     }
     drag = null; panning = true; panRef = e.pointerId;
+    startPinch();
     return;
   }
   if(touches < 2 && panning){ panning = false; panRef = null; }
@@ -2595,10 +2685,15 @@ hit.addEventListener("pointermove", e=>{
   if(panning){
     const prev = active.get(e.pointerId);
     // a pen is never a panning finger
-    if(e.pointerType === "pen"){ panning = false; panRef = null; }
-    else if(e.pointerId === panRef && prev){
-      scroller.scrollLeft -= e.clientX - prev.x;
-      scroller.scrollTop  -= e.clientY - prev.y;
+    if(e.pointerType === "pen"){ panning = false; panRef = null; pinch = null; }
+    else {
+      active.set(e.pointerId, {x:e.clientX, y:e.clientY, t:Date.now(), type:e.pointerType});
+      if(pinch && stepPinch()) return;      // two fingers spreading or closing
+      if(e.pointerId === panRef && prev){
+        scroller.scrollLeft -= e.clientX - prev.x;
+        scroller.scrollTop  -= e.clientY - prev.y;
+      }
+      return;
     }
     active.set(e.pointerId, {x:e.clientX, y:e.clientY, t:Date.now()});
     return;
@@ -2725,7 +2820,8 @@ function wordsInBox(d){
 function endPointer(e){
   lastPointerAt = Date.now();
   active.delete(e.pointerId);
-  if(active.size === 0){ panning = false; panRef = null; }
+  if(active.size === 0){ panning = false; panRef = null; pinch = null; }
+  else if(pinch && !twoFingers()) pinch = null;
   else if(panRef === e.pointerId) panRef = active.keys().next().value;
 }
 
@@ -5648,6 +5744,10 @@ const SHORTCUTS = [
                      if(S.selStroke){ S.selStroke = null; redraw(); }
                      return true; },
                                               "esc", "Put the panels away"],
+  [1, 0, "0", ()=> { setZoom(1); return true; },           "⌘0", "The page at its own size"],
+  [1, 0, "9", ()=> { zoomToFit(); return true; },          "⌘9", "Fit the page to the window"],
+  [1, 0, "=", ()=> { setZoom((S.zoom || 1) * 1.15); return true; }, "⌘+", "Make the page larger"],
+  [1, 0, "-", ()=> { setZoom((S.zoom || 1) / 1.15); return true; }, "⌘\u2212", "Make it smaller"],
   [0, 0, "m", ()=> { pickTool("move"); return true; },      "M", "Move/Select"],
   [0, 0, "s", ()=> { pickTool("split"); return true; },     "S", "Split/Join"],
   [0, 0, "p", ()=> { if(S.nib === "highlighter") S.nib = "fineliner";
@@ -6716,7 +6816,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-08-16a";
+const BUILD = "2026-08-17b";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file
@@ -6779,6 +6879,9 @@ async function boot(){
   booted = true;
   await loadSaved();          // books, diagrams and settings from last time
   build(S.key); syncJoin(); syncUndo();
+  applyZoom();
+  zoomToFit();                    // open at whatever fits between the rails
+  showZoom();
   paintPalette(); paintMarks(); paintLinePop(); paintPenPop(); paintBoxPop(); paintFindChips();
   reportStorage();
 
@@ -6813,6 +6916,8 @@ document.addEventListener("visibilitychange", ()=>{
 window.addEventListener("online",  ()=>{ if(SYNC.on) syncAll({ full:true }); });
 window.addEventListener("offline", ()=>{ if(SYNC.on) setSyncState("offline", "No connection — your work is safe on this device."); });
 window.addEventListener("resize", ()=>{
+  // a rotation changes what will fit — but not if you have chosen a size yourself
+  if(!S._zoomTouched) zoomToFit();
   // the menus hang off their buttons, which move when the window does
   if(linePop.classList.contains("show")) placeLinePop();
   if(penPop.classList.contains("show")) placePenPop();

@@ -218,6 +218,11 @@
      like highlighter ink so the Greek reads straight through it. */
   /* the rules under a word: bars of their own, so they stay flat at the ends */
   .w .u1{position:absolute;left:0;right:0;height:0;pointer-events:none;}
+  /* The channel a symbol cuts: behind the word's letters, above its highlight.
+     A negative z-index inside the word's own stacking context puts it exactly
+     between the two. */
+  .w .symcut{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+    z-index:-1;line-height:0;pointer-events:none;}
   .w .sym{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
     line-height:0;pointer-events:none;white-space:nowrap;
     font-family:Inter,-apple-system,"Apple Color Emoji",sans-serif;}
@@ -1134,24 +1139,32 @@ function safePath(d){ return (typeof d === "string" && PATH_OK.test(d)) ? d : ""
    a highlight, most of the time — and then the symbol itself. Without that gap
    a see-through symbol on a see-through highlight is two washes of colour on
    top of each other and neither can be read. */
+/* A symbol, as SVG.
+
+   `cut` gives the channel on its own — a broad stroke in the colour of the
+   paper — which is laid behind the word's letters but above its highlight, so
+   the highlight is cut away around the symbol while the Greek still crosses the
+   gap. The symbol itself is a separate drawing, over everything. */
 function glyphSVG(id, colour, px, opts){
   opts = opts || {};
   const g = anyGlyph(id);
   if(!g) return null;
   const ds = (Array.isArray(g.d) ? g.d : [g.d]).map(safePath).filter(Boolean);
   if(!ds.length) return null;
+  const size = px || 17;
+  const wrap = body => `<svg viewBox="0 0 24 24" width="${size}" height="${size}" ` +
+    `style="color:${colour||"currentColor"};display:block">${body}</svg>`;
+
+  if(opts.cut){
+    return wrap(ds.map(d => `<path d="${d}" fill="none" stroke="#fffefb" ` +
+      `stroke-width="4.6" stroke-linecap="round" stroke-linejoin="round"/>`).join(""));
+  }
   const stroke = g.f ? "none" : "currentColor";
   const fill   = g.f ? "currentColor" : "none";
   const ink = (opts.ink === undefined) ? 1 : opts.ink;
-  const halo = opts.halo
-    ? ds.map(d => `<path d="${d}" fill="none" stroke="#fffefb" stroke-width="4.2" ` +
-        `stroke-linecap="round" stroke-linejoin="round" opacity="0.78"/>`).join("")
-    : "";
-  const body = ds.map(d => `<path d="${d}" fill="${fill}" stroke="${stroke}" ` +
+  return wrap(ds.map(d => `<path d="${d}" fill="${fill}" stroke="${stroke}" ` +
     `stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" ` +
-    `opacity="${ink}"/>`).join("");
-  return `<svg viewBox="0 0 24 24" width="${px||17}" height="${px||17}" ` +
-         `style="color:${colour||"currentColor"};display:block">${halo}${body}</svg>`;
+    `opacity="${ink}"/>`).join(""));
 }
 
 /* ============================================================
@@ -1756,6 +1769,7 @@ function render(){
     if(w._sym !== sym){
       if(!sym){
         if(w._symEl){ w._symEl.remove(); w._symEl = null; }
+        if(w._cutEl){ w._cutEl.remove(); w._cutEl = null; }
       } else {
         if(!w._symEl){
           w._symEl = document.createElement("span");
@@ -1763,10 +1777,20 @@ function render(){
           w.el.appendChild(w._symEl);          // child, so it travels with the word
         }
         const col = (mk && mk.sc) || "";
-        const svg = glyphSVG(sym, col, symSize(w), { halo:true, ink:SYMINK });
+        const svg = glyphSVG(sym, col, symSize(w), { ink:SYMINK });
         if(svg){ w._symEl.innerHTML = svg; w._symEl.style.color = ""; }
         else { w._symEl.innerHTML = ""; w._symEl.textContent = sym; // legacy character
                w._symEl.style.color = col; }
+        // the channel through the highlight, behind the letters
+        const cut = svg ? glyphSVG(sym, col, symSize(w), { cut:true }) : null;
+        if(cut){
+          if(!w._cutEl){
+            w._cutEl = document.createElement("span");
+            w._cutEl.className = "symcut";
+            w.el.appendChild(w._cutEl);
+          }
+          w._cutEl.innerHTML = cut;
+        } else if(w._cutEl){ w._cutEl.remove(); w._cutEl = null; }
       }
       w._sym = sym;
     }
@@ -5305,6 +5329,25 @@ function paintBoard(g){
     const bg = S.hits[wd.uid] || S.lemHi[wd.lemma];
     if(bg){ g.fillStyle = bg; g.fillRect(x, y, wd.w, wd.h); }
     const mk = S.marks[wd.uid];
+
+    /* A symbol lying on a highlighted word cuts a channel through the highlight
+       before the letters are laid down. Painting the channel over everything
+       would blank out the Greek as well; taking it out of the highlight only
+       leaves the word crossing the gap, with the page showing behind. */
+    if(bg && mk && mk.s && typeof Path2D !== "undefined"){
+      const gl0 = anyGlyph(mk.s);
+      if(gl0){
+        const ds0 = (Array.isArray(gl0.d) ? gl0.d : [gl0.d]).map(safePath).filter(Boolean);
+        const sz0 = symSize(wd);
+        g.save();
+        g.translate(x + wd.w / 2 - sz0 / 2, y + wd.h / 2 - sz0 / 2);
+        g.scale(sz0 / 24, sz0 / 24);
+        g.lineCap = "round"; g.lineJoin = "round";
+        g.strokeStyle = "#fffefb"; g.lineWidth = 4.6;
+        ds0.forEach(d => g.stroke(new Path2D(d)));
+        g.restore();
+      }
+    }
     if(mk && mk.b){ g.strokeStyle = mk.b; g.lineWidth = 2;
                     g.strokeRect(x - 1, y - 1, wd.w + 2, wd.h + 2); }
     if(mk && mk.u){
@@ -5334,10 +5377,6 @@ function paintBoard(g){
         g.translate(cx - sz / 2, cy - sz / 2);
         g.scale(sz / 24, sz / 24);
         g.lineCap = "round"; g.lineJoin = "round";
-        // a gap through whatever is underneath, then the symbol
-        g.globalAlpha = 0.78;
-        g.strokeStyle = "#fffefb"; g.lineWidth = 4.2;
-        ds.forEach(d => g.stroke(new Path2D(d)));
         g.globalAlpha = SYMINK;
         g.strokeStyle = mk.sc || "#8a5a2b"; g.fillStyle = mk.sc || "#8a5a2b";
         g.lineWidth = 1.9;
@@ -7107,7 +7146,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-08-19a";
+const BUILD = "2026-08-19b";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file

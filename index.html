@@ -289,14 +289,15 @@
     transition:height .14s ease;
     border:1px solid var(--rule);border-radius:9px;background:var(--paper);color:var(--ink);
     resize:vertical;}
-  #i-note:focus{outline:none;border-color:var(--accent);background:#fffdf6;}
+  #i-note{cursor:pointer;}
+  #i-note:hover{border-color:var(--accent);}
   .noterow{align-items:flex-start;}
   .w.hasnote:after{content:"";position:absolute;top:-3px;right:-3px;width:6px;height:6px;
     border-radius:50%;background:var(--accent);box-shadow:0 0 0 1.5px var(--paper);}
 
   /* ---------- printing ---------- */
   @media print{
-    header,#palette,#marks,.pop,#insp,#conc,.sheet{display:none !important;}
+    header,#palette,#marks,.pop,#insp,#conc,.sheet,#noteDrawer{display:none !important;}
     #scroll{overflow:visible !important;padding:0 !important;}
     #board{box-shadow:none !important;border:none !important;}
     html,body,#app{height:auto !important;overflow:visible !important;background:#fff !important;}
@@ -456,6 +457,25 @@
     background:rgba(138,90,43,.08);z-index:0;pointer-events:none;}
 
   /* ---------- inspector ---------- */
+  /* ---------- writing a note ----------
+     A pane across the foot of the screen, over the page rather than in place of
+     it: the passage stays in view while you write about it. */
+  #noteDrawer{position:fixed;left:0;right:0;bottom:0;height:48vh;z-index:130;
+    background:var(--paper);border-top:1px solid var(--rule);
+    box-shadow:0 -12px 44px rgba(0,0,0,.16);display:none;flex-direction:column;
+    padding:12px 18px calc(14px + env(safe-area-inset-bottom));gap:9px;}
+  #noteDrawer.show{display:flex;}
+  #noteDrawer .ndhead{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;}
+  #noteDrawer .ndword{font-family:Cardo,serif;font-size:27px;line-height:1.1;}
+  #noteDrawer .ndword.heb{font-family:"SBL Hebrew","Ezra SIL","Noto Serif Hebrew",Cardo,serif;
+    direction:rtl;unicode-bidi:isolate;}
+  #noteDrawer .ndref{font-size:9.5px;text-transform:uppercase;letter-spacing:.11em;
+    color:var(--muted);font-weight:700;margin-top:3px;}
+  #noteDrawer textarea{flex:1 1 auto;width:100%;font:inherit;font-size:18px;line-height:1.6;
+    padding:14px 16px;border:1px solid var(--rule);border-radius:14px;background:#fffdf6;
+    color:var(--ink);resize:none;}
+  #noteDrawer textarea:focus{outline:none;border-color:var(--accent);}
+  #noteDrawer .ndfoot{font-size:11px;color:var(--dim);}
   #insp{position:fixed;right:18px;bottom:18px;width:334px;max-width:calc(100vw - 36px);
     background:var(--paper);border:1px solid var(--rule);border-radius:15px;
     box-shadow:0 16px 46px rgba(0,0,0,.19);padding:16px 18px 15px;z-index:80;display:none;}
@@ -667,6 +687,16 @@
   </div>
 </div>
 
+<aside id="noteDrawer" aria-label="Note">
+  <div class="ndhead">
+    <div><div class="ndword" id="ndWord"></div><div class="ndref" id="ndRef"></div></div>
+    <button id="ndDone" class="act">✓ Done</button>
+  </div>
+  <textarea id="ndText" spellcheck="true" autocapitalize="sentences"
+            placeholder="Write with your Pencil — iPadOS turns it into text"></textarea>
+  <div class="ndfoot" id="ndFoot"></div>
+</aside>
+
 <div id="noteSheet" class="sheet">
   <div class="ws">
     <div class="wslbl">Write the note with your Pencil — iPadOS turns the handwriting into
@@ -709,7 +739,8 @@
   </div>
   <div class="noterow">
     <div class="k">Note</div>
-    <textarea id="i-note" rows="2" placeholder="Tap to write — the box grows as you do"></textarea>
+    <textarea id="i-note" rows="2" readonly
+              placeholder="Tap to write a note"></textarea>
   </div>
   <div class="lemhint" id="i-lemhint"></div>
   <div class="note">Gloss shown is from a public-domain lexicon. BDAG text is licensed
@@ -3312,6 +3343,7 @@ function selectedWords(){
 }
 
 function setSelection(words, lemma){
+  if(noteWord && !(words.length === 1 && words[0].uid === noteWord.uid)) closeNoteDrawer();
   S.selSet = words.map(w => w.uid);
   S.selLemma = lemma || null;
   S.sel = words.length === 1 ? words[0].id : null;
@@ -3325,6 +3357,7 @@ function setSelection(words, lemma){
 }
 
 function clearSelection(){
+  closeNoteDrawer();
   S.selSet = []; S.selLemma = null; S.sel = null;
   document.getElementById("insp").classList.remove("show");
   showSelCount(); render(); paintPalette();
@@ -3378,15 +3411,7 @@ function showInspector(w){
   document.getElementById("i-lem").onclick = ()=> toggleLemma(w);
   const note = document.getElementById("i-note");
   note.value = S.notes[w.uid] || "";
-  growNote(note, false);
-  note.onfocus = ()=> growNote(note, true);
-  note.onblur  = ()=> growNote(note, false);
-  note.oninput = ()=>{
-    growNote(note, document.activeElement === note);
-    const t = note.value.trim();
-    if(t) S.notes[w.uid] = t; else delete S.notes[w.uid];
-    render(); saveSoon();
-  };
+  note.onpointerdown = e =>{ e.preventDefault(); openNoteDrawer(w); };
   const cb = document.getElementById("i-conc");
   const occ = (buildConcIndex()[w.lemma] || []).length;
   cb.textContent = occ ? "Concordance (" + occ + ")" : "Concordance";
@@ -3409,15 +3434,51 @@ function toggleLemma(w){
   render(); syncLemBtn(w); paintLemHint(w); paintPalette(); saveSoon();
 }
 
-/* The note box was two lines whether you were reading it or writing in it.
-   Tapping it opens it out to something you can actually write a sentence in,
-   and it grows further as the note does. */
-function growNote(el, open){
-  if(!el || !el.style) return;
-  const min = open ? 108 : 42;
-  el.style.height = "auto";
-  const need = (el.scrollHeight || min) + 2;
-  el.style.height = Math.min(320, Math.max(min, need)) + "px";
+
+/* ---- the note pane ----
+   Writing about a word wants room. The small field in the inspector shows what
+   is there; tapping it opens a pane across the foot of the screen, over the
+   page so the passage stays in view, and closing it puts the note back. */
+let noteWord = null;
+
+function openNoteDrawer(w){
+  if(!w) return;
+  noteWord = w;
+  const p = PASSAGES[S.key] || {};
+  const el = document.getElementById("noteDrawer");
+  const ta = document.getElementById("ndText");
+  const wd = document.getElementById("ndWord");
+  wd.textContent = w.surface;
+  wd.className = "ndword" + (p.lang === "he" ? " heb" : "");
+  wd.dir = (p.lang === "he") ? "rtl" : "ltr";
+  document.getElementById("ndRef").textContent =
+    ((p.title || "") + " " + w.verse).trim().toUpperCase();
+  ta.value = S.notes[w.uid] || "";
+  ta.oninput = ()=>{
+    const t = ta.value.trim();
+    if(t) S.notes[w.uid] = t; else delete S.notes[w.uid];
+    const small = document.getElementById("i-note");
+    if(small) small.value = ta.value;
+    render(); saveSoon();
+  };
+  ta.onkeydown = e =>{ if(e.key === "Escape") closeNoteDrawer(); };
+  document.getElementById("ndFoot").textContent =
+    "It saves as you write. Esc, or Done, to put it away.";
+  el.classList.add("show");
+  ta.focus();                        // inside the gesture, so Scribble is ready
+}
+
+function closeNoteDrawer(){
+  const el = document.getElementById("noteDrawer");
+  if(el) el.classList.remove("show");
+  const small = document.getElementById("i-note");
+  if(small && noteWord) small.value = S.notes[noteWord.uid] || "";
+  noteWord = null;
+}
+
+function noteDrawerOpen(){
+  const el = document.getElementById("noteDrawer");
+  return !!(el && el.classList.contains("show"));
 }
 
 function syncLemBtn(w){
@@ -4275,6 +4336,8 @@ function closeRefSheet(action){
   refTarget = null;
   redraw(); saveSoon();
 }
+document.getElementById("ndDone").onclick = ()=> closeNoteDrawer();
+
 document.getElementById("noteOk").onclick     = ()=> closeNoteSheet("ok");
 document.getElementById("noteCancel").onclick = ()=> closeNoteSheet("cancel");
 document.getElementById("noteDel").onclick    = ()=> closeNoteSheet("delete");
@@ -6061,13 +6124,12 @@ const SHORTCUTS = [
                      render(); saveSoon(); return true; },
                                               "⌘⌫", "Clear the marks on it"],
   [1, 0, "k", ()=> { const w = S.words[S.sel]; if(!w) return false;
-                     const n = document.getElementById("i-note");
-                     if(n){ n.focus(); if(n.select) n.select(); }
-                     return true; },
+                     openNoteDrawer(w); return true; },
                                               "⌘K", "Write a note on it"],
   [0, 0, "arrowright", ()=> moveSelection(isRTL() ? -1 : 1), "→", "Select the next word"],
   [0, 0, "arrowleft",  ()=> moveSelection(isRTL() ? 1 : -1), "←", "Select the word before"],
-  [0, 0, "escape", ()=> { closePops(); clearSelection();
+  [0, 0, "escape", ()=> { if(noteDrawerOpen()){ closeNoteDrawer(); return true; }
+                     closePops(); clearSelection();
                      if(S.selStroke){ S.selStroke = null; redraw(); }
                      return true; },
                                               "esc", "Put the panels away"],
@@ -7146,7 +7208,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-08-19b";
+const BUILD = "2026-08-20a";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file

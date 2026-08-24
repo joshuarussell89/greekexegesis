@@ -414,6 +414,8 @@
      itself stays click-through; only the chip is interactive. */
   #board .secbreak{position:absolute;z-index:12;pointer-events:none;}
   #board .secbreak .rule{position:absolute;left:0;right:0;top:11px;height:5px;border-radius:3px;}
+  #board .secbreak.sub .rule{border-radius:0;}
+  #board .secbreak.sub .chip{font-size:11px;}
   #board .secbreak .chip{position:absolute;left:34px;top:0;display:inline-flex;
     align-items:center;gap:2px;background:var(--paper);border-radius:8px;
     padding:1px 3px 1px 8px;pointer-events:auto;
@@ -2496,14 +2498,22 @@ function sectionsByLine(){
 }
 
 /* Toggle a break above whichever line boundary is nearest the tap. */
-function toggleSection(boardY){
+function toggleSection(boardY, lvl){
   if(!S.lines.length) return null;
+  lvl = lvl || 1;
   let best = S.lines[0], bd = Infinity;
   S.lines.forEach(l=>{ const d = Math.abs(boardY - l.y); if(d < bd){ bd = d; best = l; } });
   const head = uidOf(best.ids[0]);
   const at = S.sections.findIndex(s => s.beforeWord === head);
-  if(at >= 0){ S.sections.splice(at, 1); layout(); return null; }
-  const sec = { id: (S.secSeq = (S.secSeq||0)+1), beforeWord: head, title:"", ci: S.ci };
+  if(at >= 0){
+    // the same kind again takes it away; the other kind changes what it is
+    if((S.sections[at].lvl || 1) === lvl){ S.sections.splice(at, 1); layout(); return null; }
+    S.sections[at].lvl = lvl;
+    S.sections[at].ci = S.ci;
+    layout();
+    return S.sections[at];
+  }
+  const sec = { id: (S.secSeq = (S.secSeq||0)+1), beforeWord: head, title:"", ci: S.ci, lvl };
   S.sections.push(sec);
   layout();
   return sec;
@@ -2528,13 +2538,21 @@ function renderSections(){
   S.sections.forEach(sec=>{
     if(sec._y === undefined) return;
     const c = COLORS[sec.ci] || COLORS[12];
+    const sub = (sec.lvl || 1) === 2;
     const el = document.createElement("div");
-    el.className = "secbreak";
-    el.style.left = "24px"; el.style.top = (sec._y - 11) + "px";
-    el.style.width = (WRAP - 24) + "px"; el.style.height = "28px";
+    el.className = "secbreak" + (sub ? " sub" : "");
+    const left = sub ? 62 : 24;
+    el.style.left = left + "px"; el.style.top = (sec._y - 11) + "px";
+    el.style.width = (WRAP - left) + "px"; el.style.height = "28px";
 
     const rule = document.createElement("div");
-    rule.className = "rule"; rule.style.background = c.hue;
+    rule.className = "rule";
+    if(sub){
+      // dashed, and a little lighter, so a subsection reads as one
+      rule.style.background = "none";
+      rule.style.borderTop = "4px dashed " + c.hue;
+      rule.style.height = "0";
+    } else rule.style.background = c.hue;
 
     const chip = document.createElement("div");
     chip.className = "chip";
@@ -2753,9 +2771,9 @@ hit.addEventListener("pointerdown", e=>{
   const t = activeTool(e);
 
   // extra-thick isn't a stroke: it demarcates a section of the text
-  if(t === "line" && S.lineStyle === "thick"){
+  if(t === "line" && BREAKSTYLE[S.lineStyle]){
     pushUndo();
-    const sec = toggleSection(p.y);
+    const sec = toggleSection(p.y, BREAKSTYLE[S.lineStyle]);
     if(sec){ S._focusSec = sec; focusSectionTitle(sec); }
     return;
   }
@@ -5364,13 +5382,22 @@ function paintBoard(g){
   S.sections.forEach(sec=>{
     if(sec._y === undefined) return;
     const col = (COLORS[sec.ci] || COLORS[12]).hue;
-    g.fillStyle = col;
-    g.fillRect(24, sec._y - 2, WRAP - 24, 5);
+    const sub = (sec.lvl || 1) === 2;
+    const left = sub ? 62 : 24;
+    if(sub){
+      g.save();
+      g.strokeStyle = col; g.lineWidth = 4; g.setLineDash([11, 8]);
+      g.beginPath(); g.moveTo(left, sec._y); g.lineTo(WRAP, sec._y); g.stroke();
+      g.setLineDash([]); g.restore();
+    } else {
+      g.fillStyle = col;
+      g.fillRect(left, sec._y - 2, WRAP - left, 5);
+    }
     if(sec.title){
-      g.font = "600 12px Inter, sans-serif";
+      g.font = (sub ? "600 11px" : "600 12px") + " Inter, sans-serif";
       const tw = g.measureText(sec.title).width;
-      g.fillStyle = "#fffefb"; g.fillRect(52, sec._y - 11, tw + 16, 22);
-      g.fillStyle = col; g.fillText(sec.title, 60, sec._y + 4);
+      g.fillStyle = "#fffefb"; g.fillRect(left + 28, sec._y - 11, tw + 16, 22);
+      g.fillStyle = col; g.fillText(sec.title, left + 36, sec._y + 4);
     }
   });
 
@@ -5656,6 +5683,7 @@ function buildOutline(){
     return {
       title: b.title,
       numbered: !!b.sec,
+      lvl: b.sec ? (b.sec.lvl || 1) : 1,
       from: refs[0] || "", to: refs[refs.length-1] || "",
       greek: b.words.map(w => w.surface).join(" "),
       band: bandOf(b.lines, b.sec),
@@ -5689,14 +5717,17 @@ function docxParagraph(text, style, opts){
 
 /* A heading in red, with the verses in parentheses beside it in a lighter
    weight so the title still carries the line. */
-function docxHeading(text, span){
+function docxHeading(text, span, lvl){
+  const sub = lvl === 2;
   // one w:sz per run — a repeated one is invalid and readers disagree about it
   const run = (t, sz, bold) =>
     '<w:r><w:rPr>' + (bold ? '<w:b/>' : '<w:b w:val="0"/>') +
     '<w:color w:val="B3231E"/><w:sz w:val="' + sz + '"/>' +
     '</w:rPr><w:t xml:space="preserve">' + xmlEsc(t) + '</w:t></w:r>';
-  return '<w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr>' + run(text, 30, true) +
-         (span ? run("  (" + span + ")", 24, false) : "") +
+  const big = sub ? 24 : 30, small = sub ? 20 : 24;
+  return '<w:p><w:pPr><w:pStyle w:val="Heading' + (sub ? "2" : "1") + '"/></w:pPr>' +
+         run(text, big, true) +
+         (span ? run("  (" + span + ")", small, false) : "") +
          '</w:p>';
 }
 
@@ -5746,11 +5777,17 @@ function exportOutline(){
   let body = docxParagraph(heading, "Title");
   if(summary) body += docxParagraph(summary, "Summary");
 
-  let n = 0;
+  let n = 0, sub = 0;
   outline.forEach(b=>{
     const span = withRefs ? refSpan(b.from, b.to) : "";
-    if(b.numbered){
-      n++;
+    if(b.numbered && b.lvl === 2){
+      // a subsection belongs to the section above it; before any of those it
+      // stands on its own rather than being numbered 0.1
+      sub++;
+      const label = n ? n + "." + sub + " " : "\u2022 ";
+      body += docxHeading(label + (b.title || "(untitled)"), span, 2);
+    } else if(b.numbered){
+      n++; sub = 0;
       body += docxHeading(n + ". " + (b.title || "(untitled section)"), span);
     } else if(outline.length > 1){
       body += docxHeading("Introduction", span);
@@ -5815,6 +5852,10 @@ function exportOutline(){
     '<w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/>' +
     '<w:pPr><w:outlineLvl w:val="0"/><w:keepNext/><w:spacing w:before="280" w:after="80"/></w:pPr>' +
     '<w:rPr><w:b/><w:color w:val="B3231E"/><w:sz w:val="30"/></w:rPr></w:style>' +
+    '<w:style w:type="paragraph" w:styleId="Heading2"><w:name w:val="heading 2"/>' +
+    '<w:pPr><w:outlineLvl w:val="1"/><w:keepNext/><w:spacing w:before="200" w:after="60"/>' +
+    '<w:ind w:left="284"/></w:pPr>' +
+    '<w:rPr><w:b/><w:color w:val="B3231E"/><w:sz w:val="24"/></w:rPr></w:style>' +
     '</w:styles>';
 
   const numbering = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
@@ -5871,9 +5912,12 @@ function exportOutline(){
 
 function openOutline(){
   const outline = buildOutline();
-  const named = outline.filter(b => b.numbered).length;
+  const named = outline.filter(b => b.numbered && b.lvl !== 2).length;
+  const subs  = outline.filter(b => b.numbered && b.lvl === 2).length;
   document.getElementById("outState").textContent = (named
-    ? named + " section" + (named === 1 ? "" : "s") + " will become numbered headings."
+    ? named + " section" + (named === 1 ? "" : "s") +
+      (subs ? " and " + subs + " subsection" + (subs === 1 ? "" : "s") : "") +
+      " will become numbered headings."
     : "No section breaks yet — add them with the Line tool set to Extra thick, and title each one.")
     + (summaryNow().trim() ? "" : " No summary typed yet, so the first page will have none.");
   document.getElementById("outlineSheet").classList.add("show");
@@ -5890,12 +5934,18 @@ const STYLEOPTS = [
   {v:"regular", nm:"Regular",     sub:""},
   {v:"dotted",  nm:"Dotted",      sub:""},
   {v:"double",  nm:"Double",      sub:""},
-  {v:"thick",   nm:"Extra thick", sub:"Lays a section break across the page and opens a titled gap"}
+  {v:"thick",   nm:"Extra thick", sub:"A section break across the page, with a title"},
+  {v:"thickdash", nm:"Thick dashed", sub:"A subsection within the section above"}
 ];
+/* Both of these lay a break across the page rather than drawing a stroke. */
+const BREAKSTYLE = { thick:1, thickdash:2 };
 
 /* Each row previews the actual weight, in the colour currently on the wheel. */
 function stylePreview(v, hue){
   const S_ = `stroke="${hue}" fill="none" stroke-linecap="round"`;
+  if(v === "thickdash")
+    return `<path d="M14 8h44" ${S_} stroke-width="5" stroke-dasharray="9 6"/>` +
+           `<path d="M4 8h6" ${S_} stroke-width="5" opacity=".28"/>`;
   switch(v){
     case "thin":    return `<path d="M2 8h58" ${S_} stroke-width="1.2"/>`;
     case "regular": return `<path d="M2 8h58" ${S_} stroke-width="2.2"/>`;
@@ -6303,7 +6353,7 @@ function docSnapshot(){
       p:s.pts.map(q => [r1(q.x), r1(q.y), Math.round((q.p == null ? .5 : q.p) * 100) / 100])
     })),
     conns:   S.conns.map(c => [c.a, c.b]),
-    sections:S.sections.map(s => ({ w:s.beforeWord, t:s.title, ci:s.ci })),
+    sections:S.sections.map(s => ({ w:s.beforeWord, t:s.title, ci:s.ci, l:s.lvl || 1 })),
     summaries: Object.assign({}, S.summaries),
     lem: Object.assign({}, S.lemHi),
     notes: Object.assign({}, S.notes),
@@ -6327,7 +6377,7 @@ function applyDoc(d, p){
   })).filter(s => s.pts.length && (TAGMODES.has(s.mode) || s.pts.length >= 2));
   S.conns = ((d && d.conns) || []).map(([a,b]) => ({ a, b }));
   S.sections = ((d && d.sections) || [])
-    .map((s,i) => ({ id:i+1, beforeWord:s.w, title:s.t || "", ci:s.ci || 0 }));
+    .map((s,i) => ({ id:i+1, beforeWord:s.w, title:s.t || "", ci:s.ci || 0, lvl:s.l || 1 }));
   S.secSeq = S.sections.length;
   S.lemHi = Object.assign({}, (d && d.lem) || {});
   S.notes = Object.assign({}, (d && d.notes) || {});
@@ -7208,7 +7258,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-08-20a";
+const BUILD = "2026-08-21a";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file

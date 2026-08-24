@@ -1550,7 +1550,7 @@ function buildPassage(key){
   rebuildLines();
 
   // measure
-  S.words.forEach(w=>{ const r = w.el.getBoundingClientRect(); w.w = r.width; w.h = r.height; });
+  measureWords();
   const wc = document.getElementById("wcount");
   wc.textContent = S.words.length > 500 ? S.words.length.toLocaleString() + " words" : "";
   const rb = document.getElementById("refBox");
@@ -1572,6 +1572,24 @@ function buildPassage(key){
    right. Everything else — ink, marks, arrows, sections — is already in page
    coordinates and needs no changes. */
 function isRTL(){ const p = PASSAGES[S.key]; return !!(p && p.lang === "he"); }
+
+
+/* Measure the words at their true size.
+
+   getBoundingClientRect reports what is on the glass, and the board carries a
+   transform once the page has been zoomed — so measuring while it is scaled
+   returns widths that are too small, and every line is laid out with the words
+   crowded on top of one another. Take the transform off for the measurement and
+   put it straight back. */
+function measureWords(){
+  const t = board.style.transform;
+  if(t) board.style.transform = "";
+  S.words.forEach(w=>{
+    const r = w.el.getBoundingClientRect();
+    w.w = r.width; w.h = r.height;
+  });
+  if(t) board.style.transform = t;
+}
 
 function layout(){
   board.querySelectorAll(".vn,.lh").forEach(n=>n.remove());
@@ -7034,7 +7052,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-08-18a";
+const BUILD = "2026-08-18b";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file
@@ -7115,7 +7133,7 @@ async function boot(){
    layout, every measurement is stale and the text overlaps — so re-measure
    and re-flow once the fonts are actually ready. */
 function remeasure(){
-  S.words.forEach(w=>{ const r = w.el.getBoundingClientRect(); w.w = r.width; w.h = r.height; });
+  measureWords();
   layout();
 }
 document.fonts.ready.then(()=> booted ? remeasure() : boot());

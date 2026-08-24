@@ -216,11 +216,10 @@
   /* A marked word carries its symbol as a child, so it moves with the word.
      The symbol lies over the word rather than above it, and is see-through
      like highlighter ink so the Greek reads straight through it. */
-  /* the lower rule of a double underline */
-  .w .u2{position:absolute;left:0;right:0;bottom:-4.2px;height:1.4px;pointer-events:none;}
+  /* the rules under a word: bars of their own, so they stay flat at the ends */
+  .w .u1{position:absolute;left:0;right:0;height:0;pointer-events:none;}
   .w .sym{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
     line-height:0;pointer-events:none;white-space:nowrap;
-    opacity:var(--symink);
     font-family:Inter,-apple-system,"Apple Color Emoji",sans-serif;}
 
   /* ---------- empty state ---------- */
@@ -281,10 +280,12 @@
   .noterow{display:flex;gap:10px;padding:10px 0 0;border-top:1px solid var(--rule2);margin-top:11px;}
   .noterow .k{flex:0 0 62px;color:var(--muted);font-size:9.5px;text-transform:uppercase;
     letter-spacing:.09em;padding-top:6px;font-weight:600;}
-  #i-note{flex:1;min-width:0;font:inherit;font-size:12.5px;line-height:1.5;padding:8px 10px;
+  #i-note{flex:1;min-width:0;font:inherit;font-size:13.5px;line-height:1.55;padding:9px 11px;
+    transition:height .14s ease;
     border:1px solid var(--rule);border-radius:9px;background:var(--paper);color:var(--ink);
     resize:vertical;}
-  #i-note:focus{outline:none;border-color:var(--accent);}
+  #i-note:focus{outline:none;border-color:var(--accent);background:#fffdf6;}
+  .noterow{align-items:flex-start;}
   .w.hasnote:after{content:"";position:absolute;top:-3px;right:-3px;width:6px;height:6px;
     border-radius:50%;background:var(--accent);box-shadow:0 0 0 1.5px var(--paper);}
 
@@ -703,7 +704,7 @@
   </div>
   <div class="noterow">
     <div class="k">Note</div>
-    <textarea id="i-note" rows="2" placeholder="Anything you want to remember about this word"></textarea>
+    <textarea id="i-note" rows="2" placeholder="Tap to write — the box grows as you do"></textarea>
   </div>
   <div class="lemhint" id="i-lemhint"></div>
   <div class="note">Gloss shown is from a public-domain lexicon. BDAG text is licensed
@@ -1038,6 +1039,13 @@ const INDENT = 36, ROW = 44, MARGIN = 78, TOP = 76, GAPW = 9, WRAP = 1075;
    accents need more room above and below than Greek does. */
 const RWRAP = 1040, ROW_HE = 58, GAPW_HE = 11;
 function rowH(){ return isRTL() ? ROW_HE : ROW; }
+/* How far a line may be indented: as far as leaves room for a word or two.
+   There used to be a limit of ten levels, which is not enough for a long
+   subordinate chain. */
+function maxIndent(){
+  const room = isRTL() ? (RWRAP - MARGIN) : (WRAP - MARGIN);
+  return Math.max(1, Math.floor((room - 90) / INDENT));
+}
 const MAX_LAYOUT_WORDS = 2600;   // about a long chapter
 const SECGAP = 46;          // vertical space a section break opens up
 
@@ -1121,17 +1129,29 @@ function anyGlyph(id){ return GLYPH_BY_ID[id] || customById(id); }
 const PATH_OK = /^[MmLlHhVvCcSsQqTtAaZz0-9eE ,.\-+]*$/;
 function safePath(d){ return (typeof d === "string" && PATH_OK.test(d)) ? d : ""; }
 
-function glyphSVG(id, colour, px){
+/* A symbol, as SVG. With `halo` it is drawn twice: first a broad stroke in the
+   colour of the paper, which opens a clear gap through whatever is underneath —
+   a highlight, most of the time — and then the symbol itself. Without that gap
+   a see-through symbol on a see-through highlight is two washes of colour on
+   top of each other and neither can be read. */
+function glyphSVG(id, colour, px, opts){
+  opts = opts || {};
   const g = anyGlyph(id);
   if(!g) return null;
   const ds = (Array.isArray(g.d) ? g.d : [g.d]).map(safePath).filter(Boolean);
   if(!ds.length) return null;
   const stroke = g.f ? "none" : "currentColor";
   const fill   = g.f ? "currentColor" : "none";
+  const ink = (opts.ink === undefined) ? 1 : opts.ink;
+  const halo = opts.halo
+    ? ds.map(d => `<path d="${d}" fill="none" stroke="#fffefb" stroke-width="4.2" ` +
+        `stroke-linecap="round" stroke-linejoin="round" opacity="0.78"/>`).join("")
+    : "";
   const body = ds.map(d => `<path d="${d}" fill="${fill}" stroke="${stroke}" ` +
-    `stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>`).join("");
+    `stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" ` +
+    `opacity="${ink}"/>`).join("");
   return `<svg viewBox="0 0 24 24" width="${px||17}" height="${px||17}" ` +
-         `style="color:${colour||"currentColor"};display:block">${body}</svg>`;
+         `style="color:${colour||"currentColor"};display:block">${halo}${body}</svg>`;
 }
 
 /* ============================================================
@@ -1698,20 +1718,33 @@ function render(){
     if(w._und !== und){
       const hue = mk && mk.u ? mk.u : "";
       const us  = (mk && mk.us) || "regular";
-      // The rule under a word is drawn in the same weights and patterns as the
-      // Line tool, since that is the tool that puts it there. The second rule of
-      // a double is a child, not a shadow: a shadow copies the whole silhouette
-      // and shows down the sides, which is why it never read as two lines.
-      const WEIGHT = { thin:"1.2px solid", regular:"2.5px solid",
-                       dotted:"2.5px dotted", double:"1.4px solid" };
-      w.el.style.borderBottom = hue ? (WEIGHT[us] || WEIGHT.regular) + " " + hue : "";
+      /* The rule is its own bar, not a border on the word. A border follows the
+         word's rounded corners and curls up at each end — the flick — whereas a
+         bar is straight, and matches what the exported picture draws. The
+         weights and patterns are the Line tool's, since that is what puts it
+         there. */
+      const WEIGHT = { thin:1.2, regular:2.5, dotted:2.5, double:1.4 };
+      const rule = (el, drop)=>{
+        el.style.borderTop = (WEIGHT[us] || 2.5) + "px " +
+                             (us === "dotted" ? "dotted " : "solid ") + hue;
+        el.style.bottom = drop + "px";
+      };
+      if(hue){
+        if(!w._u1El){
+          w._u1El = document.createElement("span");
+          w._u1El.className = "u1";
+          w.el.appendChild(w._u1El);
+        }
+        rule(w._u1El, 0);
+      } else if(w._u1El){ w._u1El.remove(); w._u1El = null; }
+
       if(hue && us === "double"){
         if(!w._u2El){
           w._u2El = document.createElement("span");
-          w._u2El.className = "u2";
+          w._u2El.className = "u1";
           w.el.appendChild(w._u2El);
         }
-        w._u2El.style.background = hue;
+        rule(w._u2El, -4.2);
       } else if(w._u2El){ w._u2El.remove(); w._u2El = null; }
       w._und = und;
     }
@@ -1730,7 +1763,7 @@ function render(){
           w.el.appendChild(w._symEl);          // child, so it travels with the word
         }
         const col = (mk && mk.sc) || "";
-        const svg = glyphSVG(sym, col, symSize(w));
+        const svg = glyphSVG(sym, col, symSize(w), { halo:true, ink:SYMINK });
         if(svg){ w._symEl.innerHTML = svg; w._symEl.style.color = ""; }
         else { w._symEl.innerHTML = ""; w._symEl.textContent = sym; // legacy character
                w._symEl.style.color = col; }
@@ -2853,7 +2886,7 @@ hit.addEventListener("pointermove", e=>{
   if(drag.kind === "line"){
     drag.cy = p.y;
     const dx = p.x - drag.sx;
-    const ni = Math.max(0, Math.min(10,
+    const ni = Math.max(0, Math.min(maxIndent(),
       drag.i0 + Math.round((isRTL() ? -dx : dx) / INDENT)));
     if(ni !== drag.line.indent){
       if(!drag.undone){ drag.undone = true; pushUndo(); }
@@ -3165,7 +3198,7 @@ function nearWordFor(p){
 function splitBefore(w){
   const line = S.lines[S.lines.findIndex(l => l.id === w.line)];
   if(!line || line.ids[0] === w.id) return;      // already the start of a line
-  S.lineStarts[w.uid] = (line.indent || 0) + 1;
+  S.lineStarts[w.uid] = Math.min(maxIndent(), (line.indent || 0) + 1);
   rebuildLines();
   S.curLine = S.lines.findIndex(l => l.ids[0] === w.id);
   layout(); syncJoin();
@@ -3321,7 +3354,11 @@ function showInspector(w){
   document.getElementById("i-lem").onclick = ()=> toggleLemma(w);
   const note = document.getElementById("i-note");
   note.value = S.notes[w.uid] || "";
+  growNote(note, false);
+  note.onfocus = ()=> growNote(note, true);
+  note.onblur  = ()=> growNote(note, false);
   note.oninput = ()=>{
+    growNote(note, document.activeElement === note);
     const t = note.value.trim();
     if(t) S.notes[w.uid] = t; else delete S.notes[w.uid];
     render(); saveSoon();
@@ -3346,6 +3383,17 @@ function toggleLemma(w){
   // lemma rather than to the one word you happened to have in hand
   if(lighting) selectLemma(w); else select(w);
   render(); syncLemBtn(w); paintLemHint(w); paintPalette(); saveSoon();
+}
+
+/* The note box was two lines whether you were reading it or writing in it.
+   Tapping it opens it out to something you can actually write a sentence in,
+   and it grows further as the note does. */
+function growNote(el, open){
+  if(!el || !el.style) return;
+  const min = open ? 108 : 42;
+  el.style.height = "auto";
+  const need = (el.scrollHeight || min) + 2;
+  el.style.height = Math.min(320, Math.max(min, need)) + "px";
 }
 
 function syncLemBtn(w){
@@ -5281,15 +5329,22 @@ function paintBoard(g){
       const cx = x + wd.w / 2, cy = y + wd.h / 2;
       const sz = symSize(wd);
       g.save();
-      g.globalAlpha = SYMINK;                 // see-through, like the highlighter
-      g.strokeStyle = mk.sc || "#8a5a2b"; g.fillStyle = mk.sc || "#8a5a2b";
       if(gl){
         const ds = (Array.isArray(gl.d) ? gl.d : [gl.d]).map(safePath).filter(Boolean);
         g.translate(cx - sz / 2, cy - sz / 2);
         g.scale(sz / 24, sz / 24);
-        g.lineWidth = 1.9; g.lineCap = "round"; g.lineJoin = "round";
+        g.lineCap = "round"; g.lineJoin = "round";
+        // a gap through whatever is underneath, then the symbol
+        g.globalAlpha = 0.78;
+        g.strokeStyle = "#fffefb"; g.lineWidth = 4.2;
+        ds.forEach(d => g.stroke(new Path2D(d)));
+        g.globalAlpha = SYMINK;
+        g.strokeStyle = mk.sc || "#8a5a2b"; g.fillStyle = mk.sc || "#8a5a2b";
+        g.lineWidth = 1.9;
         ds.forEach(d=>{ const pth = new Path2D(d); gl.f ? g.fill(pth) : g.stroke(pth); });
       } else {
+        g.globalAlpha = SYMINK;
+        g.strokeStyle = mk.sc || "#8a5a2b"; g.fillStyle = mk.sc || "#8a5a2b";
         g.font = sz + "px sans-serif";
         g.textBaseline = "middle";
         const tw = g.measureText(mk.s).width;
@@ -7052,7 +7107,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-08-18b";
+const BUILD = "2026-08-19a";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file

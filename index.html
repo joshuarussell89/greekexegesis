@@ -2495,7 +2495,15 @@ function sectionsByLine(){
     if(!line) { keep.push(sec); return; }   // belongs to a part of the book not on screen
     sec.beforeWord = uidOf(line.ids[0]);    // snap to the head of the line
     const here = byLine[line.id] || (byLine[line.id] = []);
-    if(here.some(x => (x.lvl || 1) === (sec.lvl || 1))) return;   // one of each kind
+    /* Rejoining two lines can bring two breaks of the same weight together.
+       Laying the page out must never quietly destroy one: an empty break is
+       folded away because there is nothing in it to lose, and a named one is
+       kept and simply drawn under its twin, where it can be seen and removed. */
+    const twin = here.find(x => (x.lvl || 1) === (sec.lvl || 1));
+    if(twin){
+      if(!String(sec.title || "").trim()) return;              // nothing lost
+      if(!String(twin.title || "").trim()){ twin.title = sec.title; return; }
+    }
     here.push(sec); keep.push(sec);
   });
   Object.keys(byLine).forEach(k => byLine[k].sort((a,b) => (a.lvl||1) - (b.lvl||1)));
@@ -6682,7 +6690,21 @@ function docParts(d){
   d = d || {};
   const byId = (arr, k) => {
     const o = {};
-    (arr || []).forEach(x => { const id = k(x); if(id != null) o[id] = x; });
+    (arr || []).forEach(x => {
+      let id = k(x);
+      if(id == null) return;
+      /* Two different pieces of work must never share a key. If they do, the
+         merge keeps whichever came last and the other is gone with no way
+         back — which is how a rule disappears off the page on its own. So
+         give the newcomer a key of its own instead. A duplicate you can see
+         and delete is always better than work quietly destroyed. */
+      if(o[id] !== undefined && fingerprint(o[id]) !== fingerprint(x)){
+        let n = 2;
+        while(o[id + "~" + n] !== undefined) n++;
+        id = id + "~" + n;
+      }
+      o[id] = x;
+    });
     return o;
   };
   return {
@@ -6691,7 +6713,11 @@ function docParts(d){
     summaries: d.summaries || {},
     strokes: byId(d.strokes, s => s.id),
     conns:   byId(d.conns, c => c[0] + ">" + c[1]),
-    sections:byId(d.sections, x => x.w)
+    /* A break is known by the word it sits above AND how heavy it is: a
+       section and the first subsection under it share a boundary but are two
+       separate pieces of work. Keying on the word alone quietly folded one
+       into the other, so a rule would vanish off the page during a sync. */
+    sections:byId(d.sections, x => x.w + "|" + (x.l || 1))
   };
 }
 
@@ -7277,7 +7303,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-08-22a";
+const BUILD = "2026-08-26a";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file

@@ -1667,8 +1667,8 @@ function layout(){
 
   S.lines.forEach(line=>{
     // a section break pushes this line — and everything after it — down a notch
-    const sec = secs[line.id];
-    if(sec){ y += SECGAP; sec._y = y - SECGAP + 17; }
+    const here = secs[line.id] || [];
+    here.forEach(sec=>{ y += SECGAP; sec._y = y - SECGAP + 17; });
 
     // x0 is where the line starts: the left margin, or the right one mirrored
     const x0 = rtl ? (RWRAP - line.indent*INDENT) : (MARGIN + line.indent*INDENT);
@@ -2483,6 +2483,10 @@ const wordOf = uid => S.byUid[uid] || null;
 
 /* Resolve each break onto a real line and heal it to that line's first word,
    so it always lands on a clean line boundary after splits and joins. */
+/* Which breaks sit above each line. A boundary may hold both a section and a
+   subsection — a heading with its first subheading directly under it, governing
+   what follows — so this maps a line to a list, deepest last, and never more
+   than one of each kind. */
 function sectionsByLine(){
   const byLine = {}, keep = [];
   S.sections.forEach(sec=>{
@@ -2490,9 +2494,11 @@ function sectionsByLine(){
     const line = w ? S.lines.find(l => l.ids.includes(w.id)) : null;
     if(!line) { keep.push(sec); return; }   // belongs to a part of the book not on screen
     sec.beforeWord = uidOf(line.ids[0]);    // snap to the head of the line
-    if(byLine[line.id]) return;             // one break per line
-    byLine[line.id] = sec; keep.push(sec);
+    const here = byLine[line.id] || (byLine[line.id] = []);
+    if(here.some(x => (x.lvl || 1) === (sec.lvl || 1))) return;   // one of each kind
+    here.push(sec); keep.push(sec);
   });
+  Object.keys(byLine).forEach(k => byLine[k].sort((a,b) => (a.lvl||1) - (b.lvl||1)));
   S.sections = keep;
   return byLine;
 }
@@ -2504,15 +2510,10 @@ function toggleSection(boardY, lvl){
   let best = S.lines[0], bd = Infinity;
   S.lines.forEach(l=>{ const d = Math.abs(boardY - l.y); if(d < bd){ bd = d; best = l; } });
   const head = uidOf(best.ids[0]);
-  const at = S.sections.findIndex(s => s.beforeWord === head);
-  if(at >= 0){
-    // the same kind again takes it away; the other kind changes what it is
-    if((S.sections[at].lvl || 1) === lvl){ S.sections.splice(at, 1); layout(); return null; }
-    S.sections[at].lvl = lvl;
-    S.sections[at].ci = S.ci;
-    layout();
-    return S.sections[at];
-  }
+  // the same kind again takes it away; the other kind sits alongside it, so a
+  // heading can be followed straight away by its first subheading
+  const at = S.sections.findIndex(s => s.beforeWord === head && (s.lvl || 1) === lvl);
+  if(at >= 0){ S.sections.splice(at, 1); layout(); return null; }
   const sec = { id: (S.secSeq = (S.secSeq||0)+1), beforeWord: head, title:"", ci: S.ci, lvl };
   S.sections.push(sec);
   layout();
@@ -5669,8 +5670,11 @@ function buildOutline(){
   const secs = sectionsByLine();
   const buckets = [{ title:null, lines:[], words:[], sec:null }];
   S.lines.forEach(line=>{
-    const sec = secs[line.id];
-    if(sec) buckets.push({ title: sec.title || "", lines:[], words:[], sec });
+    // a heading and its first subheading may share a boundary; each opens its
+    // own part, and the heading's part is then simply empty of text
+    (secs[line.id] || []).forEach(sec=>{
+      buckets.push({ title: sec.title || "", lines:[], words:[], sec });
+    });
     const b = buckets[buckets.length - 1];
     b.lines.push(line);
     line.ids.forEach(id => b.words.push(S.words[id]));
@@ -5684,6 +5688,7 @@ function buildOutline(){
       title: b.title,
       numbered: !!b.sec,
       lvl: b.sec ? (b.sec.lvl || 1) : 1,
+      count: b.words.length,
       from: refs[0] || "", to: refs[refs.length-1] || "",
       greek: b.words.map(w => w.surface).join(" "),
       band: bandOf(b.lines, b.sec),
@@ -5777,6 +5782,20 @@ function exportOutline(){
   let body = docxParagraph(heading, "Title");
   if(summary) body += docxParagraph(summary, "Summary");
 
+  /* A heading whose subheadings carry all the text has no verses of its own.
+     It takes the span of everything it governs, which is what it is a heading
+     for. */
+  outline.forEach((b, i)=>{
+    if(b.from || !b.numbered || b.lvl !== 1) return;
+    let from = "", to = "";
+    for(let j = i + 1; j < outline.length; j++){
+      if(outline[j].numbered && outline[j].lvl === 1) break;
+      if(outline[j].from && !from) from = outline[j].from;
+      if(outline[j].to) to = outline[j].to;
+    }
+    b.from = from; b.to = to;
+  });
+
   let n = 0, sub = 0;
   outline.forEach(b=>{
     const span = withRefs ? refSpan(b.from, b.to) : "";
@@ -5793,7 +5812,7 @@ function exportOutline(){
       body += docxHeading("Introduction", span);
     }
 
-    if(withPic && b.band && b.band.bottom > b.band.top){
+    if(withPic && b.count && b.band && b.band.bottom > b.band.top){
       try{
         const r = renderBand(b.band.top, b.band.bottom, 2, cutWidth);
         const rid = "rIdImg" + (media.length + 1);
@@ -5935,7 +5954,7 @@ const STYLEOPTS = [
   {v:"dotted",  nm:"Dotted",      sub:""},
   {v:"double",  nm:"Double",      sub:""},
   {v:"thick",   nm:"Extra thick", sub:"A section break across the page, with a title"},
-  {v:"thickdash", nm:"Thick dashed", sub:"A subsection within the section above"}
+  {v:"thickdash", nm:"Thick dashed", sub:"A subsection \u2014 it can sit straight under a section break"}
 ];
 /* Both of these lay a break across the page rather than drawing a stroke. */
 const BREAKSTYLE = { thick:1, thickdash:2 };
@@ -7258,7 +7277,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-08-21a";
+const BUILD = "2026-08-22a";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file

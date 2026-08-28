@@ -7351,7 +7351,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-08-28b";
+const BUILD = "2026-08-28d";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file
@@ -7767,6 +7767,9 @@ const demoIsConj  = w => w && (w.pos === "Conjunction" || /^C/.test(String(w.par
 const demoIsIndic = w => w && /indicative/i.test(String(w.parse || ""));
 const demoIsPtcp  = w => w && /participle/i.test(String(w.parse || ""));
 const demoWords   = test => S.words.filter(test);
+/* The two words Paul keeps putting side by side all through these six verses. */
+const DEMO_DEATH = ["θάνατος", "νέκρωσις", "θνητός"];
+const DEMO_LIFE  = ["ζωή", "ζάω"];
 const demoList = ws => ws.slice(0, 6).map(w => "<b>" + w.surface + "</b>").join(", ");
 
 /* The moves, in order. Each one is written so that running 1..n from a clean
@@ -7780,25 +7783,55 @@ function demoActs(){
       demoWords(demoIsConj).forEach(w => { S.hits[w.uid] = tint; });
     },
     ()=>{                                        // 3: the finite verbs
-      const keep = S.ci; S.ci = colourNamed("Crimson");
-      demoWords(demoIsIndic).forEach(w => setMark(w, "underline", true));
+      const keep = S.ci; S.ci = colourNamed("Ink");
+      demoWords(demoIsIndic).forEach(w => setMark(w, "double", true));
       S.ci = keep;
     },
-    ()=>{                                        // 4: the movements
+    ()=>{                                        // 4: the two words that repeat
+      const paint = (lemmas, colour)=>{
+        const want = new Set(lemmas.map(deaccent));
+        const tint = COLORS[colourNamed(colour)].tint;
+        S.words.forEach(w => { if(want.has(deaccent(w.lemma))) S.hits[w.uid] = tint; });
+      };
+      paint(DEMO_DEATH, "Slate");
+      paint(DEMO_LIFE,  "Green");
+    },
+    ()=>{                                        // 5: a mark on a word
+      const keep = S.ci; S.ci = colourNamed("Red");
+      demoWords(w => deaccent(w.lemma) === deaccent("οὐ"))
+        .forEach(w => setMark(w, "contrast", true));
+      S.ci = keep;
+    },
+    ()=>{                                        // 6: drawn round by hand
+      const w = demoWords(x => deaccent(x.lemma) === deaccent("θησαυρός"))[0];
+      if(!w) return;
+      const wd = w.w || 150, ht = w.h || 34;
+      S.strokes.push({ sid:newSid(), mode:"oval", anchor:w.uid,
+                       color:COLORS[colourNamed("Orange")].hue, style:"regular",
+                       pts:[{ x:-11, y:-8, p:.5 }, { x:wd + 11, y:ht + 8, p:.5 }] });
+    },
+    ()=>{                                        // 7: the movements
       if(!S.lines.length) return;
       const ci = colourNamed("Orange");
       S.sections = [{ id:1, beforeWord:uidOf(S.lines[0].ids[0]),
-                      title:"Treasure in clay jars", ci, lvl:1 }];
+                      title:"Treasure in Jars of Clay", ci, lvl:1 }];
+      /* A break sits at the head of a line, so verse 8 has to start one before
+         it can be named. Left-margin, because it opens a movement rather than
+         depending on what came before. */
       const w8 = S.byUid["4:8#0"];
-      const l8 = w8 ? S.lines.find(l => l.ids.includes(w8.id)) : null;
-      if(l8) S.sections.push({ id:2, beforeWord:uidOf(l8.ids[0]),
-                               title:"Pressed, but not crushed", ci, lvl:2 });
+      if(w8){
+        S.lineStarts[w8.uid] = 0;
+        rebuildLines();
+        const l8 = S.lines.find(l => l.ids[0] === w8.id);
+        if(l8) S.sections.push({ id:2, beforeWord:uidOf(l8.ids[0]),
+                                 title:"Constantly Battered yet Unbreakable", ci, lvl:2 });
+      }
       S.secSeq = S.sections.length;
     },
-    ()=>{                                        // 5: the big idea
+    ()=>{                                        // 8: the big idea
       S.summaries[viewKey()] =
-        "The treasure is carried in something breakable on purpose, so that the "
-      + "power on show is plainly God's and not ours.";
+        "God's powerful, life-giving ministry operates through the weakness and "
+      + "death of his ministers.";
       showSummary();
     }
   ];
@@ -7847,8 +7880,8 @@ function demoSteps(){
     title:"Find the main verbs",
     body: ()=>{
       const vs = demoWords(demoIsIndic), ps = demoWords(demoIsPtcp);
-      return "Underlined in red: every verb in the indicative — the things Paul "
-        + "actually asserts" + (vs.length ? " (" + demoList(vs) + ")" : "") + ".<br><br>"
+      return "Double-underlined in black: every verb in the indicative — the things "
+        + "Paul actually asserts" + (vs.length ? " (" + demoList(vs) + ")" : "") + ".<br><br>"
         + "Now notice how few there are, and how many participles surround them"
         + (ps.length ? " (" + ps.length + " of them)" : "")
         + ". The famous pairs in verses 8 and 9 are not a list of things Paul does. "
@@ -7856,6 +7889,38 @@ function demoSteps(){
         + "true: <b>we have this treasure</b>."; } }),
 
   Object.assign(at(4), { sel:"#board", ring:false,
+    title:"Follow the words that repeat",
+    body: ()=>{
+      const d = demoWords(w => new Set(DEMO_DEATH.map(deaccent)).has(deaccent(w.lemma)));
+      const l = demoWords(w => new Set(DEMO_LIFE.map(deaccent)).has(deaccent(w.lemma)));
+      return "Two words run all the way through: <b>death</b> in grey-blue"
+        + (d.length ? " (" + demoList(d) + ")" : "")
+        + " and <b>life</b> in green" + (l.length ? " (" + demoList(l) + ")" : "")
+        + ". Once they are coloured you can see them alternating down the page, "
+        + "and that alternation is the argument.<br><br>"
+        + "Two ways to colour a group like this: with <b>Move/Select</b>, drag a box "
+        + "over several words and tap a colour — or <b>double-tap</b> one word to "
+        + "select every occurrence of that lemma at once, and colour them all "
+        + "together."; } }),
+
+  Object.assign(at(5), { sel:"#marks",
+    title:"Put a mark on a word",
+    body:"Each of the four pairs in verses 8 and 9 turns on a negative — "
+       + "<b>ἀλλ᾽ οὐ</b>, <i>but not</i>. A <b>contrast</b> mark on each one says "
+       + "at a glance what kind of pair it is.<br><br>"
+       + "Select a word, tap a mark in the rail, and it goes on. Select several "
+       + "and one tap marks them all." }),
+
+  Object.assign(at(6), { sel:'[data-tool="rect"]',
+    title:"And draw on it yourself",
+    body:"An oval round <b>θησαυρὸν</b> — the treasure everything else in the "
+       + "passage is about.<br><br>"
+       + "Shapes are drawn by dragging corner to corner, and with an Apple Pencil "
+       + "you simply draw them: the pencil inks and your finger still moves the "
+       + "page. Anything you draw is anchored to the nearest word, so it travels "
+       + "with the text when the lines move." }),
+
+  Object.assign(at(7), { sel:"#board", ring:false,
     title:"Name the movements",
     body:"An <b>Extra thick</b> line lays a section break across the page, and a "
        + "<b>Thick dashed</b> one marks a subsection under it. Both take a title.<br><br>"
@@ -7863,25 +7928,25 @@ function demoSteps(){
        + "longer describing the grammar, you are saying what each movement is "
        + "<i>for</i>." }),
 
-  Object.assign(at(5), { sel:"#sumBox",
+  Object.assign(at(8), { sel:"#sumBox",
     title:"Say it in one sentence",
     body:"The big idea. If the diagram is right, this should now be nearly "
        + "obvious — and if you cannot write it, that is the diagram telling you "
        + "the reading is not finished." }),
 
-  Object.assign(at(5), { sel:"#setBtn",
+  Object.assign(at(8), { sel:"#setBtn",
     title:"And out it goes",
     body:"<b>⋯ → Sermon outline as a Word document</b> would now give you a "
-       + "document with <b>Treasure in clay jars</b> as heading 1, "
-       + "<b>Pressed, but not crushed</b> as 1.1, the verse ranges beside them, "
-       + "the diagram itself as a picture under each heading, and your notes as "
-       + "bullet points.<br><br>"
-       + "Everything you have just watched happen took about four minutes." }),
+       + "document with <b>Treasure in Jars of Clay</b> as heading 1, "
+       + "<b>Constantly Battered yet Unbreakable</b> as 1.1, the verse ranges "
+       + "beside them, the diagram itself as a picture under each heading, and "
+       + "your notes as bullet points." }),
 
-  Object.assign(at(5), { ring:false,
+  Object.assign(at(8), { ring:false,
     title:"Your turn",
     body:"That is the whole method: break it up, mark the joints, find what is "
-       + "asserted, name the movements, say it in a sentence.<br><br>"
+       + "asserted, follow the words that repeat, name the movements, say it in "
+       + "a sentence.<br><br>"
        + "This scratch copy is about to be thrown away and your own page put back "
        + "as you left it. You can watch this again from "
        + "<b>⋯ → Walk me through a passage</b>.",

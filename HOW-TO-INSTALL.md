@@ -111,3 +111,22 @@ native iPadOS rewrite in SwiftUI + PencilKit, roughly 3–4 months part-time,
 needing a Mac with Xcode and a $99/year Apple Developer account. The reason to
 do it is ink quality — PencilKit's ~9ms latency, tilt and pressure against
 Safari's ~40–80ms. Everything else you already have here.
+
+## Showing somebody how to use it
+
+The first time Nous is opened on a device it offers a short tour: it dims the
+page and points at each control in turn with a sentence about what it is for.
+It appears once and never again, and it can be skipped at any point.
+
+Both parts can be run again whenever you like, from **⋯**:
+
+- **Show me around** — the tour of the controls.
+- **Walk me through a passage** — a worked example. It takes 2 Corinthians
+  4:7-12 and diagrams it in front of you: breaking it into propositions,
+  highlighting the conjunctions, underlining the finite verbs, naming the
+  movements and writing the big idea, saying why at each step. It runs on a
+  scratch copy of the passage, so your own work on 2 Corinthians is never
+  opened and never altered, and the copy is thrown away at the end.
+
+The worked example needs the Greek New Testament installed. The **Key** button
+in the header remains the full reference for every feature.

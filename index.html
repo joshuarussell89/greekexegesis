@@ -406,6 +406,35 @@
   .lh:hover{background:#d8d0c0;}
   .gap{position:absolute;width:3px;background:rgba(194,65,12,.35);border-radius:2px;z-index:4;}
 
+
+  /* ---------- the tour ---------- */
+  /* The page is dimmed by four panels laid around the thing being pointed at,
+     rather than by one panel with a hole punched in it: the gap is genuinely
+     empty, so the control underneath keeps its own colours and stays crisp.
+     Everything sits above the sheets (200) so nothing can cover the card. */
+  .tpane{position:fixed;background:rgba(24,20,15,.52);z-index:900;
+    transition:all .22s cubic-bezier(.2,.7,.3,1);}
+  .tring{position:fixed;z-index:902;border:2px solid var(--sel);border-radius:10px;
+    box-shadow:0 0 0 3px rgba(194,65,12,.22);pointer-events:none;
+    transition:all .22s cubic-bezier(.2,.7,.3,1);}
+  .tring.none{display:none;}
+  .tcard{position:fixed;z-index:910;background:var(--paper);border-radius:14px;
+    width:330px;max-width:calc(100vw - 24px);padding:15px 16px 12px;
+    box-shadow:0 12px 40px rgba(0,0,0,.28),0 0 0 1px rgba(0,0,0,.06);
+    transition:top .22s cubic-bezier(.2,.7,.3,1),left .22s cubic-bezier(.2,.7,.3,1);}
+  .tcard .tnum{font-size:11px;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--muted);font-weight:600;}
+  .tcard h4{margin:5px 0 6px;font-size:16px;letter-spacing:-.01em;}
+  .tcard p{margin:0 0 11px;font-size:13.5px;line-height:1.5;color:#4a443b;}
+  .tcard p b{color:var(--ink);}
+  .tcard .tbtns{display:flex;gap:7px;align-items:center;}
+  .tcard button{font:600 13px Inter,sans-serif;border-radius:8px;padding:7px 13px;
+    border:1px solid var(--rule);background:var(--paper);color:var(--ink);cursor:pointer;}
+  .tcard button.act{background:var(--sel);border-color:var(--sel);color:#fff;}
+  .tcard button.skip{border:none;background:none;color:var(--muted);margin-left:auto;
+    padding:7px 4px;font-weight:500;}
+  .tcard button:disabled{opacity:.35;cursor:default;}
+
   /* ---------- section breaks ---------- */
   /* NB: named .secbreak, not .sec — the colour wheel's SVG sectors use .sec,
      and an unscoped .sec rule here silently killed pointer events on them. */
@@ -914,6 +943,13 @@
 </div>
 
 <div class="pop" id="settings">
+  <h4>Learning Nous</h4>
+  <button class="rowbtn" id="tourBtn">Show me around…</button>
+  <button class="rowbtn" id="demoBtn">Walk me through a passage…</button>
+  <div class="foot" style="padding-top:0">The first points at each control in turn.
+    The second takes a passage and diagrams it in front of you, saying why at each
+    step. Neither touches your own work.</div>
+  <hr>
   <h4>Load a full book</h4>
   <div class="foot" style="padding-top:0">Drop GitHub's
     <b>sblgnt-master.zip</b> here for the whole New Testament — no need to unzip it.
@@ -3351,6 +3387,13 @@ function autoSplit(){
     return { id:i, indent:l.indent, ids:l.ids,
              verse:S.words[l.ids[0]].verse, y:0, x:0, h:ROW };
   });
+  /* Record it, don't just draw it. The page is rebuilt from lineStarts on a
+     reload, on a sync merge, and every time you leave the book and come back —
+     so a split that lives only in S.lines is gone the next time anything
+     rebuilds, which is how an auto-split could quietly undo itself. */
+  S.lineStarts = {};
+  S.lines.forEach(l => { S.lineStarts[uidOf(l.ids[0])] = l.indent || 0; });
+
   S.curLine = null;
   layout(); syncJoin();
 }
@@ -3722,6 +3765,8 @@ function openPop(pop){
 }
 document.getElementById("helpBtn").onclick = ()=> openPop(helpPop);
 document.getElementById("setBtn").onclick  = ()=> openPop(setPop);
+document.getElementById("tourBtn").onclick = ()=>{ closePops(); runTour(); };
+document.getElementById("demoBtn").onclick = ()=>{ closePops(); runWorkedExample(); };
 
 function closePops(){
   ALLPOPS().forEach(p => p.classList.remove("show"));
@@ -6465,12 +6510,14 @@ function prefsSnapshot(){
           document.getElementById("mEng").value,  document.getElementById("mHeb").value,
           document.getElementById("mHLex").value],
     abbr:document.getElementById("mgAbbr").value,
-    use:S.glyphUse, hidden:S.glyphHidden
+    use:S.glyphUse, hidden:S.glyphHidden,
+    tour:!!S.tourSeen
   };
 }
 
 function applyPrefs(p){
   if(!p) return;
+  S.tourSeen = !!p.tour;
   if(p.mods){
     document.getElementById("mText").value = p.mods[0] || "NA28-T";
     document.getElementById("mLex").value  = p.mods[1] || "BDAG";
@@ -6956,7 +7003,8 @@ async function syncAll(opts){
       keys = Array.from(new Set(Object.keys(S.docs).concat(remote, S.key ? [S.key] : [])));
     }
     for(const key of keys){
-      if(!key) continue;
+      // BOOKKEY keeps scratch books — the worked example's copy — off the wire
+      if(!key || !BOOKKEY.test(key)) continue;
       let r = await syncBook(key);
       if(r && r.retry) r = await syncBook(key);    // one retry after a clash
       if(r && r.refused){ refused = true; continue; }
@@ -7303,7 +7351,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-08-26a";
+const BUILD = "2026-08-28b";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file
@@ -7361,6 +7409,526 @@ if("serviceWorker" in navigator && location.protocol.startsWith("http")){
 
 /* ---- go ---- */
 let booted = false;
+/* ============================================================
+   THE TOUR
+   A walk round the app for somebody opening it for the first time.
+   Two of them share this machinery: a tour of the furniture, which only
+   points and explains, and a worked example, which actually diagrams a
+   passage while it talks. Both are driven by a list of steps.
+
+   A step is { sel, title, body, before, after, run, ring }:
+     sel     what to point at — a selector, or a function returning an element
+     ring    false to talk without pointing at anything
+     before  run before the step is shown (opening a menu, say)
+     after   run when the step is left, in either direction
+     run     an action performed as the step is shown, for the worked example
+   A step whose target is not on the page is passed over rather than shown
+   pointing at nothing.
+   ============================================================ */
+
+const TOUR = { on:false, steps:[], i:0, el:null, panes:[], ring:null, card:null,
+               onDone:null, name:"" };
+
+function tourEl(step){
+  if(!step) return null;
+  if(step.ring === false) return null;
+  const sel = step.sel;
+  if(!sel) return null;
+  try{
+    const el = typeof sel === "function" ? sel() : document.querySelector(sel);
+    if(!el) return null;
+    const r = el.getBoundingClientRect();
+    return (r.width > 0 && r.height > 0) ? el : null;
+  }catch(e){ return null; }
+}
+
+/* A step counts as showable if it points at something that is there, or if it
+   deliberately points at nothing. */
+function tourUsable(step){
+  return step && (step.ring === false || !step.sel || !!tourEl(step));
+}
+
+function tourBuild(){
+  if(TOUR.el) return;
+  const wrap = document.createElement("div");
+  wrap.id = "tourWrap";
+  TOUR.panes = [];
+  for(let i = 0; i < 4; i++){
+    const d = document.createElement("div");
+    d.className = "tpane";
+    // swallow taps: while the tour is up, only the card is live
+    d.addEventListener("pointerdown", e => e.preventDefault());
+    wrap.appendChild(d); TOUR.panes.push(d);
+  }
+  const ring = document.createElement("div"); ring.className = "tring";
+  const card = document.createElement("div"); card.className = "tcard";
+  const mk = (tag, cls)=>{ const n = document.createElement(tag); if(cls) n.className = cls; return n; };
+  const num = mk("div", "tnum"), head = mk("h4"), body = mk("p"), btns = mk("div", "tbtns");
+  const back = mk("button", "tback"), next = mk("button", "act tnext"), skip = mk("button", "skip tskip");
+  back.textContent = "Back"; next.textContent = "Next"; skip.textContent = "Skip";
+  btns.appendChild(back); btns.appendChild(next); btns.appendChild(skip);
+  card.appendChild(num); card.appendChild(head); card.appendChild(body); card.appendChild(btns);
+  wrap.appendChild(ring); wrap.appendChild(card);
+  document.body.appendChild(wrap);
+  TOUR.el = wrap; TOUR.ring = ring; TOUR.card = card;
+  TOUR.num = num; TOUR.head = head; TOUR.body = body;
+  TOUR.back = back; TOUR.next = next; TOUR.skip = skip;
+
+  back.onclick = ()=> tourStep(-1);
+  next.onclick = ()=> tourStep(1);
+  skip.onclick = ()=> endTour(false);
+}
+
+/* Lay the four panels around the target, and put the card where there is room
+   for it. Called on every step and again whenever the window changes shape. */
+function tourPlace(){
+  if(!TOUR.on) return;
+  const W = window.innerWidth, H = window.innerHeight;
+  const step = TOUR.steps[TOUR.i];
+  const el = tourEl(step);
+  const pad = 6;
+  let box = null;
+  if(el){
+    const r = el.getBoundingClientRect();
+    /* Spotlighting something that fills the screen dims nothing and leaves the
+       card nowhere to stand. Past about half the page, say it in words and
+       don't point. */
+    if(r.width * r.height < W * H * 0.55)
+      box = { l:Math.max(0, r.left - pad), t:Math.max(0, r.top - pad),
+              r:Math.min(W, r.right + pad), b:Math.min(H, r.bottom + pad) };
+  }
+  const [p0, p1, p2, p3] = TOUR.panes;
+  const set = (d, l, t, w, h)=>{
+    d.style.left = l + "px"; d.style.top = t + "px";
+    d.style.width = Math.max(0, w) + "px"; d.style.height = Math.max(0, h) + "px";
+  };
+  if(!box){
+    set(p0, 0, 0, W, H); set(p1, 0, 0, 0, 0); set(p2, 0, 0, 0, 0); set(p3, 0, 0, 0, 0);
+    TOUR.ring.classList.add("none");
+    // leave nothing of the last step's ring behind, in the styles or on screen
+    TOUR.ring.style.left = TOUR.ring.style.top = "0px";
+    TOUR.ring.style.width = TOUR.ring.style.height = "0px";
+  } else {
+    set(p0, 0, 0, W, box.t);                            // above
+    set(p1, 0, box.b, W, H - box.b);                    // below
+    set(p2, 0, box.t, box.l, box.b - box.t);            // left
+    set(p3, box.r, box.t, W - box.r, box.b - box.t);    // right
+    TOUR.ring.classList.remove("none");
+    TOUR.ring.style.left = box.l + "px"; TOUR.ring.style.top = box.t + "px";
+    TOUR.ring.style.width = (box.r - box.l) + "px";
+    TOUR.ring.style.height = (box.b - box.t) + "px";
+  }
+
+  const cw = TOUR.card.offsetWidth || 330, ch = TOUR.card.offsetHeight || 160;
+  let cl, ct;
+  if(!box){
+    cl = (W - cw) / 2; ct = (H - ch) / 2;
+  } else {
+    const below = H - box.b, above = box.t;
+    ct = below > ch + 18 ? box.b + 12
+       : above > ch + 18 ? box.t - ch - 12
+       : Math.max(12, (H - ch) / 2);
+    cl = box.l + (box.r - box.l) / 2 - cw / 2;
+    // if it would land on top of the target, slide it clear sideways
+    if(ct + ch > box.t && ct < box.b){
+      cl = box.r + 14 + cw < W ? box.r + 14 : box.l - cw - 14;
+    }
+  }
+  TOUR.card.style.left = Math.max(12, Math.min(W - cw - 12, cl)) + "px";
+  TOUR.card.style.top  = Math.max(12, Math.min(H - ch - 12, ct)) + "px";
+}
+
+function tourShow(){
+  const step = TOUR.steps[TOUR.i];
+  if(!step) return endTour(true);
+  if(step.before) try{ step.before(); }catch(e){ note("Tour", "a step could not open"); }
+  if(step.run)    try{ step.run(); }catch(e){ note("Tour", "a step could not run"); }
+  TOUR.num.textContent =
+    (TOUR.name ? TOUR.name + " \u00b7 " : "") + (TOUR.i + 1) + " of " + TOUR.steps.length;
+  TOUR.head.textContent = step.title || "";
+  // a caption may be written as a function when it describes what was just found
+  TOUR.body.innerHTML = (typeof step.body === "function" ? step.body() : step.body) || "";
+  TOUR.back.disabled = TOUR.i === 0;
+  const last = TOUR.i === TOUR.steps.length - 1;
+  TOUR.next.textContent = last ? (step.done || "Done") : "Next";
+  TOUR.skip.style.display = last ? "none" : "";
+  // let the caption render before measuring it, or the first placement is wrong
+  tourPlace();
+  requestAnimationFrame(tourPlace);
+}
+
+function tourStep(d){
+  const step = TOUR.steps[TOUR.i];
+  if(step && step.after) try{ step.after(); }catch(e){}
+  let i = TOUR.i + d;
+  while(i >= 0 && i < TOUR.steps.length && !tourUsable(TOUR.steps[i])) i += d;
+  if(i < 0) return;                                  // already at the front
+  if(i >= TOUR.steps.length) return endTour(true);
+  TOUR.i = i;
+  tourShow();
+}
+
+function startTour(steps, opts){
+  opts = opts || {};
+  const usable = (steps || []).filter(tourUsable);
+  if(!usable.length) return false;
+  closePops();
+  tourBuild();
+  TOUR.on = true; TOUR.steps = usable; TOUR.i = 0;
+  TOUR.name = opts.name || "";
+  TOUR.onDone = opts.onDone || null;
+  TOUR.el.style.display = "";
+  tourShow();
+  return true;
+}
+
+function endTour(finished){
+  if(!TOUR.on) return;
+  const step = TOUR.steps[TOUR.i];
+  if(step && step.after) try{ step.after(); }catch(e){}
+  TOUR.on = false;
+  if(TOUR.el) TOUR.el.style.display = "none";
+  const done = TOUR.onDone; TOUR.onDone = null;
+  markTourSeen();
+  if(done) try{ done(finished); }catch(e){}
+}
+
+window.addEventListener("resize", ()=>{ if(TOUR.on) tourPlace(); });
+window.addEventListener("keydown", e=>{
+  if(!TOUR.on) return;
+  if(e.key === "Escape"){ e.preventDefault(); endTour(false); }
+  else if(e.key === "ArrowRight" || e.key === "Enter"){ e.preventDefault(); tourStep(1); }
+  else if(e.key === "ArrowLeft"){ e.preventDefault(); tourStep(-1); }
+}, true);
+
+
+/* ---- remembering that you have been shown round ---- */
+function markTourSeen(){
+  if(S.tourSeen) return;
+  S.tourSeen = true;
+  saveSoon();
+}
+
+/* ---- the tour of the furniture ---- */
+/* Steps whose target is not on the page are passed over, so the same list
+   serves a first-time page with nothing installed and a page mid-diagram. */
+function tourSteps(){
+  return [
+  { ring:false,
+    title:"Welcome to Nous",
+    body:"Nous is for reading a passage closely in Greek or Hebrew: breaking it "
+       + "into its propositions, laying the structure out down the page, and "
+       + "marking what you find — then turning that into a sermon outline.<br><br>"
+       + "This will take a minute. You can leave at any point, and start it again "
+       + "from <b>⋯ → Show me around</b>." },
+
+  { sel:"#installNT",
+    title:"First, the text itself",
+    body:"Nous has no Scripture in it until you put some there. These two buttons "
+       + "fetch the Greek New Testament and the Hebrew Old Testament, with every "
+       + "word already parsed. It happens once, it takes a minute, and afterwards "
+       + "it all works with no connection at all." },
+
+  { sel:"#refBox",
+    title:"Finding a passage",
+    body:"Type a reference here — <b>2 Corinthians 4:7-12</b>, <b>Rom 8</b>, "
+       + "<b>Gen 1:1-5</b>. A range may cross a chapter break.<br><br>"
+       + "Every range keeps its own diagram, so the work you do on 4:7-12 stays "
+       + "there when you go elsewhere and come back." },
+
+  { sel:'[data-tool="split"]',
+    title:"Breaking it into propositions",
+    body:"Tap any word to break the line before it. Tap the first word of a line "
+       + "to fold it back into the one above.<br><br>"
+       + "The <b>Auto-split</b> button in the header does a first pass for you: it "
+       + "starts a new line at each conjunction — <b>καί</b>, <b>δέ</b>, <b>ἵνα</b>, "
+       + "<b>ὅτι</b> and the rest — and indents the subordinate clauses under what "
+       + "they depend on. It is a first draft, not an answer.<br><br>"
+       + "Then you argue with it: put the break where you think the thought "
+       + "actually turns. Disagreeing with it is most of the work." },
+
+  { sel:"#board", ring:false,
+    title:"Indenting",
+    body:"Each line has a small grip at its left-hand edge. Drag it right to indent "
+       + "the line, left to pull it back.<br><br>"
+       + "Indentation is the whole point of a flow diagram: what sits furthest left "
+       + "is what the sentence is actually asserting, and everything indented under "
+       + "it is doing something to it — explaining, qualifying, giving the purpose "
+       + "or the ground." },
+
+  { sel:"#palette",
+    title:"Colour",
+    body:"Select a word — or drag a box over several — and tap a colour to highlight "
+       + "them. The bottom half of the palette is highlighter ink.<br><br>"
+       + "Double-tap a word to select every occurrence of that lemma in the passage "
+       + "at once, then colour them all together." },
+
+  { sel:"#marks",
+    title:"Marks",
+    body:"Tap a word, then tap a mark to put it over the word. They are for the "
+       + "things you want to see at a glance a week later: a contrast, a repetition, "
+       + "a word that carries the weight.<br><br>"
+       + "Hold one down to remove it from the rail, or draw your own at the bottom." },
+
+  { sel:"#lineBtn",
+    title:"Lines — and the shape of the sermon",
+    body:"Straight lines for underlining and bracketing. Two of the weights do "
+       + "something different: <b>Extra thick</b> lays a break right across the page "
+       + "with a title on it, and <b>Thick dashed</b> does the same for a subsection "
+       + "underneath.<br><br>"
+       + "Those titles become the numbered headings when you export the outline. "
+       + "Give them names as you go and the sermon skeleton writes itself.<br><br>"
+       + "With the Line tool chosen you can also just <b>drag</b> anywhere on the "
+       + "page to draw a line of your own — for bracketing, or joining two things "
+       + "up. And <b>tapping a word</b> rather than dragging underlines that word "
+       + "in whichever weight and colour you have picked." },
+
+  { sel:"#boxBtn",
+    title:"Shapes",
+    body:"Boxes, ovals and triangles for grouping. Two special ones: a "
+       + "<b>text box</b> for a note in your own handwriting, and a "
+       + "<b>cross-reference</b> box — draw it round a quotation, type "
+       + "<b>Isaiah 49:8</b>, and tapping the label opens that passage in "
+       + "Accordance." },
+
+  { sel:'[data-tool="chain"]',
+    title:"Chains",
+    body:"Tap a word to hang a chain link on it and write where it points — "
+       + "<b>5:21</b>, or <b>Rom 6:4</b>. Tapping the link takes you there if you "
+       + "have the book loaded, and opens Accordance if you do not.<br><br>"
+       + "For the thread that runs through a letter and shows up again three "
+       + "chapters later." },
+
+  { sel:'[data-tool="connect"]',
+    title:"Arrows",
+    body:"Tap one word and then another to draw an arrow between them. For an "
+       + "antecedent, an answering pair, a subject a long way from its verb." },
+
+  { sel:"#penBtn",
+    title:"Pen and highlighter",
+    body:"Freehand, with a choice of nibs — and the highlighter is one of them. "
+       + "With an Apple Pencil the pencil draws and your finger moves the page, "
+       + "without you having to tell it which." },
+
+  { sel:"#sumBox",
+    title:"The big idea",
+    body:"One sentence saying what the passage is doing. It belongs to this range "
+       + "rather than the whole book, and it goes on the front page of the Word "
+       + "document." },
+
+  { sel:"#setBtn",
+    title:"Getting it out again",
+    body:"Under here: <b>Export</b> turns the page into a Word outline, an image or "
+       + "a PDF — the outline carries your section titles as headings, with the "
+       + "diagram itself underneath each one.<br><br>"
+       + "Also here: <b>Sync</b>, which keeps the iPad and the Mac in step through "
+       + "a private GitHub repository, and the <b>Key</b> button beside it, which "
+       + "explains every feature in full.",
+    done:"Finish" }
+  ];
+}
+
+function runTour(){
+  const ok = startTour(tourSteps(), { name:"Tour" });
+  if(!ok) note("Tour", "nothing to point at");
+  return ok;
+}
+
+
+/* ============================================================
+   THE WORKED EXAMPLE
+   The tour says where things are. This says what they are for: it takes
+   2 Corinthians 4:7-12 and diagrams it while explaining each move.
+
+   Everything happens on a scratch copy of the passage under its own key, so
+   the reader's own work on 2 Corinthians is never opened, never altered and
+   never even loaded. BOOKKEY keeps the scratch copy out of the book menu and
+   off the sync.
+   ============================================================ */
+
+const DEMO = { key:"demo:worked", back:null, acts:[] };
+
+/* A copy of 4:7-12 under a key of its own. Null if the book is not installed. */
+function demoMakeBook(){
+  const src = PASSAGES["nt:2co"];
+  if(!src || !Array.isArray(src.verses)) return null;
+  const want = new Set(["4:7","4:8","4:9","4:10","4:11","4:12"]);
+  const verses = src.verses.filter(v => want.has(String(v[0])));
+  if(verses.length < 2) return null;
+  PASSAGES[DEMO.key] = Object.assign({}, src, {
+    key: DEMO.key, verses, chapters: [], byChapter: false,
+    words: verses.reduce((n, v) => n + v[1].length, 0),
+    title: "2 Corinthians 4:7-12 — worked example"
+  });
+  return DEMO.key;
+}
+
+const demoIsConj  = w => w && (w.pos === "Conjunction" || /^C/.test(String(w.parse || "")));
+const demoIsIndic = w => w && /indicative/i.test(String(w.parse || ""));
+const demoIsPtcp  = w => w && /participle/i.test(String(w.parse || ""));
+const demoWords   = test => S.words.filter(test);
+const demoList = ws => ws.slice(0, 6).map(w => "<b>" + w.surface + "</b>").join(", ");
+
+/* The moves, in order. Each one is written so that running 1..n from a clean
+   page always gives the same result, which is what lets Back work. */
+function demoActs(){
+  return [
+    null,                                        // 0: the bare text
+    ()=> autoSplit(),                            // 1: propositions
+    ()=>{                                        // 2: the joints
+      const tint = COLORS[colourNamed("Yellow")].tint;
+      demoWords(demoIsConj).forEach(w => { S.hits[w.uid] = tint; });
+    },
+    ()=>{                                        // 3: the finite verbs
+      const keep = S.ci; S.ci = colourNamed("Crimson");
+      demoWords(demoIsIndic).forEach(w => setMark(w, "underline", true));
+      S.ci = keep;
+    },
+    ()=>{                                        // 4: the movements
+      if(!S.lines.length) return;
+      const ci = colourNamed("Orange");
+      S.sections = [{ id:1, beforeWord:uidOf(S.lines[0].ids[0]),
+                      title:"Treasure in clay jars", ci, lvl:1 }];
+      const w8 = S.byUid["4:8#0"];
+      const l8 = w8 ? S.lines.find(l => l.ids.includes(w8.id)) : null;
+      if(l8) S.sections.push({ id:2, beforeWord:uidOf(l8.ids[0]),
+                               title:"Pressed, but not crushed", ci, lvl:2 });
+      S.secSeq = S.sections.length;
+    },
+    ()=>{                                        // 5: the big idea
+      S.summaries[viewKey()] =
+        "The treasure is carried in something breakable on purpose, so that the "
+      + "power on show is plainly God's and not ours.";
+      showSummary();
+    }
+  ];
+}
+
+/* Wipe the scratch page and replay the first n moves. Cheap, and it means Back
+   is always exactly right rather than approximately right. */
+function demoApply(n){
+  if(S.key !== DEMO.key) return;
+  S.hits = {}; S.marks = {}; S.notes = {}; S.lemHi = {};
+  S.sections = []; S.summaries = {}; S.strokes = []; S.conns = [];
+  S.lineStarts = defaultLineStarts(PASSAGES[DEMO.key]);
+  rebuildLines();
+  for(let i = 1; i <= n; i++) if(DEMO.acts[i]) DEMO.acts[i]();
+  layout(); render(); redraw(); showSummary();
+}
+
+function demoSteps(){
+  const at = n => ({ run: ()=> demoApply(n) });
+  return [
+  Object.assign(at(0), { ring:false,
+    title:"2 Corinthians 4:7-12",
+    body:"Here is the passage as it comes: six verses in one long run, the way "
+       + "it looks in a printed text.<br><br>"
+       + "This is a copy made for the walk-through. Your own work on "
+       + "2 Corinthians is not open and will not be touched." }),
+
+  Object.assign(at(1), { sel:"#board", ring:false,
+    title:"Break it into propositions",
+    body:"That is the <b>Auto-split</b> button doing its work. Nous starts a new "
+       + "line at each conjunction and indents what depends on what.<br><br>"
+       + "Read down the left-hand edge: what sits furthest left is what Paul is "
+       + "asserting. Everything indented under it is serving that assertion." }),
+
+  Object.assign(at(2), { sel:"#board", ring:false,
+    title:"Find the joints",
+    body: ()=>{
+      const cs = demoWords(demoIsConj);
+      return "The conjunctions are highlighted — " + (cs.length ? demoList(cs) : "the linking words")
+        + ". They are the joints of the argument, and they are the cheapest "
+        + "exegetical win there is.<br><br>"
+        + "Two of them are <b>ἵνα</b>: <i>so that</i>. Paul is not merely reporting "
+        + "his hardships. He is telling you their purpose."; } }),
+
+  Object.assign(at(3), { sel:"#board", ring:false,
+    title:"Find the main verbs",
+    body: ()=>{
+      const vs = demoWords(demoIsIndic), ps = demoWords(demoIsPtcp);
+      return "Underlined in red: every verb in the indicative — the things Paul "
+        + "actually asserts" + (vs.length ? " (" + demoList(vs) + ")" : "") + ".<br><br>"
+        + "Now notice how few there are, and how many participles surround them"
+        + (ps.length ? " (" + ps.length + " of them)" : "")
+        + ". The famous pairs in verses 8 and 9 are not a list of things Paul does. "
+        + "They describe the state he is in while the one thing he asserts stays "
+        + "true: <b>we have this treasure</b>."; } }),
+
+  Object.assign(at(4), { sel:"#board", ring:false,
+    title:"Name the movements",
+    body:"An <b>Extra thick</b> line lays a section break across the page, and a "
+       + "<b>Thick dashed</b> one marks a subsection under it. Both take a title.<br><br>"
+       + "This is the moment the study starts turning into a sermon: you are no "
+       + "longer describing the grammar, you are saying what each movement is "
+       + "<i>for</i>." }),
+
+  Object.assign(at(5), { sel:"#sumBox",
+    title:"Say it in one sentence",
+    body:"The big idea. If the diagram is right, this should now be nearly "
+       + "obvious — and if you cannot write it, that is the diagram telling you "
+       + "the reading is not finished." }),
+
+  Object.assign(at(5), { sel:"#setBtn",
+    title:"And out it goes",
+    body:"<b>⋯ → Sermon outline as a Word document</b> would now give you a "
+       + "document with <b>Treasure in clay jars</b> as heading 1, "
+       + "<b>Pressed, but not crushed</b> as 1.1, the verse ranges beside them, "
+       + "the diagram itself as a picture under each heading, and your notes as "
+       + "bullet points.<br><br>"
+       + "Everything you have just watched happen took about four minutes." }),
+
+  Object.assign(at(5), { ring:false,
+    title:"Your turn",
+    body:"That is the whole method: break it up, mark the joints, find what is "
+       + "asserted, name the movements, say it in a sentence.<br><br>"
+       + "This scratch copy is about to be thrown away and your own page put back "
+       + "as you left it. You can watch this again from "
+       + "<b>⋯ → Walk me through a passage</b>.",
+    done:"Put my page back" })
+  ];
+}
+
+function runWorkedExample(){
+  if(TOUR.on) return false;
+  if(!demoMakeBook()){
+    startTour([{ ring:false,
+      title:"The worked example needs the Greek New Testament",
+      body:"It walks through 2 Corinthians 4:7-12, so that book has to be "
+         + "installed first.<br><br>Use <b>Install the New Testament</b> — on the "
+         + "welcome page, or under <b>⋯</b>. It takes about a minute and happens "
+         + "only once.",
+      done:"Right" }], { name:"Worked example" });
+    return false;
+  }
+  DEMO.acts = demoActs();
+  DEMO.back = { key:S.key, chapter:S.chapter };
+  if(S.key) S.docs[S.key] = currentDoc(S.key);      // file the real page away first
+  S.chapter = "all";
+  build(DEMO.key);
+  demoApply(0);
+  zoomToFit(); showZoom();
+  return startTour(demoSteps(), { name:"Worked example", onDone: demoFinish });
+}
+
+/* Put the reader's own page back, and leave nothing of the scratch copy behind
+   — not in memory, not in storage, not on the sync. */
+function demoFinish(){
+  const back = DEMO.back || { key:"", chapter:"all" };
+  DEMO.back = null;
+  S.chapter = back.chapter || "all";
+  build(back.key);                       // files the scratch copy away, then leaves it
+  delete S.docs[DEMO.key];
+  delete PASSAGES[DEMO.key];
+  try{
+    const sel = document.getElementById("passage");
+    if(sel && back.key) sel.value = back.key;
+  }catch(e){}
+  zoomToFit(); showZoom(); layout(); redraw();
+  saveSoon();
+}
+
+
 async function boot(){
   if(booted) return;
   booted = true;
@@ -7378,6 +7946,11 @@ async function boot(){
     if(st){ SYNC.base = st.base || {}; SYNC.shas = st.shas || {}; }
   }catch(e){}
   if(SYNC.on) syncAll({ full:true });
+
+  /* Somebody opening Nous for the first time is looking at an empty page and a
+     row of unexplained buttons. Show them round — once. Anyone who has used it
+     before has this flag set and will never see it again. */
+  setTimeout(()=>{ if(!S.tourSeen && !TOUR.on) runTour(); }, 600);
 }
 
 /* Word widths are measured from the DOM. If Cardo arrives after the first

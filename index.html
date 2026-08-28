@@ -7351,7 +7351,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-08-28d";
+const BUILD = "2026-08-28e";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file
@@ -7930,9 +7930,10 @@ function demoSteps(){
 
   Object.assign(at(8), { sel:"#sumBox",
     title:"Say it in one sentence",
-    body:"The big idea. If the diagram is right, this should now be nearly "
-       + "obvious — and if you cannot write it, that is the diagram telling you "
-       + "the reading is not finished." }),
+    body:"The big idea, in one sentence. It belongs to this passage rather than "
+       + "to the whole book, so a different range gets its own box.<br><br>"
+       + "When you export the diagram as a sermon outline, this is written at the "
+       + "top of page 1." }),
 
   Object.assign(at(8), { sel:"#setBtn",
     title:"And out it goes",

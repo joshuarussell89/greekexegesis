@@ -400,7 +400,9 @@
 
   .vn{position:absolute;font-family:Inter,sans-serif;font-size:10px;font-weight:700;
     color:var(--accent);opacity:.7;z-index:1;width:34px;text-align:right;
-    letter-spacing:.02em;}
+    letter-spacing:.02em;pointer-events:none;}
+  /* a verse beginning mid-line: a small number tucked in before the word */
+  .vn.inl{text-align:left;opacity:.62;}
   .lh{position:absolute;width:14px;border-radius:7px;background:#e8e3d8;z-index:1;
     transition:background .12s;}
   .lh:hover{background:#d8d0c0;}
@@ -1711,40 +1713,59 @@ function layout(){
     let x = x0, rows = 1;
     line.y = y; line.x = x0;
 
-    line.ids.forEach(id=>{
+    /* Verse numbers are worked out here, inside the loop that places the words,
+       because a verse that begins in the middle of a line needs room made for
+       its number before the word it belongs to. Numbering only the words that
+       began a line meant most verses lost their number the moment the passage
+       was split up. */
+    line.vns = [];
+    line.ids.forEach((id, k)=>{
       const w = S.words[id];
+      const starts = w.verse !== lastVerse;
+      const [ch, v] = starts ? String(w.verse).split(":") : [null, null];
+      // the chapter is printed only when it changes: 1:12 … 24, 2:1 …
+      const label  = starts ? ((ch !== lastCh) ? w.verse : v) : null;
+      const inline = starts && k > 0;
+      const lw  = inline ? Math.round(String(label).length * 5.8) + 3 : 0;
+      const gap = inline ? lw + 7 : 0;
+
       if(rtl){
-        if(x < x0 && x - w.w < MARGIN){ x = x0 - 22; y += R; rows++; }
+        if(x < x0 && x - (w.w + gap) < MARGIN){ x = x0 - 22; y += R; rows++; }
+        if(inline){ x -= gap; line.vns.push({ text:label, x, y:y + 2, w:lw, rtl, inline:true }); }
         x -= w.w;
         w.lx = x; w.ly = y;
         x -= GAP;
       } else {
-        if(x > x0 && x + w.w > WRAP){ x = x0 + 22; y += R; rows++; }
+        if(x > x0 && x + gap + w.w > WRAP){ x = x0 + 22; y += R; rows++; }
+        if(inline){ line.vns.push({ text:label, x, y:y + 2, w:lw, rtl, inline:true }); x += gap; }
         w.lx = x; w.ly = y;
         x += w.w + GAP;
+      }
+
+      if(starts){
+        if(!inline){
+          // out in the margin, where a line begins
+          const vleft = rtl ? x0 + 14 : x0 - 48;
+          line.vns.push({ text:label, x:vleft, y:y + 6, w:34, rtl, inline:false });
+        }
+        lastVerse = w.verse; lastCh = ch;
       }
     });
 
     line.h = rows*R;
 
-    /* Verse number, outside the margin the line starts from. It is recorded on
-       the line as well as put on the page, because an exported picture is drawn
-       on a canvas and would otherwise have no way of knowing it was there. */
-    const first = S.words[line.ids[0]];
-    line.vn = null;
-    if(first && first.verse !== lastVerse){
-      const [ch, v] = first.verse.split(":");
+    /* Recorded on the line as well as put on the page: an exported picture is
+       drawn on a canvas and would otherwise have no way of knowing they were
+       there. */
+    line.vns.forEach(m=>{
       const vn = document.createElement("div");
-      vn.className = "vn";
-      // print the chapter only when it changes, so 1:12 … 24, 2:1 … reads naturally
-      vn.textContent = (ch !== lastCh) ? first.verse : v;
-      const vleft = rtl ? x0 + 14 : x0 - 48;
-      vn.style.left = vleft + "px"; vn.style.top = (line.y + 6) + "px";
-      if(rtl) vn.style.textAlign = "left";
+      vn.className = "vn" + (m.inline ? " inl" : "");
+      vn.textContent = m.text;
+      vn.style.left = m.x + "px"; vn.style.top = m.y + "px";
+      vn.style.width = m.w + "px";
+      if(m.inline || m.rtl) vn.style.textAlign = "left";
       board.appendChild(vn);
-      line.vn = { text:vn.textContent, x:vleft, y:line.y + 6, w:34, rtl };
-      lastVerse = first.verse; lastCh = ch;
-    }
+    });
     // line grip
     const hx = rtl ? x0 + 54 : x0 - 68;
     const lh = document.createElement("div");
@@ -5407,10 +5428,11 @@ function paintBoard(g){
   g.textBaseline = "top";
   g.fillStyle = "#9c7a55";                 // the accent, at the opacity the page uses
   S.lines.forEach(line=>{
-    const v = line.vn;
-    if(!v) return;
-    const tw = g.measureText(v.text).width;
-    g.fillText(v.text, v.rtl ? v.x : v.x + v.w - tw, v.y);
+    (line.vns || []).forEach(v=>{
+      const tw = g.measureText(v.text).width;
+      // margin numbers hang right-aligned; the ones inside a line read left
+      g.fillText(v.text, (v.rtl || v.inline) ? v.x : v.x + v.w - tw, v.y);
+    });
   });
   g.restore();
 
@@ -5586,10 +5608,10 @@ function bandOf(lines, sec){
   const grow = (a, b)=>{ if(a < top) top = a; if(b > bottom) bottom = b; };
   const wide = x => { if(x > right) right = x; };
   lines.forEach(line=>{
-    if(line.vn){                              // the verse number is part of the picture
-      grow(line.vn.y - 2, line.vn.y + 14);
-      wide(line.vn.x + line.vn.w);
-    }
+    (line.vns || []).forEach(v=>{             // the verse numbers are part of the picture
+      grow(v.y - 2, v.y + 14);
+      wide(v.x + v.w);
+    });
     line.ids.forEach(id=>{
       const w = S.words[id];
       if(!w) return;
@@ -6624,7 +6646,9 @@ function saveSoon(){
 
 function saveNow(){
   if(S._restoring) return Promise.resolve(false);
-  if(S.key) S.docs[docKey()] = currentDoc(S.key);
+  // BOOKKEY keeps the worked example's scratch copy out of storage entirely,
+  // so closing the app in the middle of it leaves nothing behind
+  if(S.key && BOOKKEY.test(S.key)) S.docs[docKey()] = currentDoc(S.key);
   mirrorSync();                       // synchronous, so it survives a sudden close
   if(!storageOK) return Promise.resolve(false);
   return Promise.all([kvSet("docs", S.docs), kvSet("prefs", prefsSnapshot())])
@@ -7011,6 +7035,9 @@ async function syncAll(opts){
       if(r && !r.skipped){ books++; added += r.added || 0; changed += r.changed || 0;
                            if(r.pushed) pushed++; }
     }
+    try{ await syncGlyphs(); }
+    catch(e){ note("Symbols did not sync", e.message || String(e)); }
+
     /* Record where we got to only once the local copy is safely written. The
        other order lets a sudden close leave a note saying work was synced that
        was never stored — and the next merge reads that as a deletion. */
@@ -7031,6 +7058,35 @@ async function syncAll(opts){
   }finally{
     SYNC.busy = false;
   }
+}
+
+/* Symbols you have drawn belong to no particular book, so they travel in a
+   file of their own. Merged by union on purpose: a symbol coming back is a
+   small annoyance, whereas a symbol going missing takes the appearance of
+   every mark made with it. Hiding one is a per-device setting and is not
+   sent. */
+async function syncGlyphs(){
+  const { doc: theirs, sha } = await ghRead("glyphs");
+  const mine = (S.glyphs || []).filter(g => g && g.id && g.id !== "__preview");
+  const byId = {};
+  ((theirs && theirs.list) || []).forEach(g => { if(g && g.id) byId[g.id] = g; });
+  const gained = [];
+  Object.keys(byId).forEach(id => { if(!mine.some(g => g.id === id)) gained.push(byId[id]); });
+  mine.forEach(g => { byId[g.id] = g; });
+  const list = Object.keys(byId).sort().map(k => byId[k]);
+
+  if(gained.length){
+    S.glyphs = mine.concat(gained);
+    S.glyphSeq = Math.max(S.glyphSeq || 0, S.glyphs.length);
+    kvSet("glyphs", { seq:S.glyphSeq, list:S.glyphs });
+    paintMarks(); render();
+    note("Sync brought in " + gained.length + " symbol" + (gained.length === 1 ? "" : "s"),
+         "drawn on your other device");
+  }
+  const before = JSON.stringify(((theirs && theirs.list) || []).map(g => g.id).sort());
+  if(before !== JSON.stringify(list.map(g => g.id).sort()))
+    await ghWrite("glyphs", { v:1, at:Date.now(), list }, sha);
+  return gained.length;
 }
 
 /* Work is pushed a little after you stop, not on every stroke. */
@@ -7177,20 +7233,53 @@ function wireSync(){
 async function loadSaved(){
   // read first: the guard flag must not span an await, or every save made
   // while storage is still answering would be silently dropped
-  let corpus, docs, prefs;
+  let corpus, docs, prefs, glyphs;
   try{
-    [corpus, docs, prefs] = await Promise.all([
-      kvGet("corpus"), kvGet("docs"), kvGet("prefs")
+    [corpus, docs, prefs, glyphs] = await Promise.all([
+      kvGet("corpus"), kvGet("docs"), kvGet("prefs"), kvGet("glyphs")
     ]);
   }catch(err){ return false; }
 
-  // fall back to the synchronous mirror if IndexedDB came back empty
-  if(!docs || !Object.keys(docs).length){
-    try{
-      const mir = JSON.parse(localStorage.getItem("kolon.mirror") || "null");
-      if(mir){ docs = mir.docs || docs; prefs = prefs || mir.prefs; }
-    }catch(e){}
+  /* Symbols you have drawn yourself were being written to storage and never
+     read back, so every one of them was gone at the next open — along with
+     the look of every mark made with it. */
+  if(glyphs && Array.isArray(glyphs.list)){
+    S.glyphs = glyphs.list.filter(g => g && g.id && g.id !== "__preview");
+    S.glyphSeq = glyphs.seq || S.glyphSeq || S.glyphs.length;
   }
+
+  /* The localStorage mirror is not merely a fallback for when IndexedDB comes
+     back empty. IndexedDB writes are asynchronous and iPadOS often tears the
+     page down before the transaction commits, while the mirror is written
+     synchronously and always lands. So the mirror is routinely the NEWER of
+     the two, and reading it only when IndexedDB was empty threw that work
+     away — silently, and looking exactly like a session that vanished.
+
+     Both copies are merged instead, book by book, with the same three-way
+     merge the sync uses. With no common base it keeps every entry from both
+     sides and lets the newer document win a genuine clash, so this can add
+     work back but can never take any away. */
+  let mirrored = 0;
+  try{
+    const mir = JSON.parse(localStorage.getItem("kolon.mirror") || "null");
+    if(mir && mir.docs && Object.keys(mir.docs).length){
+      const out = Object.assign({}, docs || {});
+      Object.keys(mir.docs).forEach(k=>{
+        const a = out[k], b = mir.docs[k];
+        if(!b) return;
+        if(!a){ out[k] = b; mirrored++; return; }
+        const both = mergeDocs(null, a, b);
+        if(JSON.stringify(docParts(both)) !== JSON.stringify(docParts(a))) mirrored++;
+        out[k] = both;
+      });
+      docs = out;
+    }
+    if(mir && !prefs) prefs = mir.prefs;
+  }catch(e){}
+  if(mirrored)
+    note("Recovered from the last session",
+         mirrored + " book" + (mirrored === 1 ? "" : "s") +
+         " had work that had not finished saving");
 
   S._restoring = true;
   try{
@@ -7351,7 +7440,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-08-28e";
+const BUILD = "2026-09-05a";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file

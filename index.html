@@ -399,6 +399,8 @@
   .lemhint .clr:hover{color:var(--ink);background:var(--chip);}
 
   /* highlight / letters, at the head of the colour palette */
+  /* the palest swatches would otherwise vanish into the paper */
+  #palette .sw[style*="#ffffff"],#palette .sw[style*="#fff170"]{box-shadow:inset 0 0 0 1px #ded7c8;}
   #palette .pmodes{display:flex;gap:4px;margin:0 0 8px;}
   #palette .pmode{flex:1;text-align:center;font:700 12px Inter,sans-serif;
     padding:4px 0;border-radius:6px;background:var(--chip);color:var(--muted);
@@ -1183,7 +1185,9 @@ const COLORS = [
   {n:"Brown",   hue:"#9c6224", tint:"#f0d2ab"},
   {n:"Olive",   hue:"#78912b", tint:"#dced96"},
   {n:"Crimson", hue:"#c01340", tint:"#ffb3c4"},
-  {n:"Navy",    hue:"#1d4bc4", tint:"#b6cbf7"}
+  {n:"Navy",    hue:"#1d4bc4", tint:"#b6cbf7"},
+  // white: for writing over a dark highlight, and for lifting a word off the page
+  {n:"White",   hue:"#ffffff", tint:"#ffffff"}
 ];
 
 
@@ -3306,6 +3310,7 @@ function showMergeHint(line){
 const CONNINK = "#8a5a2b";   // what an arrow drawn before colours existed was
 const CONN_CLEAR = 5;        // how close to a word the line may pass
 const CONN_GAP   = 7;        // the narrowest gap it will thread through
+const CONN_ROUND = 11;       // how far back from a corner the curve starts to turn
 
 /* The rows of words as they are actually laid out — a wrapped line makes more
    than one — each with the spans its words occupy, left to right. */
@@ -3343,6 +3348,26 @@ function connGap(row, wantX){
   if(!opts.length) return wantX;
   return opts.reduce((best, x) => Math.abs(x - wantX) < Math.abs(best - wantX) ? x : best,
                      opts[0]);
+}
+
+/* Take the corners off a polyline before it is smoothed. At each turn the
+   vertex is replaced by two points set back along the two arms, so the spline
+   sweeps round it instead of being dragged to a point. Without this the line
+   arrives at a gap, turns square, and leaves again — accurate, but nothing like
+   a line anybody would draw. */
+function connRound(p, r){
+  if(p.length < 3) return p;
+  const out = [p[0]];
+  for(let i = 1; i < p.length - 1; i++){
+    const a = p[i - 1], b = p[i], c = p[i + 1];
+    const d1 = Math.hypot(b.x - a.x, b.y - a.y), d2 = Math.hypot(c.x - b.x, c.y - b.y);
+    if(d1 < 1 || d2 < 1) continue;                  // a doubled point: nothing to round
+    const r1 = Math.min(r, d1 / 2), r2 = Math.min(r, d2 / 2);
+    out.push({ x:b.x + (a.x - b.x) / d1 * r1, y:b.y + (a.y - b.y) / d1 * r1 });
+    out.push({ x:b.x + (c.x - b.x) / d2 * r2, y:b.y + (c.y - b.y) / d2 * r2 });
+  }
+  out.push(p[p.length - 1]);
+  return out;
 }
 
 /* A rounded polyline through the waypoints, sampled so every caller — the
@@ -3430,7 +3455,7 @@ function connPoints(c){
     pts.push({ x:gx, y:down ? bot : top });
   });
   pts.push({ x:bx, y:by });
-  return connNudge(connSmooth(pts, 10), rows);
+  return connNudge(connSmooth(connRound(pts, CONN_ROUND), 12), rows);
 }
 
 /* Is this x clear of every word on the row? */
@@ -6718,6 +6743,27 @@ function loadBookDoc(key, p){
   S._loadedBook = key;
 }
 
+/* ---- where you were on the page ----
+   Leaving for Accordance and coming back should put you back where you were.
+   On an iPad the app is often torn down while it is in the background, so the
+   position has to be written down with the other settings rather than left to
+   the browser to remember. */
+function readScroll(){
+  const sc = document.getElementById("scroll");
+  if(!sc) return null;
+  return { x:sc.scrollLeft || 0, y:sc.scrollTop || 0, key:S.key || "", ch:String(S.chapter || "") };
+}
+
+function restoreScroll(want){
+  const sc = document.getElementById("scroll");
+  if(!sc || !want) return false;
+  // only if it is the same passage; otherwise the top is the right place
+  if(want.key !== (S.key || "") || want.ch !== String(S.chapter || "")) return false;
+  if(!want.x && !want.y) return false;
+  sc.scrollLeft = want.x; sc.scrollTop = want.y;
+  return true;
+}
+
 /* ---- settings ---- */
 function prefsSnapshot(){
   return {
@@ -6729,7 +6775,8 @@ function prefsSnapshot(){
           document.getElementById("mHLex").value],
     abbr:document.getElementById("mgAbbr").value,
     use:S.glyphUse, hidden:S.glyphHidden,
-    tour:!!S.tourSeen, paint:S.paintMode
+    tour:!!S.tourSeen, paint:S.paintMode,
+    scroll: readScroll()
   };
 }
 
@@ -6737,6 +6784,7 @@ function applyPrefs(p){
   if(!p) return;
   S.tourSeen = !!p.tour;
   S.paintMode = p.paint === "text" ? "text" : "fill";
+  S._scrollWant = p.scroll || null;
   if(p.mods){
     document.getElementById("mText").value = p.mods[0] || "NA28-T";
     document.getElementById("mLex").value  = p.mods[1] || "BDAG";
@@ -7049,6 +7097,16 @@ function mergeDocs(base, mine, theirs){
   return merged;
 }
 
+/* How many entries a merge took away. */
+function mergeLost(mine, merged){
+  const A = docParts(mine || {}), M = docParts(merged);
+  let gone = 0;
+  Object.keys(A).forEach(group=>{
+    Object.keys(A[group]).forEach(k=>{ if(M[group][k] === undefined) gone++; });
+  });
+  return gone;
+}
+
 /* How much of the other device's work was new to us — used only to tell you
    what happened, in words rather than numbers. */
 function mergeReport(mine, merged){
@@ -7073,6 +7131,8 @@ const SYNC = {
   on:false, owner:"", repo:"", branch:"main", token:"",
   base:{},          // fingerprints of each book as it stood at the last sync
   shas:{},          // the blob sha we last saw, for detecting a moved file
+  prev:{},          // the sha that was there before our last write: a cached
+                    // read hands that one back, and must not be believed
   busy:false, queue:new Set(), timer:null,
   state:"off", detail:"", at:0
 };
@@ -7098,6 +7158,10 @@ async function gh(path, opts){
   opts = opts || {};
   const r = await fetch("https://api.github.com/repos/" + SYNC.owner + "/" + SYNC.repo + path, {
     method: opts.method || "GET",
+    /* The Contents API is served through a cache. A stale answer is not merely
+       out of date: the merge reads the entries missing from it as work the
+       other device deleted, and removes them here too. */
+    cache: "no-store",
     headers: {
       "Authorization": "Bearer " + SYNC.token,
       "Accept": "application/vnd.github+json",
@@ -7123,7 +7187,9 @@ async function gh(path, opts){
 }
 
 async function ghRead(key){
-  const r = await gh("/contents/" + ghPath(key) + "?ref=" + encodeURIComponent(SYNC.branch));
+  // the timestamp defeats any cache between here and GitHub
+  const r = await gh("/contents/" + ghPath(key) + "?ref=" + encodeURIComponent(SYNC.branch) +
+                     "&t=" + Date.now());
   if(r.missing) return { doc:null, sha:null };
   let doc = null;
   try{ doc = JSON.parse(b64decode(r.data.content || "")); }catch(e){ doc = null; }
@@ -7161,15 +7227,42 @@ async function syncBook(key){
   const { doc: theirs, sha } = await ghRead(key);
   const live = currentDoc(key);
 
+  /* A read that is older than the copy we last successfully wrote is a stale
+     answer from a cache, not the other device rolling anything back. Acting on
+     it would delete everything written since — which is exactly what a merge
+     does with entries it cannot see. Leave it and come back in twenty seconds. */
+  /* A read that hands back exactly the blob that was there BEFORE our own last
+     write is a cached answer, not the other device rolling anything back. The
+     sha says so exactly; timestamps cannot, since a genuine deletion elsewhere
+     may carry a clock reading no later than ours.
+
+     This matters because a merge treats every entry it cannot see as one the
+     other device deleted — so a single stale read silently removed everything
+     written since. Waiting twenty seconds costs nothing. */
+  if(sha && SYNC.prev[key] && sha === SYNC.prev[key]){
+    note("Sync waited", "the repository answered with the copy from before its " +
+         "own last update \u2014 " + ((PASSAGES[key] || {}).title || key));
+    return { skipped:true, stale:true };
+  }
+
   if(!theirs){                                  // first time this book goes up
     if(!live || docWeight(live) === 0) return { skipped:true };
     const newSha = await ghWrite(key, live, sha);
-    if(newSha){ SYNC.shas[key] = newSha; SYNC.base[key] = docPrints(live); }
+    if(newSha){ SYNC.shas[key] = newSha; SYNC.base[key] = docPrints(live);
+                SYNC.prev[key] = sha || null; }
     return { pushed:true, added:0, changed:0 };
   }
 
   const merged = mergeDocs(SYNC.base[key], live || { at:0 }, theirs);
   const report = mergeReport(live || {}, merged);
+
+  /* Anything a merge removes is written down. A deletion made on the other
+     device is expected; a deletion nobody made is a bug, and this is how it
+     stops being invisible. */
+  const gone = mergeLost(live, merged);
+  if(gone) note("Sync removed " + gone + (gone === 1 ? " thing" : " things"),
+                "deleted on your other device \u2014 " +
+                ((PASSAGES[key] || {}).title || key));
 
   // take the merge locally — but only touch the page if the merge actually
   // says something different, so a sync that agrees with you changes nothing
@@ -7201,6 +7294,7 @@ async function syncBook(key){
   if(!same){
     const newSha = await ghWrite(key, merged, sha);
     if(!newSha) return { retry:true };           // moved under us; try again
+    SYNC.prev[key] = sha || null;      // what the cache may still be holding
     SYNC.shas[key] = newSha;
   } else {
     SYNC.shas[key] = sha;
@@ -7239,7 +7333,7 @@ async function syncAll(opts){
        other order lets a sudden close leave a note saying work was synced that
        was never stored — and the next merge reads that as a deletion. */
     await saveNow();
-    await kvSet("sync", { base:SYNC.base, shas:SYNC.shas, at:Date.now() });
+    await kvSet("sync", { base:SYNC.base, shas:SYNC.shas, prev:SYNC.prev, at:Date.now() });
     SYNC.at = Date.now();
     if(refused) return;                          // the reason is already showing
     const what = added || changed
@@ -7637,7 +7731,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-09-09b";
+const BUILD = "2026-09-09c";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file
@@ -8295,13 +8389,22 @@ async function boot(){
   loadSyncSettings(); wireSync();
   try{
     const st = await kvGet("sync");
-    if(st){ SYNC.base = st.base || {}; SYNC.shas = st.shas || {}; }
+    if(st){ SYNC.base = st.base || {}; SYNC.shas = st.shas || {};
+            SYNC.prev = st.prev || {}; }
   }catch(e){}
   if(SYNC.on) syncAll({ full:true });
 
   /* Somebody opening Nous for the first time is looking at an empty page and a
      row of unexplained buttons. Show them round — once. Anyone who has used it
      before has this flag set and will never see it again. */
+  /* After the layout and the zoom, or the scroller has not got its full height
+     yet and the position is clamped to nothing. */
+  const want = S._scrollWant;
+  if(want) requestAnimationFrame(()=>{
+    if(!restoreScroll(want)) return;
+    requestAnimationFrame(()=> restoreScroll(want));   // again once fonts have settled
+  });
+
   setTimeout(()=>{ if(!S.tourSeen && !TOUR.on) runTour(); }, 600);
 }
 
@@ -8319,12 +8422,16 @@ document.fonts.ready.then(()=> booted ? remeasure() : boot());
 }));
 document.addEventListener("visibilitychange", ()=>{
   if(document.visibilityState === "hidden"){
+    S._scrollWant = readScroll();      // so it survives being torn down in the background
     clearTimeout(saveTimer); saveNow();
     if(SYNC.on) syncAll();                 // push before the iPad suspends us
   } else if(SYNC.on && Date.now() - SYNC.at > 20000){
     syncAll({ full:true });                // and pull whatever happened elsewhere
   }
 });
+["pagehide","blur"].forEach(t => window.addEventListener(t, ()=>{
+  S._scrollWant = readScroll();
+}));
 window.addEventListener("online",  ()=>{ if(SYNC.on) syncAll({ full:true }); });
 window.addEventListener("offline", ()=>{ if(SYNC.on) setSyncState("offline", "No connection — your work is safe on this device."); });
 window.addEventListener("resize", ()=>{

@@ -398,6 +398,13 @@
     padding:2px 6px;border-radius:6px;text-decoration:underline;}
   .lemhint .clr:hover{color:var(--ink);background:var(--chip);}
 
+  /* highlight / letters, at the head of the colour palette */
+  #palette .pmodes{display:flex;gap:4px;margin:0 0 8px;}
+  #palette .pmode{flex:1;text-align:center;font:700 12px Inter,sans-serif;
+    padding:4px 0;border-radius:6px;background:var(--chip);color:var(--muted);
+    cursor:pointer;user-select:none;border:1px solid transparent;}
+  #palette .pmode.on{background:var(--paper);color:var(--ink);border-color:var(--rule);
+    box-shadow:0 1px 2px rgba(0,0,0,.06);}
   .vn{position:absolute;font-family:Inter,sans-serif;font-size:10px;font-weight:700;
     color:var(--accent);opacity:.7;z-index:1;width:34px;text-align:right;
     letter-spacing:.02em;pointer-events:none;}
@@ -1141,7 +1148,7 @@ const S = {
   glyphUse:{}, glyphHidden:{},
   words:[], lines:[], strokes:[], conns:[], sections:[],
   tool:"move", lastInk:"pen", ci:12, lineStyle:"regular", nib:"fineliner",
-  fingerMode:"auto", sawPen:false, zoom:1,
+  fingerMode:"auto", sawPen:false, zoom:1, paintMode:"fill",
   sel:null, selSet:[], selLemma:null, selStroke:null,
   lemHi:{}, connFrom:null, curLine:null, dpr:1
 };
@@ -1804,6 +1811,9 @@ function render(){
     // a search hit wins over a lemma highlight, which wins over nothing
     const lc = S.hits[w.uid] || S.lemHi[w.lemma] || "";
     if(w._wbg !== lc){ w.el.style.background = lc; w._wbg = lc; }   // beats the selection ring
+
+    const tc = (S.marks[w.uid] && S.marks[w.uid].tc) || "";
+    if(w._wtc !== tc){ w.el.style.color = tc; w._wtc = tc; }
 
     const cls = "w"
       + (S._selNow && S._selNow.has(w.uid) ? " sel" : "")
@@ -2695,25 +2705,31 @@ function nearestWord(x,y,maxd){
 /* ============================================================
    CONNECTORS
    ============================================================ */
+const connMarkId = hue => "ah" + String(hue || CONNINK).replace(/[^0-9a-z]/gi, "");
+
 function drawConns(){
-  let out = `<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5"
+  // an arrowhead per colour in use: a marker cannot inherit the path's stroke
+  const hues = [...new Set(S.conns.map(c => c.color || CONNINK).concat([CONNINK]))];
+  let out = "<defs>" + hues.map(h =>
+    `<marker id="${connMarkId(h)}" viewBox="0 0 10 10" refX="9" refY="5"
       markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M0,0 L10,5 L0,10 z" fill="#8a5a2b"/></marker></defs>`;
+      <path d="M0,0 L10,5 L0,10 z" fill="${h}"/></marker>`).join("") + "</defs>";
   /* The same points the eraser and the exported picture use, so what is on the
      page and what comes out of it can never disagree. */
   S.conns.forEach(c=>{
     const pts = connPoints(c);
     if(pts.length < 2) return;           // the other end is outside this window
     const d = pts.map((q, i) => (i ? "L" : "M") + q.x.toFixed(1) + "," + q.y.toFixed(1)).join(" ");
+    const hue = c.color || CONNINK;
     out += `<path d="${d}"
-      fill="none" stroke="#8a5a2b" stroke-width="1.8" opacity=".8"
+      fill="none" stroke="${hue}" stroke-width="1.8" opacity=".8"
       stroke-linecap="round" stroke-linejoin="round"
-      marker-end="url(#ah)"/>`;
+      marker-end="url(#${connMarkId(hue)})"/>`;
   });
   if(S.connFrom !== null){
     const a = wordOf(S.connFrom);
     if(a)
-    out += `<circle cx="${cx(a)}" cy="${py(a)+a.h+4}" r="5" fill="#8a5a2b"/>`;
+    out += `<circle cx="${cx(a)}" cy="${py(a)+a.h+4}" r="5" fill="${COLORS[S.ci].hue}"/>`;
   }
   svg.innerHTML = out;
 }
@@ -2916,7 +2932,9 @@ hit.addEventListener("pointerdown", e=>{
     const w = wordAt(p.x, p.y);
     if(w){
       if(S.connFrom === null) S.connFrom = w.uid;
-      else if(S.connFrom !== w.uid){ pushUndo(); S.conns.push({a:S.connFrom, b:w.uid}); S.connFrom = null; }
+      else if(S.connFrom !== w.uid){ pushUndo();
+        S.conns.push({ a:S.connFrom, b:w.uid, color:COLORS[S.ci].hue });
+        S.connFrom = null; }
       else S.connFrom = null;
       drawConns();
     }
@@ -3285,6 +3303,7 @@ function showMergeHint(line){
    single curve dipping below both ends, so joining a word near the top of the
    page to one near the bottom sent it looping off into the margin.           */
 
+const CONNINK = "#8a5a2b";   // what an arrow drawn before colours existed was
 const CONN_CLEAR = 5;        // how close to a word the line may pass
 const CONN_GAP   = 7;        // the narrowest gap it will thread through
 
@@ -3383,28 +3402,40 @@ function connPoints(c){
   const ay = down ? ay0 + a.h : ay0;
   const by = down ? by0 : by0 + b.h;
 
-  /* Two waypoints per row it has to get past, not one: entering the gap and
-     leaving it, both at the same x. That makes the line run straight down
-     through the gap for the whole height of the row, and do its travelling
-     sideways in the clear band between rows. One waypoint at the middle of the
-     row left it cutting diagonally through the words on either side. */
   const between = rows.filter(r=>{
     const mid = r.y + r.h / 2;
     return down ? (mid > ay + 1 && mid < by - 1) : (mid < ay - 1 && mid > by + 1);
   });
   if(!down) between.reverse();
 
+  /* A row is only an obstacle if the line as it currently stands would actually
+     run into a word on it. Indented lines leave a good deal of clear paper, and
+     treating every row as something to be got past made the arrow zig-zag
+     through empty space for no reason.
+
+     After each detour the line re-aims at its target, so one obstacle does not
+     bend the whole rest of the journey. */
   const pts = [{ x:ax, y:ay }];
   between.forEach(r=>{
-    const mid = r.y + r.h / 2;
-    const t = (mid - ay) / (by - ay);
-    const gx = connGap(r, ax + (bx - ax) * t);
+    const from = pts[pts.length - 1];
+    const aim = (yy)=> from.x + (bx - from.x) * ((yy - from.y) / (by - from.y || 1));
     const top = r.y - CONN_CLEAR, bot = r.y + r.h + CONN_CLEAR;
+    const mid = r.y + r.h / 2;
+    const enter = aim(down ? top : bot), leave = aim(down ? bot : top);
+    const wantX = aim(mid);
+    // clear on the way in, on the way out, and in the middle: leave it alone
+    if(connFree(r, enter) && connFree(r, leave) && connFree(r, wantX)) return;
+    const gx = connGap(r, wantX);
     pts.push({ x:gx, y:down ? top : bot });
     pts.push({ x:gx, y:down ? bot : top });
   });
   pts.push({ x:bx, y:by });
   return connNudge(connSmooth(pts, 10), rows);
+}
+
+/* Is this x clear of every word on the row? */
+function connFree(row, x){
+  return !row.spans.some(sp => x > sp.x0 - CONN_CLEAR && x < sp.x1 + CONN_CLEAR);
 }
 
 /* A smoothed curve can still bulge a little into a word at a sharp turn. This
@@ -3758,7 +3789,17 @@ function paintPalette(){
     '" data-i="' + i + '" data-kind="' + kind + '" title="' + c.n + '"' +
     ' style="background:' + (kind === "tint" ? c.tint : c.hue) + '"></div>').join("");
 
+  /* What a colour does to the words you have selected: fill the paper behind
+     them, or colour the letters themselves. */
+  const tog = (v, label, title)=>
+    '<div class="pmode' + (S.paintMode === v ? " on" : "") + '" data-mode="' + v + '"' +
+    ' title="' + title + '">' + label + '</div>';
+
   paletteEl.innerHTML =
+    '<div class="pmodes">' +
+      tog("fill", "\u25a0", "Tapping a colour highlights the word") +
+      tog("text", "A",       "Tapping a colour colours the letters") +
+    '</div>' +
     '<div class="plbl">Ink</div><div class="grid">' + row("hue") + '</div>' +
     '<div class="plbl" style="margin-top:8px">Highlight</div>' +
     '<div class="grid">' + row("tint") + '</div>' +
@@ -3777,6 +3818,7 @@ function colourNamed(n){
   return i < 0 ? 12 : i;
 }
 const TOOLCOLOUR = {
+  connect: "Brown",        // an arrow between two words
   thick: "Orange",         // a section break
   xref:  "Violet",         // a cross-reference square
   chain: "Brown",          // a chain
@@ -3822,7 +3864,17 @@ function pickColor(i){
     const tint = COLORS[i].tint;
     const on = !isRepeat("colour:" + i + ":" + (S.selLemma || S.selSet.join(",")));
     pushUndo();
-    if(S.selLemma){
+    if(S.paintMode === "text"){
+      /* The letters, not the paper. It rides along with the other marks on the
+         word, so it saves, syncs and exports with everything else. */
+      const hue = COLORS[i].hue;
+      sel.forEach(w=>{
+        const mk = S.marks[w.uid] || {};
+        if(on) mk.tc = hue; else delete mk.tc;
+        if(!mk.u && !mk.b && !mk.s && !mk.tc) delete S.marks[w.uid];
+        else S.marks[w.uid] = mk;
+      });
+    } else if(S.selLemma){
       if(on) S.lemHi[S.selLemma] = tint; else delete S.lemHi[S.selLemma];
     } else {
       sel.forEach(w => { if(on) S.hits[w.uid] = tint; else delete S.hits[w.uid]; });
@@ -3835,7 +3887,16 @@ function pickColor(i){
 
 paletteEl.addEventListener("pointerdown", e=>{
   const d = e.target && e.target.dataset;
-  if(!d || d.i === undefined || d.i === null || d.i === "") return;
+  if(!d) return;
+  /* The toggle at the head of the palette: does a colour fill the paper behind
+     the word, or colour the letters themselves? */
+  if(d.mode){
+    e.preventDefault();
+    S.paintMode = d.mode === "text" ? "text" : "fill";
+    paintPalette(); saveSoon();
+    return;
+  }
+  if(d.i === undefined || d.i === null || d.i === "") return;
   e.preventDefault();
   /* The two rows are the same eighteen colours; which row you reach for says
      what you want to do with them. A tint means the highlighter; a full colour
@@ -5252,7 +5313,7 @@ function setMark(w, kind, on){
     mk.s  = on ? kind : null;
     mk.sc = on ? c.hue : mk.sc;
   }
-  if(!mk.u && !mk.b && !mk.s) delete S.marks[w.uid];
+  if(!mk.u && !mk.b && !mk.s && !mk.tc) delete S.marks[w.uid];
   else S.marks[w.uid] = mk;
 }
 
@@ -5616,6 +5677,7 @@ function paintBoard(g){
   S.conns.forEach(cn=>{
     const pts = connPoints(cn);
     if(pts.length < 2) return;
+    g.strokeStyle = cn.color || CONNINK;
     g.beginPath(); g.moveTo(pts[0].x, pts[0].y);
     pts.slice(1).forEach(q => g.lineTo(q.x, q.y));
     g.stroke();
@@ -5662,7 +5724,7 @@ function paintBoard(g){
       }
       g.setLineDash([]);
     }
-    g.fillStyle = "#211d18";
+    g.fillStyle = (mk && mk.tc) || "#211d18";
     g.font = heb ? '29px "SBL Hebrew", "Ezra SIL", "Noto Serif Hebrew", Cardo, serif'
                  : "27px Cardo, Georgia, serif";
     g.textBaseline = "top";
@@ -6580,7 +6642,7 @@ function docSnapshot(){
       nb:s.nib || undefined,
       p:s.pts.map(q => [r1(q.x), r1(q.y), Math.round((q.p == null ? .5 : q.p) * 100) / 100])
     })),
-    conns:   S.conns.map(c => [c.a, c.b]),
+    conns:   S.conns.map(c => [c.a, c.b, c.color || CONNINK]),
     sections:S.sections.map(s => ({ w:s.beforeWord, t:s.title, ci:s.ci, l:s.lvl || 1 })),
     summaries: Object.assign({}, S.summaries),
     lem: Object.assign({}, S.lemHi),
@@ -6603,7 +6665,7 @@ function applyDoc(d, p){
     nib:s.nb || undefined,
     pts:(s.p || []).map(q => ({ x:q[0], y:q[1], p:q[2] }))
   })).filter(s => s.pts.length && (TAGMODES.has(s.mode) || s.pts.length >= 2));
-  S.conns = ((d && d.conns) || []).map(([a,b]) => ({ a, b }));
+  S.conns = ((d && d.conns) || []).map(([a,b,c]) => ({ a, b, color:c || CONNINK }));
   S.sections = ((d && d.sections) || [])
     .map((s,i) => ({ id:i+1, beforeWord:s.w, title:s.t || "", ci:s.ci || 0, lvl:s.l || 1 }));
   S.secSeq = S.sections.length;
@@ -6667,13 +6729,14 @@ function prefsSnapshot(){
           document.getElementById("mHLex").value],
     abbr:document.getElementById("mgAbbr").value,
     use:S.glyphUse, hidden:S.glyphHidden,
-    tour:!!S.tourSeen
+    tour:!!S.tourSeen, paint:S.paintMode
   };
 }
 
 function applyPrefs(p){
   if(!p) return;
   S.tourSeen = !!p.tour;
+  S.paintMode = p.paint === "text" ? "text" : "fill";
   if(p.mods){
     document.getElementById("mText").value = p.mods[0] || "NA28-T";
     document.getElementById("mLex").value  = p.mods[1] || "BDAG";
@@ -7574,7 +7637,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-09-09a";
+const BUILD = "2026-09-09b";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file

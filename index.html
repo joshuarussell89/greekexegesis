@@ -401,6 +401,26 @@
   /* highlight / letters, at the head of the colour palette */
   /* the palest swatches would otherwise vanish into the paper */
   #palette .sw[style*="#ffffff"],#palette .sw[style*="#fff170"]{box-shadow:inset 0 0 0 1px #ded7c8;}
+  #palette .sw.mix{display:flex;align-items:center;justify-content:center;
+    font:700 15px Inter,sans-serif;color:var(--muted);background:var(--chip);
+    box-shadow:inset 0 0 0 1px #ded7c8;}
+  #huePop{width:236px;}
+  #svBox{position:relative;height:140px;border-radius:8px;margin:2px 0 9px;
+    cursor:crosshair;touch-action:none;
+    background-image:linear-gradient(to top,#000,rgba(0,0,0,0)),
+                     linear-gradient(to right,#fff,rgba(255,255,255,0));}
+  #hueBar{position:relative;height:15px;border-radius:8px;cursor:crosshair;
+    touch-action:none;
+    background:linear-gradient(to right,#f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00);}
+  .svdot,.huedot{position:absolute;width:13px;height:13px;border-radius:50%;
+    border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.4);
+    transform:translate(-50%,-50%);pointer-events:none;}
+  .huedot{top:50%;}
+  .mixrow{display:flex;align-items:center;gap:8px;margin-top:10px;}
+  .mixnow{display:flex;align-items:center;gap:7px;flex:1;}
+  #mixSwatch{width:24px;height:24px;border-radius:6px;display:inline-block;
+    box-shadow:inset 0 0 0 1px rgba(0,0,0,.15);}
+  #mixHex{font:600 12px ui-monospace,Menlo,monospace;color:var(--muted);}
   #palette .pmodes{display:flex;gap:4px;margin:0 0 8px;}
   #palette .pmode{flex:1;text-align:center;font:700 12px Inter,sans-serif;
     padding:4px 0;border-radius:6px;background:var(--chip);color:var(--muted);
@@ -790,6 +810,17 @@
 </div>
 
 <div class="pop anchored" id="linePop"></div>
+<div class="pop" id="huePop">
+  <h4>Mix a colour</h4>
+  <div id="svBox"><div class="svdot"></div></div>
+  <div id="hueBar"><div class="huedot"></div></div>
+  <div class="mixrow">
+    <div class="mixnow"><span id="mixSwatch"></span><span id="mixHex">#000000</span></div>
+    <button class="act" id="mixAdd">Add to palette</button>
+  </div>
+  <div class="foot" style="padding-top:6px">It joins the end of the palette and
+    is kept with your settings. Colours already in use are never moved.</div>
+</div>
 <div class="pop anchored" id="boxPop"></div>
 <div class="pop anchored" id="penPop"></div>
 
@@ -1150,7 +1181,7 @@ const S = {
   glyphUse:{}, glyphHidden:{},
   words:[], lines:[], strokes:[], conns:[], sections:[],
   tool:"move", lastInk:"pen", ci:12, lineStyle:"regular", nib:"fineliner",
-  fingerMode:"auto", sawPen:false, zoom:1, paintMode:"fill",
+  fingerMode:"auto", sawPen:false, zoom:1, paintMode:"fill", swatches:[],
   sel:null, selSet:[], selLemma:null, selStroke:null,
   lemHi:{}, connFrom:null, curLine:null, dpr:1
 };
@@ -1187,8 +1218,13 @@ const COLORS = [
   {n:"Crimson", hue:"#c01340", tint:"#ffb3c4"},
   {n:"Navy",    hue:"#1d4bc4", tint:"#b6cbf7"},
   // white: for writing over a dark highlight, and for lifting a word off the page
-  {n:"White",   hue:"#ffffff", tint:"#ffffff"}
+  {n:"White",   hue:"#ffffff", tint:"#ffffff"},
+  {n:"Grey",    hue:"#8b8578", tint:"#dcd8cf"}
 ];
+/* Everything after this is a colour you mixed yourself. Sections remember a
+   colour by its place in this list, so the ones above never move and yours are
+   only ever added to the end. */
+const BASECOLOURS = COLORS.length;
 
 
 const LEXNAME = { BDAG:"BDAG lookup", CBDAG:"Concise BDAG", BrillDAG:"Brill lookup",
@@ -3440,22 +3476,38 @@ function connPoints(c){
 
      After each detour the line re-aims at its target, so one obstacle does not
      bend the whole rest of the journey. */
-  const pts = [{ x:ax, y:ay }];
-  between.forEach(r=>{
-    const from = pts[pts.length - 1];
-    const aim = (yy)=> from.x + (bx - from.x) * ((yy - from.y) / (by - from.y || 1));
-    const top = r.y - CONN_CLEAR, bot = r.y + r.h + CONN_CLEAR;
-    const mid = r.y + r.h / 2;
-    const enter = aim(down ? top : bot), leave = aim(down ? bot : top);
-    const wantX = aim(mid);
-    // clear on the way in, on the way out, and in the middle: leave it alone
-    if(connFree(r, enter) && connFree(r, leave) && connFree(r, wantX)) return;
-    const gx = connGap(r, wantX);
-    pts.push({ x:gx, y:down ? top : bot });
-    pts.push({ x:gx, y:down ? bot : top });
-  });
-  pts.push({ x:bx, y:by });
-  return connNudge(connSmooth(connRound(pts, CONN_ROUND), 12), rows);
+  /* The waypoints the rope is laid along to start with. `always` makes it go
+     round every row rather than only the ones the straight line runs into —
+     the cautious route, kept for the few arrows the quick one cannot settle. */
+  const waypoints = (always)=>{
+    const pts = [{ x:ax, y:ay }];
+    between.forEach(r=>{
+      const from = pts[pts.length - 1];
+      const aim = (yy)=> from.x + (bx - from.x) * ((yy - from.y) / (by - from.y || 1));
+      const top = r.y - CONN_CLEAR, bot = r.y + r.h + CONN_CLEAR;
+      const mid = r.y + r.h / 2;
+      const enter = aim(down ? top : bot), leave = aim(down ? bot : top);
+      const wantX = aim(mid);
+      // clear on the way in, on the way out, and in the middle: leave it alone
+      if(!always && connFree(r, enter) && connFree(r, leave) && connFree(r, wantX)) return;
+      const gx = connGap(r, wantX);
+      pts.push({ x:gx, y:down ? top : bot });
+      pts.push({ x:gx, y:down ? bot : top });
+    });
+    pts.push({ x:bx, y:by });
+    return pts;
+  };
+
+  const boxes = connBoxes(a, b);
+  /* The control points being clear is not the same as the line being clear:
+     the spline runs between them. So the finished line is what gets checked. */
+  const draw = p => connSmooth(p, p.length > 60 ? 2 : 10);
+  let out = draw(connSettle(waypoints(false), boxes));
+  if(connHits(out, boxes)){
+    const careful = draw(connSettle(waypoints(true), boxes));
+    if(!connHits(careful, boxes)) out = careful;
+  }
+  return out;
 }
 
 /* Is this x clear of every word on the row? */
@@ -3463,22 +3515,112 @@ function connFree(row, x){
   return !row.spans.some(sp => x > sp.x0 - CONN_CLEAR && x < sp.x1 + CONN_CLEAR);
 }
 
-/* A smoothed curve can still bulge a little into a word at a sharp turn. This
-   is the last word on the matter: any sample that has ended up inside one is
-   moved to the nearer side of it. */
-function connNudge(pts, rows){
-  return pts.map(q=>{
-    for(const r of rows){
-      if(q.y < r.y - CONN_CLEAR + 1 || q.y > r.y + r.h + CONN_CLEAR - 1) continue;
-      for(const sp of r.spans){
-        if(q.x > sp.x0 - CONN_CLEAR && q.x < sp.x1 + CONN_CLEAR){
-          const left = sp.x0 - CONN_CLEAR, right = sp.x1 + CONN_CLEAR;
-          return { x:(q.x - sp.x0 < sp.x1 - q.x) ? left : right, y:q.y };
-        }
+/* ---- settling the line ----
+   The waypoints get the line through the right gaps, but a polyline through
+   them is all straights and corners. Rounding the corners helped; nudging the
+   finished curve off any word it clipped did not, because moving individual
+   samples of a dense curve puts ripples in it.
+
+   So the line is settled instead, like a rope pulled taut around pegs. It is
+   resampled to a few dozen control points; then, over and over, each point is
+   drawn a little towards the midpoint of its neighbours — which pulls the rope
+   tight and takes the kinks out — and pushed a little out of any word it has
+   come to rest on. What settles is the shortest smooth path that touches
+   nothing, and one spline through those control points is the line you see.
+
+   Relaxing a coarse polyline and smoothing afterwards is the whole trick; doing
+   it the other way round is what made the line wobble. */
+
+/* Does this line run through a word? */
+function connHits(pts, boxes){
+  for(const q of pts)
+    for(const bx of boxes)
+      if(q.x > bx.x0 && q.x < bx.x1 && q.y > bx.y0 && q.y < bx.y1) return true;
+  return false;
+}
+
+function connBoxes(a, b){
+  const out = [];
+  S.words.forEach(w=>{
+    if(w === a || w === b || w.lx == null) return;
+    out.push({ x0:px(w), y0:py(w), x1:px(w) + w.w, y1:py(w) + w.h });
+  });
+  return out;
+}
+
+/* Even spacing along the polyline, so no stretch of the rope is heavier than
+   another and the pull is felt equally all along it. */
+function connResample(p, n){
+  const seg = [];
+  let total = 0;
+  for(let i = 1; i < p.length; i++){
+    const d = Math.hypot(p[i].x - p[i-1].x, p[i].y - p[i-1].y);
+    seg.push(d); total += d;
+  }
+  if(!(total > 0) || n < 3) return p.slice();
+  const step = total / (n - 1);
+  const out = [{ x:p[0].x, y:p[0].y }];
+  let i = 1, used = 0;
+  while(out.length < n - 1 && i < p.length){
+    const left = seg[i-1] - used;
+    if(left >= step){
+      used += step;
+      const t = used / seg[i-1];
+      out.push({ x:p[i-1].x + (p[i].x - p[i-1].x) * t,
+                 y:p[i-1].y + (p[i].y - p[i-1].y) * t });
+    } else { i++; used = 0; }
+  }
+  out.push({ x:p[p.length-1].x, y:p[p.length-1].y });
+  return out;
+}
+
+function connSettle(way, boxes){
+  let run = 0;
+  for(let i = 1; i < way.length; i++)
+    run += Math.hypot(way[i].x - way[i-1].x, way[i].y - way[i-1].y);
+  /* Spacing matters more than it looks. The rope only feels a word when one of
+     its control points is standing on it, so the points have to be closer
+     together than a word is wide — otherwise the rope steps clean over one and
+     is pulled straight through it. */
+  const N = Math.max(16, Math.min(320, Math.round(run / 7)));
+  const p = connResample(way, N);
+  if(p.length < 3) return p;
+  /* A shade more room than the line strictly needs: the spline drawn through
+     these points cuts the corners very slightly, and this is what it cuts into
+     rather than the word. */
+  const m = CONN_CLEAR + 3;
+  const A = { x:p[0].x, y:p[0].y }, B = { x:p[p.length-1].x, y:p[p.length-1].y };
+
+  for(let it = 0; it < 340; it++){
+    // pulling tight, easing off as it settles so it does not hunt
+    const pull = 0.34 * Math.max(0.08, 1 - it / 300);
+    for(let i = 1; i < p.length - 1; i++){
+      p[i].x += ((p[i-1].x + p[i+1].x) / 2 - p[i].x) * pull;
+      p[i].y += ((p[i-1].y + p[i+1].y) / 2 - p[i].y) * pull;
+    }
+    // and out of anything it has settled on, by the shortest way off
+    const soft = it < 200 ? 0.5 : 1;                  // firm up at the end
+    let resting = true;
+    for(let i = 1; i < p.length - 1; i++){
+      const q = p[i];
+      for(const bx of boxes){
+        if(q.x <= bx.x0 - m || q.x >= bx.x1 + m || q.y <= bx.y0 - m || q.y >= bx.y1 + m) continue;
+        const dl = q.x - (bx.x0 - m), dr = (bx.x1 + m) - q.x;
+        const dt = q.y - (bx.y0 - m), db = (bx.y1 + m) - q.y;
+        const least = Math.min(dl, dr, dt, db);
+        resting = false;
+        if(least === dl)      q.x += ((bx.x0 - m) - q.x) * soft;
+        else if(least === dr) q.x += ((bx.x1 + m) - q.x) * soft;
+        else if(least === dt) q.y += ((bx.y0 - m) - q.y) * soft;
+        else                  q.y += ((bx.y1 + m) - q.y) * soft;
       }
     }
-    return q;
-  });
+    p[0] = { x:A.x, y:A.y };
+    p[p.length - 1] = { x:B.x, y:B.y };
+    // once it is off everything and the pull has all but stopped, it has settled
+    if(resting && it > 220) break;
+  }
+  return p;
 }
 
 /* The eraser rubs out whatever is under it: ink, shapes, arrows, and the
@@ -3825,7 +3967,8 @@ function paintPalette(){
       tog("fill", "\u25a0", "Tapping a colour highlights the word") +
       tog("text", "A",       "Tapping a colour colours the letters") +
     '</div>' +
-    '<div class="plbl">Ink</div><div class="grid">' + row("hue") + '</div>' +
+    '<div class="plbl">Ink</div><div class="grid">' + row("hue") +
+      '<div class="sw mix" data-mix="1" title="Mix a colour of your own">+</div></div>' +
     '<div class="plbl" style="margin-top:8px">Highlight</div>' +
     '<div class="grid">' + row("tint") + '</div>' +
     '<hr><div class="now" style="background:' + swatchColor(cur) + '"></div>' +
@@ -3833,11 +3976,101 @@ function paintPalette(){
 }
 
 
+/* ---- the mixing panel ---- */
+const huePop  = document.getElementById("huePop");
+const svBox   = document.getElementById("svBox");
+const hueBar  = document.getElementById("hueBar");
+const MIX = { h:210, s:0.75, v:0.85 };
+
+function paintMix(){
+  const hex = hsv2hex(MIX.h, MIX.s, MIX.v);
+  svBox.style.backgroundColor = hsv2hex(MIX.h, 1, 1);
+  const dot = svBox.querySelector(".svdot");
+  if(dot){ dot.style.left = (MIX.s * 100) + "%"; dot.style.top = ((1 - MIX.v) * 100) + "%"; }
+  const hd = hueBar.querySelector(".huedot");
+  if(hd) hd.style.left = (MIX.h / 360 * 100) + "%";
+  const sw = document.getElementById("mixSwatch");
+  if(sw) sw.style.background = hex;
+  const hx = document.getElementById("mixHex");
+  if(hx) hx.textContent = hex;
+}
+
+function openHuePop(){
+  // start from whatever is currently chosen, so a mix is an adjustment
+  paintMix();
+  openPop(huePop);
+  const r = paletteEl.getBoundingClientRect();
+  huePop.style.left = (r.right + 8) + "px";
+  huePop.style.top  = Math.max(8, r.top + 40) + "px";
+}
+
+/* Dragging inside either strip, by finger or pencil alike. */
+function mixDrag(el, set){
+  let on = false;
+  const at = e=>{
+    const r = el.getBoundingClientRect();
+    set(Math.max(0, Math.min(1, (e.clientX - r.left) / (r.width || 1))),
+        Math.max(0, Math.min(1, (e.clientY - r.top) / (r.height || 1))));
+    paintMix();
+  };
+  el.addEventListener("pointerdown", e=>{
+    e.preventDefault(); on = true;
+    if(el.setPointerCapture && e.pointerId != null){ try{ el.setPointerCapture(e.pointerId); }catch(_){} }
+    at(e);
+  });
+  el.addEventListener("pointermove", e=>{ if(on) at(e); });
+  ["pointerup","pointercancel"].forEach(t => el.addEventListener(t, ()=>{ on = false; }));
+}
+mixDrag(svBox,  (x, y)=>{ MIX.s = x; MIX.v = 1 - y; });
+mixDrag(hueBar, (x)   =>{ MIX.h = x * 360; });
+
+document.getElementById("mixAdd").onclick = ()=>{
+  S.swatches = (S.swatches || []).concat([{ h:MIX.h, s:MIX.s, v:MIX.v }]);
+  rebuildSwatches();
+  S.ci = COLORS.length - 1;                 // and select what you just mixed
+  paintPalette(); paintMarks();
+  closePops(); saveSoon();
+  note("Colour added", hsv2hex(MIX.h, MIX.s, MIX.v));
+};
+
 /* ---- colours that belong to a thing ----
    A section break is orange, a cross-reference violet, a linking word yellow, a
    command red — the conventions of a marked-up page. Choosing the tool sets the
    palette to its colour; choosing a colour afterwards overrules it, and Nous
    remembers that you did for the rest of the session. */
+/* ---- colours you mix yourself ----
+   Hue, saturation and value, because that is how people actually think about
+   a colour: pick the hue, then how strong and how light. The highlighter tint
+   is worked out from it — the same hue, weaker and lighter — so a colour you
+   mix behaves like the ones that came with the app. */
+function hsv2rgb(h, sat, val){
+  h = ((h % 360) + 360) % 360;
+  const c = val * sat, x = c * (1 - Math.abs((h / 60) % 2 - 1)), m = val - c;
+  const t = h < 60  ? [c,x,0] : h < 120 ? [x,c,0] : h < 180 ? [0,c,x]
+          : h < 240 ? [0,x,c] : h < 300 ? [x,0,c] : [c,0,x];
+  return t.map(v => Math.round((v + m) * 255));
+}
+const hex2 = n => ("0" + Math.max(0, Math.min(255, n)).toString(16)).slice(-2);
+function hsv2hex(h, sat, val){
+  const [r, g, b] = hsv2rgb(h, sat, val);
+  return "#" + hex2(r) + hex2(g) + hex2(b);
+}
+function mixColour(sw){
+  return {
+    n: sw.n || ("Mixed " + Math.round(sw.h) + "\u00b0"),
+    hue: hsv2hex(sw.h, sw.s, sw.v),
+    tint: hsv2hex(sw.h, Math.min(1, sw.s * 0.45), Math.min(1, sw.v * 0.12 + 0.92)),
+    mine: true
+  };
+}
+/* Rebuild the tail of the palette from the list of mixes. Never removes any of
+   the colours that came with the app. */
+function rebuildSwatches(){
+  COLORS.length = BASECOLOURS;
+  (S.swatches || []).forEach(sw => COLORS.push(mixColour(sw)));
+  if(S.ci >= COLORS.length) S.ci = 12;
+}
+
 function colourNamed(n){
   const i = COLORS.findIndex(c => c.n === n);
   return i < 0 ? 12 : i;
@@ -3913,6 +4146,7 @@ function pickColor(i){
 paletteEl.addEventListener("pointerdown", e=>{
   const d = e.target && e.target.dataset;
   if(!d) return;
+  if(d.mix){ e.preventDefault(); openHuePop(); return; }
   /* The toggle at the head of the palette: does a colour fill the paper behind
      the word, or colour the letters themselves? */
   if(d.mode){
@@ -6775,7 +7009,7 @@ function prefsSnapshot(){
           document.getElementById("mHLex").value],
     abbr:document.getElementById("mgAbbr").value,
     use:S.glyphUse, hidden:S.glyphHidden,
-    tour:!!S.tourSeen, paint:S.paintMode,
+    tour:!!S.tourSeen, paint:S.paintMode, sw:(S.swatches || []),
     scroll: readScroll()
   };
 }
@@ -6784,6 +7018,8 @@ function applyPrefs(p){
   if(!p) return;
   S.tourSeen = !!p.tour;
   S.paintMode = p.paint === "text" ? "text" : "fill";
+  S.swatches = Array.isArray(p.sw) ? p.sw : [];
+  rebuildSwatches();
   S._scrollWant = p.scroll || null;
   if(p.mods){
     document.getElementById("mText").value = p.mods[0] || "NA28-T";
@@ -7731,7 +7967,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-09-09c";
+const BUILD = "2026-09-10a";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file

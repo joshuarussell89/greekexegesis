@@ -401,6 +401,10 @@
   /* highlight / letters, at the head of the colour palette */
   /* the palest swatches would otherwise vanish into the paper */
   #palette .sw[style*="#ffffff"],#palette .sw[style*="#fff170"]{box-shadow:inset 0 0 0 1px #ded7c8;}
+  #palette .cback{width:100%;margin-top:8px;font:600 11px Inter,sans-serif;
+    padding:6px 4px;border-radius:7px;border:1px solid var(--rule);
+    background:var(--paper);color:var(--muted);cursor:pointer;}
+  #palette .cback:hover{color:var(--ink);}
   #palette .sw.mix{display:flex;align-items:center;justify-content:center;
     font:700 15px Inter,sans-serif;color:var(--muted);background:var(--chip);
     box-shadow:inset 0 0 0 1px #ded7c8;}
@@ -622,8 +626,7 @@
                viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"
                stroke-linecap="round"><path d="M1 1l4 4 4-4"/></svg></button>
         <button data-tool="rect" id="boxBtn" title="Shapes — box, oval, triangle, cross-reference"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.6" y="6" width="14.8" height="10" rx="1.6"/><circle cx="3.6" cy="6" r="1.3" fill="currentColor" stroke="none"/><circle cx="18.4" cy="16" r="1.3" fill="currentColor" stroke="none"/></svg>Shapes<svg class="car" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M1 1l4 4 4-4"/></svg></button>
-        <button data-tool="mark" id="markBtn" title="Underline, box or badge a word"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.2h10v16l-5-3.6-5 3.6v-16z"/><path d="M11 7l1 2.1 2.3.3-1.7 1.6.4 2.3-2-1.1-2 1.1.4-2.3L7.7 9.4 10 9.1 11 7z" stroke-width="1.1"/></svg>Mark</button>
-        <button data-tool="erase" title="Erase whole strokes"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8.4 17.4H5.2l-1.8-1.8a1.6 1.6 0 010-2.3l8-8 5.5 5.5-6.5 6.6z"/><path d="M8.4 17.4H18"/><path d="M9.6 8.2l5.5 5.5"/></svg>Erase</button>
+        <button data-tool="erase" id="eraseBtn" title="Erase — tap for what it takes off"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8.4 17.4H5.2l-1.8-1.8a1.6 1.6 0 010-2.3l8-8 5.5 5.5-6.5 6.6z"/><path d="M8.4 17.4H18"/><path d="M9.6 8.2l5.5 5.5"/></svg>Erase<svg class="car" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M1 1l4 4 4-4"/></svg></button>
       </div>
 
       <div class="spacer"></div>
@@ -815,6 +818,7 @@
 </div>
 
 <div class="pop anchored" id="linePop"></div>
+<div class="pop anchored" id="erasePop"></div>
 <div class="pop" id="huePop">
   <div class="pophead"><h4>Mix a colour</h4><div class="popx" id="mixClose">×</div></div>
   <div id="svBox"><div class="svdot"></div></div>
@@ -1186,7 +1190,8 @@ const S = {
   glyphUse:{}, glyphHidden:{},
   words:[], lines:[], strokes:[], conns:[], sections:[],
   tool:"move", lastInk:"pen", ci:12, lineStyle:"regular", nib:"fineliner",
-  fingerMode:"auto", sawPen:false, zoom:1, paintMode:"fill", swatches:[],
+  fingerMode:"auto", sawPen:false, zoom:1, paintMode:"fill", swatches:[], colourHidden:{},
+  eraseMode:"object",
   sel:null, selSet:[], selLemma:null, selStroke:null,
   lemHi:{}, connFrom:null, curLine:null, dpr:1
 };
@@ -2503,6 +2508,15 @@ function redraw(){
       } else if(s.mode === "pen"){
         strokePen(ctx, s, pts);
 
+      } else if(s.mode === "curve"){
+        const st = LINESTYLE[s.style === "curve" ? "regular" : s.style] || LINESTYLE.regular;
+        ctx.lineWidth = st.w;
+        ctx.setLineDash(st.dash || []);
+        ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
+        pts.slice(1).forEach(q => ctx.lineTo(q.x, q.y));
+        ctx.stroke();
+        ctx.setLineDash([]);
+
       } else if(s.mode === "line"){
         const st = LINESTYLE[s.style] || LINESTYLE.regular;
         ctx.lineWidth = st.w;
@@ -2545,7 +2559,8 @@ function hitPoints(s){
       out.push({ x:c.x + Math.cos(i/18*Math.PI*2)*13, y:c.y + Math.sin(i/18*Math.PI*2)*11 });
     return out;
   }
-  if(s.mode === "pen" || s.mode === "highlight" || pts.length < 2) return pts;
+  if(s.mode === "pen" || s.mode === "highlight" || s.mode === "curve" ||
+     pts.length < 2) return pts;
   const a = pts[0], b = pts[1], out = [];
   const seg = (p,q)=>{ for(let i=0;i<=20;i++)
     out.push({x:p.x+(q.x-p.x)*i/20, y:p.y+(q.y-p.y)*i/20}); };
@@ -2935,7 +2950,12 @@ hit.addEventListener("pointerdown", e=>{
   /* The Line and Box tools mark a word when they are tapped on one rather than
      dragged across the page: a rule under a word is an underline, and a box
      round a word is a box. Which line style is chosen decides which underline. */
-  if(t === "line" || SHAPES.has(t)){
+  /* Curved is drawn, not dragged: it collects every point the hand makes and is
+     tidied up on release, so it keeps its bends. Everything else the Line tool
+     does is still one straight segment from corner to corner. */
+  const straightLine = t === "line" && S.lineStyle !== "curve";
+
+  if(straightLine || SHAPES.has(t)){
     const tapped = wordAt(p.x, p.y);
     if(tapped){
       drag = { kind:"maybemark", w:tapped,
@@ -2959,19 +2979,20 @@ hit.addEventListener("pointerdown", e=>{
       sid: newSid(),
       nib: (t === "pen" && !highlighting) ? S.nib : undefined,
       // a highlight goes UNDER the words, so it keeps its own mode
-      mode: highlighting ? "highlight" : t,
+      mode: highlighting ? "highlight" : (t === "line" && S.lineStyle === "curve" ? "curve" : t),
       anchor: aw ? aw.uid : null,
       color: COLORS[S.ci].hue,   // the highlighter renders the same hue at low alpha
       style: S.lineStyle,        // only meaningful for mode === "line"
       // shapes keep exactly two points: origin and the live corner/endpoint
-      pts: (t === "line" || SHAPES.has(t)) ? [start, {x:start.x, y:start.y}] : [start]
+      pts: (straightLine || SHAPES.has(t)) ? [start, {x:start.x, y:start.y}] : [start]
     };
     S.strokes.push(s);
-    drag = { kind:(t === "line" || SHAPES.has(t)) ? "shape" : "ink", s, ox, oy, t0:Date.now() };
+    drag = { kind:(straightLine || SHAPES.has(t)) ? "shape" : "ink", s, ox, oy, t0:Date.now() };
     return;
   }
 
-  if(t === "erase"){ pushUndo(); drag = { kind:"erase" }; eraseAt(p); return; }
+  if(t === "erase"){ pushUndo(); drag = { kind:"erase" };
+                     (S.eraseMode === "part" ? erasePartAt : eraseAt)(p); return; }
 
   if(t === "connect"){
     const w = wordAt(p.x, p.y);
@@ -3084,7 +3105,7 @@ hit.addEventListener("pointermove", e=>{
     }
     return;
   }
-  if(drag.kind === "erase"){ eraseAt(p); return; }
+  if(drag.kind === "erase"){ (S.eraseMode === "part" ? erasePartAt : eraseAt)(p); return; }
 
   if(drag.kind === "line"){
     drag.cy = p.y;
@@ -3254,6 +3275,9 @@ hit.addEventListener("pointerup", e=>{
   }
   // a tap with the pen leaves a single point, which never renders (drawing
   // needs two) — drop it rather than accumulate invisible strokes
+  if(drag && drag.kind === "ink" && drag.s.mode === "curve" && drag.s.pts.length > 2)
+    drag.s.pts = smoothFreehand(drag.s.pts);
+
   if(drag && drag.kind === "ink" && !TAGMODES.has(drag.s.mode) && drag.s.pts.length < 2){
     S.strokes.splice(S.strokes.indexOf(drag.s), 1); redraw();
     tapWasSelection(e);
@@ -3341,6 +3365,55 @@ function showMergeHint(line){
 
 /* Points along a connector's curve, so an arrow can be erased by crossing it
    rather than only by clearing every arrow at once. */
+/* ---- tidying up a line drawn by hand ----
+   Ramer-Douglas-Peucker first, which throws away the wobble of the hand while
+   keeping every place the line genuinely changes direction; then one spline
+   through what is left. The bends you drew survive, the shake does not. */
+function rdp(pts, tol){
+  if(pts.length < 3) return pts.slice();
+  let worst = 0, at = 0;
+  const a = pts[0], b = pts[pts.length - 1];
+  const dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy);
+  for(let i = 1; i < pts.length - 1; i++){
+    const q = pts[i];
+    const d = len < 1e-6 ? Math.hypot(q.x - a.x, q.y - a.y)
+            : Math.abs(dy * q.x - dx * q.y + b.x * a.y - b.y * a.x) / len;
+    if(d > worst){ worst = d; at = i; }
+  }
+  if(worst <= tol) return [a, b];
+  return rdp(pts.slice(0, at + 1), tol).slice(0, -1).concat(rdp(pts.slice(at), tol));
+}
+
+/* A moving average first. The tremble of a hand is small and fast; the bends
+   you meant are large and slow, so averaging over a few points takes out the
+   one and leaves the other where it was. Simplifying straight away instead does
+   not work: the tolerance needed to swallow a three-pixel shake is large enough
+   to swallow a real bend as well. */
+function runAverage(pts, win){
+  const out = [];
+  for(let i = 0; i < pts.length; i++){
+    let sx = 0, sy = 0, n = 0;
+    for(let k = -win; k <= win; k++){
+      const q = pts[i + k];
+      if(!q) continue;
+      sx += q.x; sy += q.y; n++;
+    }
+    out.push({ x:sx / n, y:sy / n, p:.5 });
+  }
+  // the ends are pulled in by having fewer neighbours, so put them back
+  out[0] = { x:pts[0].x, y:pts[0].y, p:.5 };
+  out[out.length - 1] = { x:pts[pts.length-1].x, y:pts[pts.length-1].y, p:.5 };
+  return out;
+}
+
+function smoothFreehand(pts){
+  if(!pts || pts.length < 3) return pts || [];
+  const eased = pts.length > 6 ? runAverage(pts, 3) : pts;
+  const keep = rdp(eased, 4.2);
+  if(keep.length < 3) return keep;
+  return connSmooth(keep, 8).map(q => ({ x:q.x, y:q.y, p:.5 }));
+}
+
 /* ---- routing an arrow between two words ----
    An arrow should go the way a person would draw it: straight at the other
    word, and where the text is in the way, threaded through the gap between
@@ -3352,6 +3425,8 @@ const CONNINK = "#8a5a2b";   // what an arrow drawn before colours existed was
 const CONN_CLEAR = 5;        // how close to a word the line may pass
 const CONN_GAP   = 7;        // the narrowest gap it will thread through
 const CONN_ROUND = 11;       // how far back from a corner the curve starts to turn
+const CONN_WIDE  = 22;       // the narrowest channel it will run down, as opposed
+                             // to merely squeeze through
 
 /* The rows of words as they are actually laid out — a wrapped line makes more
    than one — each with the spans its words occupy, left to right. */
@@ -3368,6 +3443,47 @@ function connRows(skipA, skipB){
   const out = [...rows.values()];
   out.forEach(r => r.spans.sort((p, q) => p.x0 - q.x0));
   return out.sort((p, q) => p.y - q.y);
+}
+
+/* ---- one corridor for the whole run ----
+   A line drawn by hand does not dodge each line of text in turn. It finds a
+   channel of white paper that runs most of the way down, commits to it, and
+   drifts slowly across towards where it is going — two gentle bends over the
+   whole length. Threading the nearest gap on every row is what put the weave
+   in it, and no amount of smoothing takes a weave out; it only softens it.
+
+   So a corridor is chosen once: the x that is clear on the most rows between
+   the two words, and among those the one nearest the straight line. */
+function connCorridor(between, ax, bx){
+  if(!between.length) return null;
+  const cand = new Set([ax, bx]);
+  between.forEach(r=>{
+    if(!r.spans.length) return;
+    cand.add(r.spans[0].x0 - CONN_CLEAR - 5);                       // before the line
+    cand.add(r.spans[r.spans.length - 1].x1 + CONN_CLEAR + 5);      // after it
+    /* Only a real channel counts, not the nine-pixel crack between two words:
+       a line can be threaded through one of those but cannot run down it. */
+    for(let i = 0; i + 1 < r.spans.length; i++){
+      const gap = r.spans[i+1].x0 - r.spans[i].x1;
+      if(gap >= CONN_WIDE) cand.add((r.spans[i].x1 + r.spans[i+1].x0) / 2);
+    }
+  });
+  let best = null, bestScore = Infinity;
+  cand.forEach(x=>{
+    if(x < MARGIN - 46 || x > WRAP + 30) return;
+    let blocked = 0;
+    between.forEach(r => { if(!connFree(r, x)) blocked++; });
+
+    /* What a channel costs. Walking to one is cheap for a while and then
+       suddenly dear: a hundred pixels sideways to find clear paper is nothing,
+       but an arrow that swings out to the margin and back has stopped reading
+       as a line between two words. A single flat rate for distance cannot do
+       both — it either refuses to walk at all, or walks the whole page. */
+    const walk = Math.abs(x - ax) + Math.abs(x - bx);
+    const cost = walk <= 260 ? walk * 0.6 : 156 + (walk - 260) * 3;
+    const score = blocked * 300 + cost;    if(score < bestScore){ bestScore = score; best = { x, blocked }; }
+  });
+  return best;
 }
 
 /* The nearest x at this row where the line can pass without crossing a word. */
@@ -3484,21 +3600,52 @@ function connPoints(c){
   /* The waypoints the rope is laid along to start with. `always` makes it go
      round every row rather than only the ones the straight line runs into —
      the cautious route, kept for the few arrows the quick one cannot settle. */
+  /* `always` is the cautious fallback: dodge every row separately, the way it
+     used to. Kept for the handful of arrows a corridor cannot serve. */
   const waypoints = (always)=>{
     const pts = [{ x:ax, y:ay }];
-    between.forEach(r=>{
-      const from = pts[pts.length - 1];
-      const aim = (yy)=> from.x + (bx - from.x) * ((yy - from.y) / (by - from.y || 1));
-      const top = r.y - CONN_CLEAR, bot = r.y + r.h + CONN_CLEAR;
-      const mid = r.y + r.h / 2;
-      const enter = aim(down ? top : bot), leave = aim(down ? bot : top);
-      const wantX = aim(mid);
-      // clear on the way in, on the way out, and in the middle: leave it alone
-      if(!always && connFree(r, enter) && connFree(r, leave) && connFree(r, wantX)) return;
-      const gx = connGap(r, wantX);
-      pts.push({ x:gx, y:down ? top : bot });
-      pts.push({ x:gx, y:down ? bot : top });
-    });
+    const mid = [];
+
+    /* A corridor is a vertical idea. When the two words are further apart across
+       the page than down it, there is no vertical channel worth finding — the
+       natural path is the clear band between the rows, and forcing a corridor
+       on it produced a right angle at each end. Left to itself with no
+       waypoints at all, the rope settles into that band on its own, because the
+       shortest way off a row of words is upwards or downwards. */
+    /* A corridor is only worth finding when the run is decidedly vertical.
+       Anything squarer than that is better left to settle by itself. */
+    const sideways = Math.abs(bx - ax) * 1.3 > Math.abs(by - ay);
+
+    if(!always && !sideways){
+      const corr = connCorridor(between, ax, bx);
+      if(corr){
+        /* Into the channel early and out of it late, so the drift across is
+           spread over the whole run rather than crammed into the ends. */
+        const span = by - ay;
+        mid.push({ x:corr.x, y:ay + span * 0.16 });
+        mid.push({ x:corr.x, y:ay + span * 0.84 });
+        /* Any row the channel itself runs into gets a nudge — one point, not a
+           pair. Forcing the line vertically in and out of the gap is what made
+           it weave; a single point tells the rope which side to fall, and the
+           settling does the rest far more gracefully. */
+        between.forEach(r=>{
+          if(connFree(r, corr.x)) return;
+          mid.push({ x:connGap(r, corr.x), y:r.y + r.h / 2 });
+        });
+      }
+    } else {
+      between.forEach(r=>{
+        const from = mid.length ? mid[mid.length - 1] : pts[0];
+        const aim = (yy)=> from.x + (bx - from.x) * ((yy - from.y) / (by - from.y || 1));
+        const gx = connGap(r, aim(r.y + r.h / 2));
+        mid.push({ x:gx, y:r.y - CONN_CLEAR });
+        mid.push({ x:gx, y:r.y + r.h + CONN_CLEAR });
+      });
+    }
+
+    // in the order they are travelled through, whichever way the line is going
+    mid.sort((u, v) => down ? u.y - v.y : v.y - u.y);
+    mid.forEach(q => pts.push(q));
     pts.push({ x:bx, y:by });
     return pts;
   };
@@ -3590,9 +3737,11 @@ function connSettle(way, boxes){
   const N = Math.max(16, Math.min(320, Math.round(run / 7)));
   const p = connResample(way, N);
   if(p.length < 3) return p;
-  /* A shade more room than the line strictly needs: the spline drawn through
-     these points cuts the corners very slightly, and this is what it cuts into
-     rather than the word. */
+  /* Rather more room than the line strictly needs. A line drawn by hand keeps
+     its distance from the letters, but this cannot be raised much: the rope
+     also has to fit through the gap between two words, which is nine pixels
+     wide. Distance comes from choosing a wide corridor instead. This margin is
+     also what the spline's very slight corner-cutting eats into. */
   const m = CONN_CLEAR + 3;
   const A = { x:p[0].x, y:p[0].y }, B = { x:p[p.length-1].x, y:p[p.length-1].y };
 
@@ -3626,6 +3775,59 @@ function connSettle(way, boxes){
     if(resting && it > 220) break;
   }
   return p;
+}
+
+/* ---- rubbing out part of a stroke ----
+   The other kind of eraser: instead of taking a whole stroke off at a touch, it
+   takes away only the part under it and leaves the rest, in however many pieces
+   that makes. A straight line has only two points, so it is filled in first —
+   otherwise there would be nothing in the middle to rub out.
+
+   Shapes, chains, notes and cross-references are objects rather than ink, and
+   half a box is not a useful thing to own, so those still go whole. */
+const ERASE_R = 14;
+
+function eraseFill(st){
+  if(st.mode !== "line" || st.pts.length !== 2) return st.pts;
+  const [a, b] = st.pts, out = [];
+  const n = Math.max(8, Math.round(Math.hypot(b.x - a.x, b.y - a.y) / 4));
+  for(let i = 0; i <= n; i++)
+    out.push({ x:a.x + (b.x - a.x) * i / n, y:a.y + (b.y - a.y) * i / n, p:.5 });
+  return out;
+}
+
+function erasePartAt(p){
+  let changed = false;
+  const out = [];
+  S.strokes.forEach(st=>{
+    const whole = SHAPES.has(st.mode) || TAGMODES.has(st.mode);
+    if(whole){
+      if(hitPoints(st).some(q => Math.hypot(q.x - p.x, q.y - p.y) < ERASE_R)) changed = true;
+      else out.push(st);
+      return;
+    }
+    const w = wordOf(st.anchor);
+    const ox = w ? px(w) : 0, oy = w ? py(w) : 0;
+    const pts = eraseFill(st);
+    const runs = [];
+    let cur = [], cut = false;
+    pts.forEach(q=>{
+      if(Math.hypot(ox + q.x - p.x, oy + q.y - p.y) < ERASE_R){
+        if(cur.length > 1) runs.push(cur);
+        cur = []; cut = true;
+      } else cur.push(q);
+    });
+    if(cur.length > 1) runs.push(cur);
+    if(!cut){ out.push(st); return; }
+    changed = true;
+    // what is left of it, as separate strokes; a curve stays a curve
+    const mode = st.mode === "line" ? "curve" : st.mode;
+    runs.forEach((r, i)=> out.push(Object.assign({}, st,
+      { sid: i ? newSid() : st.sid, mode, pts:r })));
+  });
+  if(!changed) return;
+  S.strokes = out;
+  render(); redraw(); saveSoon();
 }
 
 /* The eraser rubs out whatever is under it: ink, shapes, arrows, and the
@@ -3956,7 +4158,10 @@ function swatchColor(c){ return tintMode() ? c.tint : c.hue; }
 
 function paintPalette(){
   const cur = COLORS[S.ci];
+  const hidden = S.colourHidden || {};
+  // data-i stays the true position in the list, so hiding one moves nothing
   const row = (kind)=> COLORS.map((c, i)=>
+    hidden[c.n] ? "" :
     '<div class="sw' + (i === S.ci && (kind === "tint") === tintMode() ? " on" : "") +
     '" data-i="' + i + '" data-kind="' + kind + '" title="' + c.n + '"' +
     ' style="background:' + (kind === "tint" ? c.tint : c.hue) + '"></div>').join("");
@@ -3977,9 +4182,67 @@ function paintPalette(){
     '<div class="plbl" style="margin-top:8px">Highlight</div>' +
     '<div class="grid">' + row("tint") + '</div>' +
     '<hr><div class="now" style="background:' + swatchColor(cur) + '"></div>' +
-    '<div class="nowname">' + cur.n + '</div>';
+    '<div class="nowname">' + cur.n + '</div>' +
+    (Object.keys(hidden).length
+      ? '<button class="cback" id="swBack">Show the ' + Object.keys(hidden).length +
+        ' hidden again</button>' : "");
+
+  const back = document.getElementById("swBack");
+  if(back) back.onclick = ()=>{ S.colourHidden = {}; saveSoon(); paintPalette(); };
+
+  /* Hold a swatch down, as you would an app on a phone, and it offers to go. */
+  paletteEl.querySelectorAll(".sw[data-i]").forEach(el=>{
+    const i = parseInt(el.dataset.i, 10);
+    let timer = null;
+    const start = ()=>{ clearTimeout(timer);
+      timer = setTimeout(()=>{ el._held = true; offerRemoveColour(i); }, 550); };
+    const stop  = ()=> clearTimeout(timer);
+    el.addEventListener("pointerdown", start);
+    ["pointerup","pointerleave","pointercancel"].forEach(t => el.addEventListener(t, stop));
+    el.addEventListener("contextmenu", e=>{ e.preventDefault(); offerRemoveColour(i); });
+  });
 }
 
+
+/* ---- taking a colour out of the palette ----
+   The same as the marks: one that came with the app is hidden and can be
+   brought back, one you mixed yourself goes for good.
+
+   Deleting a mix is the awkward one. A section break remembers its colour by
+   its place in the palette, so removing a colour from the middle would silently
+   repaint every section that used a later one. So the sections are renumbered
+   to match — in every book, not just the one on screen. */
+function remapSectionColours(at){
+  const fix = ci => ci === at ? 12 : (ci > at ? ci - 1 : ci);
+  (S.sections || []).forEach(sec => { sec.ci = fix(sec.ci || 0); });
+  Object.keys(S.docs || {}).forEach(k=>{
+    const d = S.docs[k];
+    if(d && Array.isArray(d.sections)) d.sections.forEach(x => { x.ci = fix(x.ci || 0); });
+  });
+}
+
+function offerRemoveColour(i){
+  const c = COLORS[i];
+  if(!c) return;
+  const msg = c.mine
+    ? "Delete this colour? You mixed it yourself, so it will be gone for good."
+    : "Hide " + c.n + " from the palette? You can bring it back at the foot of it.";
+  if(!confirm(msg)) return;
+
+  if(c.mine){
+    const at = i - BASECOLOURS;                 // its place among the mixes
+    S.swatches = (S.swatches || []).filter((_, k) => k !== at);
+    rebuildSwatches();
+    remapSectionColours(i);
+    note("Colour deleted", c.hue);
+  } else {
+    S.colourHidden = S.colourHidden || {};
+    S.colourHidden[c.n] = 1;
+    note("Colour hidden", c.n);
+  }
+  if(S.ci === i || S.ci >= COLORS.length) S.ci = 12;
+  saveSoon(); paintPalette(); paintMarks(); render(); layout();
+}
 
 /* ---- the mixing panel ---- */
 const huePop  = document.getElementById("huePop");
@@ -4163,6 +4426,7 @@ paletteEl.addEventListener("pointerdown", e=>{
     return;
   }
   if(d.i === undefined || d.i === null || d.i === "") return;
+  if(e.target._held){ e.target._held = false; return; }   // that was a hold, not a tap
   e.preventDefault();
   /* The two rows are the same eighteen colours; which row you reach for says
      what you want to do with them. A tint means the highlighter; a full colour
@@ -4212,6 +4476,7 @@ function pickTool(name){
   if(name === "line"){ paintLinePop(); placeLinePop(); showPop(linePop); }
   else if(name === "pen"){ paintPenPop(); placePenPop(); showPop(penPop); }
   else if(SHAPES.has(name)){ paintBoxPop(); placeBoxPop(); showPop(boxPop); }
+  else if(name === "erase"){ paintErasePop(); placeErasePop(); showPop(erasePop); }
   else closePops();
   paintPalette(); drawConns();  // the palette previews tints or hues per tool
 }
@@ -4234,7 +4499,7 @@ const setPop  = document.getElementById("settings");
 const ALLPOPS = ()=> [helpPop, setPop, document.getElementById("linePop"),
                       document.getElementById("boxPop"),
                       document.getElementById("penPop"), document.getElementById("findPop"),
-                      document.getElementById("huePop")];
+                      document.getElementById("huePop"), document.getElementById("erasePop")];
 
 /* Open this one and close the rest — no toggling. */
 function showPop(pop){
@@ -4264,7 +4529,7 @@ function closePops(){
 document.addEventListener("pointerdown", e=>{
   const t = e.target;
   if(t.closest && (t.closest(".pop") || t.closest("#helpBtn") || t.closest("#setBtn") ||
-                   t.closest("#lineBtn") || t.closest("#boxBtn") ||
+                   t.closest("#lineBtn") || t.closest("#boxBtn") || t.closest("#eraseBtn") ||
                    t.closest("#penBtn")  || t.closest("#findBtn"))) return;
   closePops();
 }, true);
@@ -6040,6 +6305,13 @@ function paintBoard(g){
         pts.slice(1).forEach(q => g.lineTo(q.x, q.y)); g.stroke();
       } else if(st.mode === "pen"){
         strokePen(g, st, pts);
+      } else if(st.mode === "curve"){
+        const sty = LINESTYLE[st.style === "curve" ? "regular" : st.style] || LINESTYLE.regular;
+        g.lineWidth = sty.w; g.setLineDash(sty.dash || []);
+        g.beginPath(); g.moveTo(pts[0].x, pts[0].y);
+        pts.slice(1).forEach(q => g.lineTo(q.x, q.y)); g.stroke();
+        g.setLineDash([]);
+
       } else if(st.mode === "line"){
         const sty = LINESTYLE[st.style] || LINESTYLE.regular;
         g.lineWidth = sty.w; g.setLineDash(sty.dash || []);
@@ -6494,6 +6766,7 @@ const STYLEOPTS = [
   {v:"thin",    nm:"Thin",        sub:""},
   {v:"regular", nm:"Regular",     sub:""},
   {v:"dotted",  nm:"Dotted",      sub:""},
+  {v:"curve",   nm:"Curved",      sub:"Draw it roughly by hand \u2014 it is tidied up, bends and all"},
   {v:"double",  nm:"Double",      sub:""},
   {v:"thick",   nm:"Extra thick", sub:"A section break across the page, with a title"},
   {v:"thickdash", nm:"Thick dashed", sub:"A subsection \u2014 it can sit straight under a section break"}
@@ -6664,6 +6937,46 @@ function placeBoxPop(){
 }
 
 /* Sit the menu directly under the Line button. */
+const erasePop = document.getElementById("erasePop");
+const ERASEOPTS = [
+  { v:"object", nm:"Whole things",
+    sub:"A touch takes off the whole stroke, shape or arrow" },
+  { v:"part",   nm:"Rub it out",
+    sub:"Takes away only the part you go over, like a real eraser" }
+];
+
+function erasePreview(v, hue){
+  const S_ = `stroke="${hue}" fill="none" stroke-linecap="round" stroke-width="2.2"`;
+  return v === "object"
+    ? `<path d="M4 8h54" ${S_} opacity=".25"/><circle cx="31" cy="8" r="6" fill="none" stroke="${hue}" stroke-width="1.4" opacity=".55"/>`
+    : `<path d="M4 8h22" ${S_}/><path d="M40 8h18" ${S_}/><circle cx="33" cy="8" r="6" fill="none" stroke="${hue}" stroke-width="1.4" opacity=".55"/>`;
+}
+
+function paintErasePop(){
+  const hue = COLORS[S.ci].hue;
+  erasePop.innerHTML = "";
+  const h = document.createElement("h4");
+  h.textContent = "What the eraser takes"; erasePop.appendChild(h);
+  ERASEOPTS.forEach(o=>{
+    const b = document.createElement("button");
+    b.className = "styleopt" + (S.eraseMode === o.v ? " on" : "");
+    b.setAttribute("data-erase", o.v);
+    b.innerHTML =
+      `<svg class="prev" viewBox="0 0 62 16">${erasePreview(o.v, hue)}</svg>` +
+      `<span class="txt"><span class="nm">${o.nm}</span>` +
+      `<span class="sub">${o.sub}</span></span><span class="tick">✓</span>`;
+    b.onclick = ()=>{ S.eraseMode = o.v; paintErasePop(); closePops(); saveSoon(); };
+    erasePop.appendChild(b);
+  });
+}
+
+function placeErasePop(){
+  const r = document.getElementById("eraseBtn").getBoundingClientRect();
+  erasePop.style.top = (r.bottom + 8) + "px";
+  const w = 264;
+  erasePop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8)) + "px";
+}
+
 function placeLinePop(){
   const r = document.getElementById("lineBtn").getBoundingClientRect();
   linePop.style.top = (r.bottom + 8) + "px";
@@ -7021,7 +7334,8 @@ function prefsSnapshot(){
           document.getElementById("mHLex").value],
     abbr:document.getElementById("mgAbbr").value,
     use:S.glyphUse, hidden:S.glyphHidden,
-    tour:!!S.tourSeen, paint:S.paintMode, sw:(S.swatches || []),
+    tour:!!S.tourSeen, paint:S.paintMode, sw:(S.swatches || []), erase:S.eraseMode,
+    swHide:(S.colourHidden || {}),
     scroll: readScroll()
   };
 }
@@ -7031,6 +7345,8 @@ function applyPrefs(p){
   S.tourSeen = !!p.tour;
   S.paintMode = p.paint === "text" ? "text" : "fill";
   S.swatches = Array.isArray(p.sw) ? p.sw : [];
+  S.colourHidden = p.swHide || {};
+  S.eraseMode = p.erase === "part" ? "part" : "object";
   rebuildSwatches();
   S._scrollWant = p.scroll || null;
   if(p.mods){
@@ -7979,7 +8295,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-09-10b";
+const BUILD = "2026-09-10e";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file
@@ -8631,7 +8947,8 @@ async function boot(){
   applyZoom();
   zoomToFit();                    // open at whatever fits between the rails
   showZoom();
-  paintPalette(); paintMarks(); paintLinePop(); paintPenPop(); paintBoxPop(); paintFindChips();
+  paintPalette(); paintMarks(); paintLinePop(); paintPenPop(); paintBoxPop();
+  paintErasePop(); paintFindChips();
   reportStorage();
 
   loadSyncSettings(); wireSync();
@@ -8689,6 +9006,7 @@ window.addEventListener("resize", ()=>{
   if(linePop.classList.contains("show")) placeLinePop();
   if(penPop.classList.contains("show")) placePenPop();
   if(boxPop.classList.contains("show")) placeBoxPop();
+  if(erasePop.classList.contains("show")) placeErasePop();
 });
 boot();
 </script>

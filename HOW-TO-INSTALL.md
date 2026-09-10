@@ -130,3 +130,13 @@ Both parts can be run again whenever you like, from **⋯**:
 
 The worked example needs the Greek New Testament installed. The **Key** button
 in the header remains the full reference for every feature.
+
+## The symbols
+
+The pictorial marks in the rail come from [game-icons.net](https://game-icons.net),
+by Lorc, Delapouite, Skoll, Carl Olsen, Generalace135, sbed and others, used under
+[CC BY 3.0](https://creativecommons.org/licenses/by/3.0/). The credit is in the
+app under **Key → Symbols**, which is what that licence asks for; leave it there.
+
+The structural marks — contrast, repetition, therefore, prohibition and so on —
+were drawn for Nous.

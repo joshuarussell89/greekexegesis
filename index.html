@@ -987,6 +987,12 @@
   <div class="item"><div class="kbd">Scope</div><div>Each passage has its own history, and it
     starts fresh when you switch book or chapter.</div></div>
   <hr>
+  <h4>Symbols</h4>
+  <div class="item"><div class="kbd">Where from</div><div>The symbols that come with
+    Nous were drawn for it. Any you have imported yourself keep whatever licence
+    they came with, and the credit you gave for them is here:
+    <b id="symCredit"></b></div></div>
+  <hr>
   <h4>Gestures</h4>
   <div class="item"><div class="kbd">Two fingers</div><div>Pan the page.</div></div>
   <div class="item"><div class="kbd">Apple Pencil</div><div>With the header toggle on, the
@@ -1018,6 +1024,22 @@
   <div class="fld"><label for="mgFile">Files</label>
     <input type="file" id="mgFile" multiple
            accept=".txt,.zip,.json,.xml,text/plain,application/zip,application/json,text/xml,application/xml"></div>
+  <hr>
+  <h4>Symbols</h4>
+  <div class="foot" style="padding-top:0">Drop <b>.svg</b> files here to add them to
+    the marks rail. They keep whatever size they were drawn at.<br><br>
+    <b>game-icons.net</b> has some four thousand solid symbols of exactly this kind —
+    crowns, lambs, scrolls, altars, chains, flames — free to use under CC&nbsp;BY&nbsp;3.0,
+    which asks only that you credit the artist. Download the ones you want and drop
+    them in here. Whatever you type below is shown under <b>Key</b>, which is
+    where the credit belongs.</div>
+  <div class="fld"><label for="svgFile">SVG files</label>
+    <input type="file" id="svgFile" multiple accept=".svg,image/svg+xml"></div>
+  <div class="fld"><label for="svgCredit">Credit</label>
+    <input type="text" id="svgCredit" spellcheck="false"
+           placeholder="Icons by Lorc and Delapouite, game-icons.net, CC BY 3.0"></div>
+  <div class="foot" id="svgStatus" style="padding-top:0"></div>
+  <hr>
   <div class="fld"><label for="mgAbbr">Ref override</label>
     <input type="text" id="mgAbbr" value="" placeholder="usually not needed"
            spellcheck="false"></div>
@@ -1187,7 +1209,7 @@ const S = {
   key:"", chapter:"all", docs:{}, undo:[], redo:[],
   lineStarts:{}, byUid:{},
   hits:{}, marks:{}, notes:{}, summaries:{}, markMode:"emphasis", findQ:"", glyphs:[],
-  glyphUse:{}, glyphHidden:{}, glyphGone:{},
+  glyphUse:{}, glyphHidden:{}, glyphGone:{}, symCredit:"",
   words:[], lines:[], strokes:[], conns:[], sections:[],
   tool:"move", lastInk:"pen", ci:12, lineStyle:"regular", nib:"fineliner",
   fingerMode:"auto", sawPen:false, zoom:1, paintMode:"fill", swatches:[], colourHidden:{},
@@ -1273,6 +1295,72 @@ function safePath(d){ return (typeof d === "string" && PATH_OK.test(d)) ? d : ""
    paper — which is laid behind the word's letters but above its highlight, so
    the highlight is cut away around the symbol while the Greek still crosses the
    gap. The symbol itself is a separate drawing, over everything. */
+/* ---- symbols from a file ----
+   An SVG drawing becomes a mark. Only the path data is taken, and the square it
+   was drawn in is kept as it is, so nothing has to be recalculated — a set drawn
+   at 512 units works exactly as one drawn at 24.
+
+   Anything that is not a path is ignored, and so is a path that merely fills the
+   whole square, which is how most icon files carry their background. */
+function svgToGlyph(text, name){
+  const vbm = /viewBox\s*=\s*["']\s*([-\d.]+)\s+([-\d.]+)\s+([\d.]+)\s+([\d.]+)/i.exec(text);
+  const vb = vbm ? Math.max(parseFloat(vbm[3]), parseFloat(vbm[4])) : 24;
+  const ox = vbm ? parseFloat(vbm[1]) : 0, oy = vbm ? parseFloat(vbm[2]) : 0;
+  if(ox || oy) return null;              // an offset square would need rewriting
+
+  const ds = [];
+  const re = /<path\b[^>]*\bd\s*=\s*"([^"]+)"[^>]*>/gi;
+  let m;
+  while((m = re.exec(text))){
+    const tag = m[0], d = safePath(m[1].replace(/\s+/g, " ").trim());
+    if(!d) continue;
+    if(/fill\s*=\s*["'](#fff|#ffffff|white)/i.test(tag)) continue;   // a backdrop
+    /* A plain rectangle filling the whole square is a backdrop too, however it
+       is written. Rather than trying to match the shape of the text, which can
+       be spaced any number of ways, it is judged by what it is: a handful of
+       straight moves reaching the far corner of the square. */
+    if(!/[CcSsQqTtAa]/.test(d)){
+      const nums = (d.match(/-?[\d.]+/g) || []).map(Number);
+      const big = nums.length ? Math.max.apply(null, nums) : 0;
+      const small = nums.length ? Math.min.apply(null, nums) : 0;
+      if(nums.length && nums.length <= 8 && big >= vb - 0.5 && small >= -0.5) continue;
+    }
+    ds.push(d);
+  }
+  if(!ds.length) return null;
+  const id = "svg." + String(name || "symbol").replace(/\.svg$/i, "")
+                        .replace(/[^A-Za-z0-9]+/g, "-").slice(0, 40).toLowerCase();
+  const nice = String(name || "Symbol").replace(/\.svg$/i, "")
+                 .replace(/[-_]+/g, " ").replace(/^./, c => c.toUpperCase());
+  return { id, n:nice, cat:"Imported", d:ds, f:1, vb };
+}
+
+async function importSvgFiles(files){
+  const added = [], failed = [];
+  for(const f of Array.from(files || [])){
+    if(!/\.svg$/i.test(f.name)) continue;
+    let text = "";
+    try{ text = await f.text(); }catch(e){ failed.push(f.name); continue; }
+    const gl = svgToGlyph(text, f.name);
+    if(!gl){ failed.push(f.name); continue; }
+    S.glyphs = (S.glyphs || []).filter(x => x.id !== gl.id).concat([gl]);
+    delete (S.glyphGone || {})[gl.id];          // importing it again means keep it
+    added.push(gl.n);
+  }
+  if(added.length){
+    S.glyphSeq = Math.max(S.glyphSeq || 0, S.glyphs.length);
+    kvSet("glyphs", { seq:S.glyphSeq, list:S.glyphs, gone:S.glyphGone || {} });
+    paintMarks(); render(); saveSoon();
+    note("Symbols imported", added.length + ": " + added.slice(0, 6).join(", "));
+  }
+  const el = document.getElementById("svgStatus");
+  if(el) el.textContent =
+    (added.length ? added.length + " symbol" + (added.length === 1 ? "" : "s") + " added. " : "") +
+    (failed.length ? failed.length + " could not be read (only plain SVG paths can be used)." :
+     (added.length ? "They are in the marks rail, under Imported." : "Nothing to import."));
+  return added.length;
+}
+
 /* ---- how a mark is inked ----
    A single uniform hairline is what makes an icon look traced rather than
    drawn. Two things fix most of it: the main form of a symbol carries more ink
@@ -1298,7 +1386,11 @@ function glyphSVG(id, colour, px, opts){
   const fs = (Array.isArray(g.fd) ? g.fd : (g.fd ? [g.fd] : [])).map(safePath).filter(Boolean);
   if(!ds.length && !fs.length) return null;
   const size = px || 17;
-  const wrap = body => `<svg viewBox="0 0 24 24" width="${size}" height="${size}" ` +
+  /* A symbol drawn for Nous lives in a 24-unit square. One imported from a file
+     keeps whatever square it was drawn in, so its path data can be used exactly
+     as it came rather than every coordinate being rewritten. */
+  const vb = g.vb || 24;
+  const wrap = body => `<svg viewBox="0 0 ${vb} ${vb}" width="${size}" height="${size}" ` +
     `style="color:${colour||"currentColor"};display:block">${body}</svg>`;
 
   if(opts.cut){
@@ -1311,7 +1403,7 @@ function glyphSVG(id, colour, px, opts){
   const solid = fs.map(d => `<path d="${d}" fill="currentColor" stroke="none" ` +
     `fill-rule="evenodd" opacity="${ink}"/>`).join("");
   return wrap(solid + ds.map((d, i) => `<path d="${d}" fill="${fill}" fill-rule="evenodd" stroke="${stroke}" ` +
-    `stroke-width="${glyphWeight(i, size)}" stroke-linecap="round" ` +
+    `stroke-width="${glyphWeight(i, size) * vb / 24}" stroke-linecap="round" ` +
     `stroke-linejoin="round"` +
     ` opacity="${ink}"/>`).join(""));
 }
@@ -2658,14 +2750,16 @@ function paintSymObject(g, st, pts){
   const w = Math.abs(pts[1].x - pts[0].x) || SYMDROP;
   const h = Math.abs(pts[1].y - pts[0].y) || SYMDROP;
   g.save();
+  const vb = gl.vb || 24;
   g.translate(x0, y0);
-  g.scale(w / 24, h / 24);
+  g.scale(w / vb, h / vb);
   g.lineCap = "round"; g.lineJoin = "round";
   const size = Math.min(w, h);
   g.fillStyle = st.color; g.strokeStyle = st.color;
+  const wgt = i => glyphWeight(i, size) * vb / 24;
   fs.forEach(d => g.fill(new Path2D(d), "evenodd"));
   if(gl.f) ds.forEach(d => g.fill(new Path2D(d), "evenodd"));
-  else ds.forEach((d, i) => { g.lineWidth = glyphWeight(i, size); g.stroke(new Path2D(d)); });
+  else ds.forEach((d, i) => { g.lineWidth = wgt(i); g.stroke(new Path2D(d)); });
   g.restore();
 }
 
@@ -5763,12 +5857,23 @@ async function handleFiles(list){
   await loadFiles(files);
 }
 document.getElementById("mgFile").onchange = e => handleFiles(e.target.files);
+document.getElementById("svgFile").onchange = e => importSvgFiles(e.target.files);
+document.getElementById("svgCredit").oninput = e =>{
+  S.symCredit = e.target.value.slice(0, 300);
+  const el = document.getElementById("symCredit");
+  if(el) el.textContent = S.symCredit;
+  saveSoon();
+};
 
 // dropping files — or the whole zip — anywhere on the window works too
 ["dragover","drop"].forEach(t => window.addEventListener(t, e=>{
   e.preventDefault();
   if(t === "drop" && e.dataTransfer && e.dataTransfer.files.length){
-    handleFiles(e.dataTransfer.files);
+    const all = Array.from(e.dataTransfer.files);
+    const svgs = all.filter(f => /\.svg$/i.test(f.name));
+    if(svgs.length) importSvgFiles(svgs);
+    const rest = all.filter(f => !/\.svg$/i.test(f.name));
+    if(rest.length) handleFiles(rest);
   }
 }));
 
@@ -6468,11 +6573,12 @@ function paintBoard(g){
       if(gl0){
         const ds0 = (Array.isArray(gl0.d) ? gl0.d : [gl0.d]).map(safePath).filter(Boolean);
         const sz0 = symSize(wd);
+        const vb0 = gl0.vb || 24;
         g.save();
         g.translate(x + wd.w / 2 - sz0 / 2, y + wd.h / 2 - sz0 / 2);
-        g.scale(sz0 / 24, sz0 / 24);
+        g.scale(sz0 / vb0, sz0 / vb0);
         g.lineCap = "round"; g.lineJoin = "round";
-        g.strokeStyle = "#fffefb"; g.lineWidth = 4.6;
+        g.strokeStyle = "#fffefb"; g.lineWidth = 4.6 * vb0 / 24;
         ds0.forEach(d => g.stroke(new Path2D(d)));
         g.restore();
       }
@@ -6504,14 +6610,15 @@ function paintBoard(g){
       if(gl){
         const ds = (Array.isArray(gl.d) ? gl.d : [gl.d]).map(safePath).filter(Boolean);
         const fsx = (Array.isArray(gl.fd) ? gl.fd : (gl.fd ? [gl.fd] : [])).map(safePath).filter(Boolean);
+        const vbx = gl.vb || 24;
         g.translate(cx - sz / 2, cy - sz / 2);
-        g.scale(sz / 24, sz / 24);
+        g.scale(sz / vbx, sz / vbx);
         g.lineCap = "round"; g.lineJoin = "round";
         g.globalAlpha = SYMINK;
         g.strokeStyle = mk.sc || "#8a5a2b"; g.fillStyle = mk.sc || "#8a5a2b";
         fsx.forEach(d => g.fill(new Path2D(d), "evenodd"));
         ds.forEach((d, i)=>{ const pth = new Path2D(d);
-          g.lineWidth = glyphWeight(i, sz);
+          g.lineWidth = glyphWeight(i, sz) * vbx / 24;
           gl.f ? g.fill(pth, "evenodd") : g.stroke(pth); });
       } else {
         g.globalAlpha = SYMINK;
@@ -7586,7 +7693,7 @@ function prefsSnapshot(){
           document.getElementById("mHLex").value],
     abbr:document.getElementById("mgAbbr").value,
     use:S.glyphUse, hidden:S.glyphHidden,
-    tour:!!S.tourSeen, paint:S.paintMode, sw:(S.swatches || []), erase:S.eraseMode,
+    tour:!!S.tourSeen, paint:S.paintMode, sw:(S.swatches || []), credit:S.symCredit, erase:S.eraseMode,
     swHide:(S.colourHidden || {}),
     scroll: readScroll()
   };
@@ -7598,6 +7705,9 @@ function applyPrefs(p){
   S.paintMode = p.paint === "text" ? "text" : "fill";
   S.swatches = Array.isArray(p.sw) ? p.sw : [];
   S.colourHidden = p.swHide || {};
+  S.symCredit = p.credit || "";
+  const cf = document.getElementById("svgCredit"); if(cf) cf.value = S.symCredit;
+  const cs = document.getElementById("symCredit"); if(cs) cs.textContent = S.symCredit;
   S.eraseMode = p.erase === "part" ? "part" : "object";
   rebuildSwatches();
   S._scrollWant = p.scroll || null;
@@ -8568,7 +8678,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-09-11b";
+const BUILD = "2026-09-11c";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file

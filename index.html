@@ -405,6 +405,11 @@
     font:700 15px Inter,sans-serif;color:var(--muted);background:var(--chip);
     box-shadow:inset 0 0 0 1px #ded7c8;}
   #huePop{width:236px;}
+  .pophead{display:flex;align-items:baseline;justify-content:space-between;}
+  .pophead h4{margin:0;}
+  .popx{font:400 19px Inter,sans-serif;color:var(--muted);cursor:pointer;
+    line-height:1;padding:2px 4px 4px;border-radius:6px;margin:-4px -4px 0 0;}
+  .popx:hover{color:var(--sel);background:var(--chip);}
   #svBox{position:relative;height:140px;border-radius:8px;margin:2px 0 9px;
     cursor:crosshair;touch-action:none;
     background-image:linear-gradient(to top,#000,rgba(0,0,0,0)),
@@ -811,7 +816,7 @@
 
 <div class="pop anchored" id="linePop"></div>
 <div class="pop" id="huePop">
-  <h4>Mix a colour</h4>
+  <div class="pophead"><h4>Mix a colour</h4><div class="popx" id="mixClose">×</div></div>
   <div id="svBox"><div class="svdot"></div></div>
   <div id="hueBar"><div class="huedot"></div></div>
   <div class="mixrow">
@@ -4024,6 +4029,8 @@ function mixDrag(el, set){
 mixDrag(svBox,  (x, y)=>{ MIX.s = x; MIX.v = 1 - y; });
 mixDrag(hueBar, (x)   =>{ MIX.h = x * 360; });
 
+document.getElementById("mixClose").onclick = ()=> closePops();
+
 document.getElementById("mixAdd").onclick = ()=>{
   S.swatches = (S.swatches || []).concat([{ h:MIX.h, s:MIX.s, v:MIX.v }]);
   rebuildSwatches();
@@ -4220,9 +4227,14 @@ document.querySelectorAll("[data-tool]").forEach(b=>{
 const helpPop = document.getElementById("help");
 const setPop  = document.getElementById("settings");
 
+/* Every panel that can be open, so that opening one closes the others and a
+   tap on the page closes them all. A panel left out of this list cannot be
+   closed by any of the usual means — which is exactly what happened to the
+   colour mixer. */
 const ALLPOPS = ()=> [helpPop, setPop, document.getElementById("linePop"),
                       document.getElementById("boxPop"),
-                      document.getElementById("penPop"), document.getElementById("findPop")];
+                      document.getElementById("penPop"), document.getElementById("findPop"),
+                      document.getElementById("huePop")];
 
 /* Open this one and close the rest — no toggling. */
 function showPop(pop){
@@ -7967,7 +7979,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-09-10a";
+const BUILD = "2026-09-10b";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file

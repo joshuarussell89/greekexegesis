@@ -1426,12 +1426,27 @@ function glyphSVG(id, colour, px, opts){
   }
   if(opts.cut && g.up) return null;     // nothing to cut: it is not on the word
   if(opts.cut){
-    /* The halo has to be scaled to the symbol's own square as well, or a symbol
-       drawn at 512 units gets a hairline cut behind a heavy form, which is no
-       cut at all. */
-    return wrap(ds.concat(fs).map(d => `<path d="${d}" fill="none" stroke="#fffefb" ` +
-      `stroke-width="${(4.6 * vb / 24).toFixed(2)}" stroke-linecap="round" ` +
-      `stroke-linejoin="round"/>`).join(""));
+    /* ---- the channel a symbol opens through a highlight ----
+       This has to follow the KIND of symbol, not just its size. A symbol drawn
+       as strokes — the structural ones — is cut by stroking its own lines more
+       heavily, which widens each line into a channel. A symbol drawn as a solid
+       silhouette, which is all eighty-five of the pictorial ones, has no lines
+       to widen: stroking its outline merely painted a fat band along the edge
+       and left the highlight showing through the body, so the symbol sat in a
+       muddy patch with a white ring round it.
+
+       So a solid one has its body FILLED in the colour of the paper, with
+       fill-rule evenodd — which is what keeps the spaces inside it open, so the
+       highlight still shows through the gaps of a crown or the middle of a ring
+       — and a thin stroke on top of that, which is the small margin that lifts
+       its outline clear of the colour. */
+    const solid = !!g.f;
+    const halo  = solid ? vb * 0.030 : 4.6 * vb / 24;
+    const lay = (d, fill) => `<path d="${d}" fill="${fill}" fill-rule="evenodd" ` +
+      `stroke="#fffefb" stroke-width="${halo.toFixed(2)}" stroke-linecap="round" ` +
+      `stroke-linejoin="round"/>`;
+    return wrap(ds.map(d => lay(d, solid ? "#fffefb" : "none")).join("") +
+                fs.map(d => lay(d, "#fffefb")).join(""));
   }
   const stroke = g.f ? "none" : "currentColor";
   const fill   = g.f ? "currentColor" : "none";
@@ -6967,14 +6982,25 @@ function paintBoard(g){
       const gl0 = anyGlyph(mk.s);
       if(gl0 && !gl0.up && !gl0.t){
         const ds0 = (Array.isArray(gl0.d) ? gl0.d : [gl0.d]).map(safePath).filter(Boolean);
+        const fs0 = (Array.isArray(gl0.fd) ? gl0.fd : (gl0.fd ? [gl0.fd] : []))
+                      .map(safePath).filter(Boolean);
         const sz0 = symSize(wd, mk.s);
         const vb0 = gl0.vb || 24;
+        const solid0 = !!gl0.f;
         g.save();
         g.translate(x + wd.w / 2 - sz0 / 2, y + wd.h / 2 - sz0 / 2);
         g.scale(sz0 / vb0, sz0 / vb0);
         g.lineCap = "round"; g.lineJoin = "round";
-        g.strokeStyle = "#fffefb"; g.lineWidth = 4.6 * vb0 / 24;
-        ds0.forEach(d => g.stroke(new Path2D(d)));
+        g.strokeStyle = "#fffefb"; g.fillStyle = "#fffefb";
+        /* The same two rules as on the page: a solid symbol has its body filled
+           with evenodd so its inner spaces stay open, a stroked one only has its
+           lines widened. */
+        g.lineWidth = solid0 ? vb0 * 0.030 : 4.6 * vb0 / 24;
+        ds0.forEach(d =>{ const pth = new Path2D(d);
+          if(solid0) g.fill(pth, "evenodd");
+          g.stroke(pth); });
+        fs0.forEach(d =>{ const pth = new Path2D(d);
+          g.fill(pth, "evenodd"); g.stroke(pth); });
         g.restore();
       }
     }
@@ -9135,7 +9161,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-09-11g";
+const BUILD = "2026-09-11h";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file

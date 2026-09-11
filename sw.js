@@ -9,8 +9,13 @@
    having instantly.
 
    Books and diagrams live in IndexedDB and are never touched here. */
-const VERSION = "2026-09-11d";
+const VERSION = "2026-09-11e";
 const CACHE   = "nous-" + VERSION;
+/* The symbol library is five megabytes and never changes, so it is kept in a
+   cache of its own that the version sweep below leaves alone. Putting it in
+   the versioned cache meant every new build threw it away and made the reader
+   fetch the whole thing again. */
+const LIBCACHE = "nous-library-v1";
 const SHELL = [
   "./",
   "./index.html",
@@ -34,7 +39,9 @@ self.addEventListener("install", e=>{
 self.addEventListener("activate", e=>{
   e.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
+      .then(keys => Promise.all(keys
+        .filter(k => k !== CACHE && k !== LIBCACHE)
+        .map(k => caches.delete(k))))
       .then(()=> self.clients.claim())
   );
 });
@@ -61,6 +68,20 @@ self.addEventListener("fetch", e=>{
         caches.open(CACHE).then(c => c.put("./index.html", copy)).catch(()=>{});
         return res;
       }).catch(()=> caches.match(req).then(hit => hit || caches.match("./index.html")))
+    );
+    return;
+  }
+
+  /* The symbol library: cache first, from its own cache, and never refreshed.
+     It is a fixed set of drawings — there is nothing to bring up to date, and
+     a background re-fetch of five megabytes on every visit would be rude. */
+  if(new URL(req.url).pathname.endsWith("/icons.json")){
+    e.respondWith(
+      caches.open(LIBCACHE).then(c => c.match(req).then(hit =>
+        hit || fetch(req).then(res =>{
+          if(res && res.status === 200) c.put(req, res.clone()).catch(()=>{});
+          return res;
+        })))
     );
     return;
   }

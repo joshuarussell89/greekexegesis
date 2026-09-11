@@ -190,6 +190,28 @@
   @media (max-width:640px){ #marks{width:60px;} #marks .ggrid{grid-template-columns:1fr;} }
   #palette .sw[data-kind="tint"]{border-radius:3px;}
   #page{position:relative;width:1120px;height:1750px;}
+
+  /* ---- the context above and below the passage ----
+     Running text, not a diagram: what comes before and after, there to be read
+     rather than worked on, so that a passage is never a page with nothing on
+     either side of it. */
+  .ctx{width:1120px;max-width:100%;margin:0 auto;color:var(--muted);}
+  .ctx.off{display:none;}
+  .ctx .ctxbtn{display:block;width:100%;font:inherit;font-size:11.5px;color:var(--dim);
+    background:none;border:0;border-top:1px dashed var(--rule2);padding:10px 0;
+    cursor:pointer;text-align:center;letter-spacing:.02em;}
+  .ctx .ctxbtn:hover{color:var(--ink);}
+  .ctx .ctxtext{font-family:Cardo,Georgia,serif;font-size:19px;line-height:2.0;padding:14px 78px 18px;
+    color:#8a8272;}
+  .ctx .ctxtext.heb{direction:rtl;text-align:right;font-size:22px;
+    font-family:"SBL Hebrew","Ezra SIL SR","Ezra SIL","Noto Serif Hebrew",Cardo,serif;
+    line-height:2.3;}
+  .ctx .ctxtext .vn{font-family:Inter,-apple-system,sans-serif;font-size:10px;color:var(--dim);
+    vertical-align:2px;margin:0 3px 0 1px;}
+  .ctx .ctxend{font-family:Inter,-apple-system,sans-serif;font-size:10.5px;color:var(--dim);text-align:center;
+    padding:6px 0 14px;}
+  #ctxUp{padding-bottom:6px;}
+  #ctxDn{padding-top:6px;}
   #board{position:relative;width:1120px;height:1750px;transform-origin:0 0;background:var(--paper);
     border:1px solid var(--rule);border-radius:4px;
     box-shadow:0 1px 2px rgba(0,0,0,.05),0 10px 30px rgba(0,0,0,.07);}
@@ -297,7 +319,7 @@
 
   /* ---------- printing ---------- */
   @media print{
-    header,#palette,#marks,.pop,#insp,#conc,.sheet,#noteDrawer{display:none !important;}
+    header,#palette,#marks,.pop,#insp,#conc,.sheet,#noteDrawer,.ctx{display:none !important;}
     #scroll{overflow:visible !important;padding:0 !important;}
     #board{box-shadow:none !important;border:none !important;}
     html,body,#app{height:auto !important;overflow:visible !important;background:#fff !important;}
@@ -347,19 +369,58 @@
   .sheet .wsbtns{display:flex;justify-content:flex-end;gap:8px;margin-top:12px;}
   .sheet .wsbtns button{font-size:13px;padding:10px 16px;border-radius:9px;
     border:1px solid var(--rule);}
-  .drawrow{display:flex;gap:16px;align-items:flex-start;}
-  #drawPad{border:2px dashed var(--rule);border-radius:12px;background:#fffdf6;touch-action:none;
-    cursor:crosshair;}
-  .drawside{display:flex;flex-direction:column;gap:8px;flex:1;min-width:0;}
-  .drawside select{font:inherit;font-size:13px;padding:8px 10px;border:1px solid var(--rule);
-    border-radius:9px;background:var(--paper);color:inherit;width:100%;}
-  .drawside input,#askWhat{font:inherit;font-size:14px;padding:10px 12px;border-radius:9px;
+  #askWhat{font:inherit;width:100%;font-size:17px;padding:14px;border-radius:9px;
     border:1px solid var(--rule);background:var(--paper);color:var(--ink);}
-  #askWhat{width:100%;font-size:17px;padding:14px;}
-  .drawside button{justify-content:center;}
-  .prevbox{display:flex;align-items:center;gap:9px;font-size:11px;color:var(--muted);}
-  .prevbox .pv{width:34px;height:34px;border:1px solid var(--rule);border-radius:8px;
-    display:flex;align-items:center;justify-content:center;background:var(--paper);}
+
+  /* ---- the symbol library ----
+     Four thousand symbols is far too many for one grid of DOM nodes, so the
+     sheet is tall, fixed, and fills itself a page at a time as you scroll. */
+  .sheet .ws.lib{width:min(860px,96vw);height:min(78vh,760px);display:flex;
+    flex-direction:column;padding:14px 16px 10px;}
+  .libhead{display:flex;align-items:center;gap:10px;flex:0 0 auto;}
+  .libhead input{font:inherit;flex:1;min-width:0;font-size:15px;padding:10px 13px;
+    border-radius:10px;border:1px solid var(--rule);background:var(--paper);color:var(--ink);}
+  .libhead input:focus{outline:none;border-color:var(--accent);}
+  .libcount{font-size:11px;color:var(--dim);white-space:nowrap;}
+  .libhead .x{font-size:22px;line-height:1;padding:2px 8px;border:0;background:none;
+    color:var(--muted);cursor:pointer;}
+  #libGrid{flex:1 1 auto;overflow-y:auto;-webkit-overflow-scrolling:touch;margin-top:12px;
+    display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:6px;
+    align-content:start;}
+  #libGrid .li{display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 3px 5px;
+    border:1px solid transparent;border-radius:10px;cursor:pointer;position:relative;}
+  #libGrid .li:hover{background:var(--chip);}
+  #libGrid .li.have{border-color:var(--accent);background:rgba(138,90,43,.08);}
+  #libGrid .li.have::after{content:"✓";position:absolute;top:2px;right:5px;font-size:10px;
+    color:var(--accent);font-weight:700;}
+  #libGrid .li .ln{font-size:9px;line-height:1.2;color:var(--dim);text-align:center;
+    max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  #libGrid .libmsg{grid-column:1/-1;padding:28px 6px;text-align:center;color:var(--muted);
+    font-size:13px;line-height:1.6;}
+  .libfoot{flex:0 0 auto;font-size:10.5px;color:var(--dim);padding-top:9px;line-height:1.5;}
+  .libfoot a{color:var(--muted);}
+
+  /* ---- pinned symbols, in the order you put them ---- */
+  #marks .pinrow{display:flex;align-items:center;justify-content:space-between;gap:4px;
+    margin:2px 0;}
+  #marks .pinrow button{font:inherit;font-size:9px;color:var(--dim);background:none;border:0;
+    padding:2px 3px;cursor:pointer;text-decoration:underline;}
+  #marks .pinrow button.on{color:var(--accent);font-weight:700;}
+  #marks .s.drag{opacity:.35;}
+  #marks .s.over{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);}
+  #marks .ggrid.arrange .s{cursor:grab;touch-action:none;}
+  #marks .pinhint{font-size:9px;line-height:1.4;color:var(--dim);padding:2px 1px 4px;}
+  /* the little menu a long press opens */
+  #glyphMenu{position:fixed;z-index:320;background:var(--paper);border:1px solid var(--rule);
+    border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.22);padding:5px;min-width:150px;
+    display:none;}
+  #glyphMenu.show{display:block;}
+  #glyphMenu .gmname{font-size:10px;color:var(--dim);padding:3px 8px 5px;
+    border-bottom:1px solid var(--rule2);margin-bottom:4px;}
+  #glyphMenu button{display:block;width:100%;text-align:left;font:inherit;font-size:12.5px;
+    padding:7px 9px;border:0;border-radius:7px;background:none;color:var(--ink);cursor:pointer;}
+  #glyphMenu button:hover{background:var(--chip);}
+  #glyphMenu button.danger{color:#a3302a;}
   .askrow{display:flex;gap:14px;align-items:center;margin-top:12px;}
   .askstate{font-size:12px;color:var(--muted);line-height:1.5;flex:1;}
 
@@ -619,7 +680,7 @@
 
       <span class="glbl">Ink</span>
       <div class="grp">
-        <button data-tool="chain" title="Tap a word to link it to somewhere else in this book"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="1.6" y="8.2" width="12.2" height="6.6" rx="3.3" transform="rotate(-45 7.7 11.5)"/><rect x="8.2" y="7.2" width="12.2" height="6.6" rx="3.3" transform="rotate(-45 14.3 10.5)"/></svg>Chain</button>
+        <button data-tool="chain" title="Tap a word to link it to somewhere else in this book"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="1.6" y="8.2" width="12.2" height="6.6" rx="3.3" transform="rotate(-45 7.7 11.5)"/><rect x="8.2" y="7.2" width="12.2" height="6.6" rx="3.3" transform="rotate(-45 14.3 10.5)"/></svg>Links</button>
         <button data-tool="connect" title="Tap two words to draw a relation arrow"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.6 7c0 7.4 5.2 10.6 13.4 10.2"/><path d="M14.2 14.6l3.2 2.7-2.9 2.5"/><circle cx="3.6" cy="7" r="1.5" fill="currentColor" stroke="none"/></svg>Connect</button>
         <button data-tool="pen" id="penBtn" title="Freehand pen — tap for nibs"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15.8 3.4l2.8 2.8-8.5 8.5-4 1.2 1.2-4 8.5-8.5z"/><path d="M13.6 5.6l2.8 2.8"/><path d="M9 13l1.6 1.6"/></svg>Pen</button>
         <button data-tool="line" id="lineBtn" title="Straight line — tap for weights and patterns"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.4 17L18.6 5"/><circle cx="3.4" cy="17" r="1.4" fill="currentColor" stroke="none"/><circle cx="18.6" cy="5" r="1.4" fill="currentColor" stroke="none"/></svg>Line<svg class="car"
@@ -636,6 +697,7 @@
   <div id="body">
   <aside id="palette" aria-label="Colours"></aside>
   <div id="scroll">
+   <div id="ctxUp" class="ctx"></div>
    <div id="page">
     <div id="board">
       <div id="pagesum"><span class="sumlbl">Big idea</span><input type="text" id="sumBox"
@@ -662,8 +724,9 @@
       </div>
     </div>
    </div>
+   <div id="ctxDn" class="ctx"></div>
   </div>
-  <aside id="marks" aria-label="Marks"></aside>
+  <aside id="marks" aria-label="Symbols"></aside>
 </div>
 
 <aside id="conc">
@@ -677,26 +740,20 @@
 
 
 
-<div id="drawSheet" class="sheet">
-  <div class="ws">
-    <div class="wslbl">Draw the symbol with your Pencil. Keep it simple — it will be shown
-      about 17&nbsp;pixels tall.</div>
-    <div class="drawrow">
-      <canvas id="drawPad" width="260" height="260"></canvas>
-      <div class="drawside">
-        <div class="prevbox"><div class="pv" id="drawPrev"></div><span>actual size</span></div>
-        <input type="text" id="drawName" placeholder="Name it" spellcheck="false">
-        <select id="drawCat"></select>
-        <input type="text" id="drawNewCat" placeholder="New category" spellcheck="false"
-               style="display:none">
-        <button id="drawUndo" class="ghost">Undo stroke</button>
-        <button id="drawClear" class="ghost">Clear</button>
-      </div>
+<div id="glyphMenu"><div class="gmname" id="gmName"></div></div>
+
+<div id="libSheet" class="sheet">
+  <div class="ws lib">
+    <div class="libhead">
+      <input type="text" id="libQ" spellcheck="false" autocapitalize="off"
+             placeholder="lamb, crown, anchor, scroll, chain…">
+      <div class="libcount" id="libCount"></div>
+      <button class="x" id="libClose" title="Close">×</button>
     </div>
-    <div class="wsbtns">
-      <button id="drawCancel">Cancel</button>
-      <button id="drawOk" class="act">✓ Save symbol</button>
-    </div>
+    <div id="libGrid"></div>
+    <div class="libfoot">Tap any symbol to put it on your rail; tap it again to take it off.
+      Four thousand of them, from <b>game-icons.net</b>, used under
+      <a href="https://creativecommons.org/licenses/by/3.0/" target="_blank" rel="noopener">CC&nbsp;BY&nbsp;3.0</a>.</div>
   </div>
 </div>
 
@@ -704,7 +761,7 @@
 <div id="outlineSheet" class="sheet">
   <div class="ws">
     <div class="wslbl">Your section titles become red numbered headings in a Word document,
-      with the diagram beneath each one — line breaks, highlights, marks, ink and arrows just
+      with the diagram beneath each one — line breaks, highlights, symbols, ink and arrows just
       as they are here. Your summary of the passage sits under the title, and every page
       is headed with an empty <b>Aim:</b> line for you to fill in.</div>
     <div class="outopts">
@@ -899,6 +956,10 @@
     alone. Tapping the <em>same</em> colour straight afterwards takes it off again — but a colour
     never removes anything on its own, so a selection you had forgotten about cannot lose its
     marks. <b>esc</b> deselects.</div></div>
+  <div class="item"><div class="kbd">Context</div><div>A passage is never shown on its own.
+    Above and below the page, <b>what comes before</b> and <b>what comes after</b> open into
+    running text and keep going to the ends of the book as you scroll. It is there to be read,
+    not worked on — nothing in it can be marked, and nothing in it moves the diagram.</div></div>
   <div class="item"><div class="kbd">Size of the page</div><div>Nous opens at whatever fits
     between the two rails, so nothing is ever hidden behind them. From there, pinch with two
     fingers to make the page larger or smaller; panning carries on at the same time.
@@ -937,16 +998,18 @@
     Accents are ignored, so <b>λυπεω</b> finds λυπέω.</div></div>
   <div class="item"><div class="kbd">Apply</div><div>Highlight, Underline or Box every match at
     once, in the wheel's current colour.</div></div>
-  <div class="item"><div class="kbd">Mark</div><div>The marks run down the right of the window,
-    beside the page. Select a word or several and tap one, and it goes on all of them. With
-    nothing selected, tapping one arms the <b>Mark</b> tool, and you tap words yourself.
-    Underline a word once or twice, box it, or lay a symbol over it — ♥, 🩸, ✝, ★ and others. Symbols sit on the word, see-through like the highlighter.
-    Tap a word to apply, tap again to remove. Marks attach to the word, so they move with it.</div></div>
+  <div class="item"><div class="kbd">Symbols</div><div>The symbols run down the right of the
+    window, beside the page. Select a word or several and tap one, and it goes on all of them.
+    With nothing selected, tapping one arms the tool and you tap words yourself. A symbol sits
+    on the word, see-through like the highlighter, and moves with it. Tap a word to apply, tap
+    again to remove. Hold a symbol down to pin it to the top of the rail or hide it; the pinned
+    strip can be dragged into whatever order you like. <b>＋ Library</b> at the foot opens
+    four thousand more.</div></div>
   <div class="item"><div class="kbd">Hebrew</div><div>An Old Testament book is laid out right
     to left: lines begin at the right margin and each level of indent steps in from the right.
     Everything else behaves the same. The word inspector links to <b>HALOT</b> rather than BDAG,
     and to your Hebrew text rather than the Greek — both set under <b>⋯</b>.</div></div>
-  <div class="item"><div class="kbd">Chain</div><div>Tap a word and write a reference — two rings
+  <div class="item"><div class="kbd">Links</div><div>Tap a word and write a reference — two rings
     and the reference, as on the worksheet. Numbers alone mean this book. Tapping the rings in
     <b>Move/Select</b> takes you there; if the reference is to a book you have not loaded, it
     opens in Accordance instead.</div></div>
@@ -973,6 +1036,10 @@
   <div class="item"><div class="kbd">Outline</div><div>Section titles become numbered headings in
     a Word document, with the verse range and your notes underneath — the diagram turned into a
     sermon skeleton.</div></div>
+  <div class="item"><div class="kbd">Where it saves</div><div>On a Mac, every export opens the
+    system save panel, so you choose the folder and the name — and it opens at the last folder
+    you used. Safari has no such panel, so on the iPad the file goes to Downloads and you move
+    it from Files.</div></div>
   <hr>
   <h4>Lexical</h4>
   <div class="item"><div class="kbd">Tap a word</div><div>Lemma, full parsing, gloss, and a
@@ -988,12 +1055,17 @@
     starts fresh when you switch book or chapter.</div></div>
   <hr>
   <h4>Symbols</h4>
-  <div class="item"><div class="kbd">Where from</div><div>The pictorial marks are from
+  <div class="item"><div class="kbd">Where from</div><div>The pictorial symbols are from
     <b>game-icons.net</b>, by <b>Lorc</b>, <b>Delapouite</b>, <b>Skoll</b>,
-    <b>Carl Olsen</b>, <b>Generalace135</b>, <b>sbed</b> and others, used under
+    <b>Caro Asercion</b>, <b>Viscious Speed</b>, <b>sbed</b> and thirty others, used under
     <a href="https://creativecommons.org/licenses/by/3.0/">CC&nbsp;BY&nbsp;3.0</a>.
-    The structural marks — contrast, repetition, therefore, and so on — were drawn
+    The structural ones — contrast, repetition, therefore, and so on — were drawn
     for Nous.</div></div>
+  <div class="item"><div class="kbd">The library</div><div>Ninety-six are on the rail; the
+    other four thousand are behind <b>＋ Library</b> at the foot of it. They live in a file
+    of their own — <b>icons.json</b>, beside the app — which is fetched the first time you
+    open the sheet and then kept, so do that once while you have a connection. A symbol you
+    pick is copied onto your rail and syncs like anything else.</div></div>
   <hr>
   <h4>Gestures</h4>
   <div class="item"><div class="kbd">Two fingers</div><div>Pan the page.</div></div>
@@ -1195,7 +1267,7 @@ const S = {
   key:"", chapter:"all", docs:{}, undo:[], redo:[],
   lineStarts:{}, byUid:{},
   hits:{}, marks:{}, notes:{}, summaries:{}, markMode:"emphasis", findQ:"", glyphs:[],
-  glyphUse:{}, glyphHidden:{}, glyphGone:{},
+  glyphUse:{}, glyphHidden:{}, glyphGone:{}, glyphPin:[], arrangePins:false,
   words:[], lines:[], strokes:[], conns:[], sections:[],
   tool:"move", lastInk:"pen", ci:12, lineStyle:"regular", nib:"fineliner",
   fingerMode:"auto", sawPen:false, zoom:1, paintMode:"fill", swatches:[], colourHidden:{},
@@ -1682,6 +1754,7 @@ function build(key){
     document.getElementById("empty").classList.add("show");
     document.getElementById("wcount").textContent = "";
     svg.innerHTML = ""; redraw(); syncUndo();
+    ctxReset();                 // no passage, so no context either
     return;
   }
   document.getElementById("empty").classList.remove("show");
@@ -1763,6 +1836,7 @@ function buildPassage(key){
 
   syncUndo();
   layout(); resizeCanvas();
+  ctxReset();
 }
 
 /* Hebrew reads the other way, so the whole diagram is mirrored: lines begin at
@@ -3011,6 +3085,115 @@ function drawConns(){
    ============================================================ */
 let drag = null;
 const scroller = document.getElementById("scroll");
+
+/* ============================================================
+   CONTEXT
+   A passage with nothing on either side of it is a passage read out of its
+   letter. So what comes before and after runs on above and below the page, as
+   plain text — there to be read, not marked — and keeps coming as you scroll,
+   to the ends of the book.
+
+   It sits OUTSIDE the board, as its own block in the scroller, which is the
+   whole reason this is safe: the board keeps its own coordinates exactly as
+   they were, so no ink, arrow, mark or section break moves by a pixel.
+   ============================================================ */
+const CTXSTEP = 12;              // verses added each time you reach the end
+const CTX = { up:0, dn:0, before:[], after:[], heb:false, label:(x)=>String(x) };
+
+const ctxUpEl = document.getElementById("ctxUp");
+const ctxDnEl = document.getElementById("ctxDn");
+
+/* Which verses of the book fall outside what is laid out. The displayed range
+   is contiguous within p.verses, so this is a matter of finding its two ends
+   rather than re-parsing the reference. */
+function ctxSplit(){
+  const p = PASSAGES[S.key];
+  if(!p || !Array.isArray(p.verses)) return null;
+  const shown = (ref)=> !(p.byChapter && S.chapter && S.chapter !== "all") ||
+                        inRange(ref, String(S.chapter));
+  const label = vn => (typeof vn === "number") ? p.ch + ":" + vn : String(vn);
+  let first = -1, last = -1;
+  p.verses.forEach(([vn], i)=>{
+    if(shown(label(vn))){ if(first < 0) first = i; last = i; }
+  });
+  if(first < 0) return null;
+  return { before:p.verses.slice(0, first), after:p.verses.slice(last + 1),
+           heb:p.lang === "he", label };
+}
+
+function ctxVerseHTML(v, label){
+  const words = (v[1] || []).map(t => t[0]).join(" ");
+  const esc = t => String(t).replace(/[&<>]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;" }[c]));
+  return '<span class="vn">' + esc(label(v[0])) + '</span>' + esc(words) + " ";
+}
+
+/* Start again: the passage changed, so everything about the context has. */
+function ctxReset(){
+  CTX.up = CTX.dn = 0;
+  const sp = ctxSplit();
+  CTX.before = sp ? sp.before : [];
+  CTX.after  = sp ? sp.after  : [];
+  CTX.heb    = sp ? sp.heb    : false;
+  CTX.label  = sp ? sp.label  : (x => String(x));
+  ctxPaint();
+}
+
+function ctxPaint(){
+  const paintBand = (el, verses, n, which)=>{
+    if(!el) return;
+    const has = verses.length > 0;
+    el.className = "ctx" + (has ? "" : " off");
+    if(!has){ el.innerHTML = ""; return; }
+    const cls = "ctxtext" + (CTX.heb ? " heb" : "");
+    let html = "";
+    if(n <= 0){
+      html = '<button class="ctxbtn">' +
+        (which === "up" ? "↑ what comes before — " : "↓ what comes after — ") +
+        verses.length + " verse" + (verses.length === 1 ? "" : "s") + "</button>";
+    } else {
+      // reading upwards, the nearest verses are the LAST of the ones before
+      const part = which === "up" ? verses.slice(Math.max(0, verses.length - n))
+                                  : verses.slice(0, n);
+      const body = part.map(v => ctxVerseHTML(v, CTX.label)).join("");
+      const done = n >= verses.length;
+      const more = '<button class="ctxbtn">' +
+        (which === "up" ? "↑ further back" : "↓ read on") + "</button>";
+      const end  = '<div class="ctxend">' +
+        (which === "up" ? "the beginning of the book" : "the end of the book") + "</div>";
+      html = which === "up"
+        ? (done ? end : more) + '<div class="' + cls + '">' + body + "</div>"
+        : '<div class="' + cls + '">' + body + "</div>" + (done ? end : more);
+    }
+    el.innerHTML = html;
+    const btn = el.querySelector(".ctxbtn");
+    if(btn) btn.onclick = ()=> ctxMore(which);
+  };
+  paintBand(ctxUpEl, CTX.before, CTX.up, "up");
+  paintBand(ctxDnEl, CTX.after,  CTX.dn, "dn");
+}
+
+/* Showing more above pushes the page down, which would throw the reader's
+   place away. So the scroll is moved by exactly as much as the band grew. */
+function ctxMore(which){
+  if(which === "up"){
+    if(CTX.up >= CTX.before.length) return;
+    const was = ctxUpEl.offsetHeight, top = scroller.scrollTop;
+    CTX.up = Math.min(CTX.before.length, CTX.up + CTXSTEP);
+    ctxPaint();
+    scroller.scrollTop = top + (ctxUpEl.offsetHeight - was);
+  } else {
+    if(CTX.dn >= CTX.after.length) return;
+    CTX.dn = Math.min(CTX.after.length, CTX.dn + CTXSTEP);
+    ctxPaint();
+  }
+}
+
+/* And it keeps coming as you scroll, rather than waiting to be asked twice. */
+scroller.addEventListener("scroll", ()=>{
+  if(scroller.scrollTop < 60 && CTX.up > 0 && CTX.up < CTX.before.length) ctxMore("up");
+  const room = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight;
+  if(room < 260 && CTX.dn > 0 && CTX.dn < CTX.after.length) ctxMore("dn");
+}, { passive:true });
 const active = new Map();
 let panning = false, panRef = null, lastPointerAt = 0;
 const STALE_POINTER = 700;   // ms a tracked pointer may go silent before it is dropped
@@ -4398,7 +4581,12 @@ function tintMode(){
 }
 function swatchColor(c){ return tintMode() ? c.tint : c.hue; }
 
+/* The one pending hold on the colour rail. It outlives any single swatch on
+   purpose, so that a repaint can cancel it. */
+const SWHOLD = { timer:null };
+
 function paintPalette(){
+  clearTimeout(SWHOLD.timer);
   const cur = COLORS[S.ci];
   const hidden = S.colourHidden || {};
   // data-i stays the true position in the list, so hiding one moves nothing
@@ -4432,15 +4620,29 @@ function paintPalette(){
   const back = document.getElementById("swBack");
   if(back) back.onclick = ()=>{ S.colourHidden = {}; saveSoon(); paintPalette(); };
 
-  /* Hold a swatch down, as you would an app on a phone, and it offers to go. */
+  /* Hold a swatch down, as you would an app on a phone, and it offers to go.
+
+     The hold is timed by one timer kept OUTSIDE the swatches, not one per
+     swatch, and it is cancelled at the top of every repaint. That is the whole
+     bug: tapping a swatch repaints the palette, which destroys the element the
+     timer was hanging off, so the pointerup that would have cancelled it
+     landed on nothing — and half a second after an ordinary tap the app asked
+     whether to delete the colour. It is also cancelled if the press wanders,
+     which is a scroll rather than a hold. */
   paletteEl.querySelectorAll(".sw[data-i]").forEach(el=>{
     const i = parseInt(el.dataset.i, 10);
-    let timer = null;
-    const start = ()=>{ clearTimeout(timer);
-      timer = setTimeout(()=>{ el._held = true; offerRemoveColour(i); }, 550); };
-    const stop  = ()=> clearTimeout(timer);
-    el.addEventListener("pointerdown", start);
-    ["pointerup","pointerleave","pointercancel"].forEach(t => el.addEventListener(t, stop));
+    let from = null;
+    el.addEventListener("pointerdown", e=>{
+      clearTimeout(SWHOLD.timer);
+      from = { x:e.clientX, y:e.clientY };
+      SWHOLD.timer = setTimeout(()=>{ el._held = true; offerRemoveColour(i); }, 650);
+    });
+    el.addEventListener("pointermove", e=>{
+      if(from && Math.hypot(e.clientX - from.x, e.clientY - from.y) > 9)
+        clearTimeout(SWHOLD.timer);
+    });
+    ["pointerup","pointerleave","pointercancel"].forEach(t =>
+      el.addEventListener(t, ()=>{ clearTimeout(SWHOLD.timer); from = null; }));
     el.addEventListener("contextmenu", e=>{ e.preventDefault(); offerRemoveColour(i); });
   });
 }
@@ -5920,33 +6122,81 @@ document.getElementById("findBtn").onclick = ()=>{
 const MARKSYMS = ["♥","🩸","✝","★","✓","✗","!","?","→","↑","☾","✿","☞","※","🔥","👑"];
 
 
-/* Holding a symbol down offers to take it out of the list. One you drew is
-   deleted outright; one of the ninety-five that came with Nous is only hidden,
-   and can be brought back. */
-function offerRemoveGlyph(gl){
+/* ---- pinning ----
+   The rail is grouped by subject, which is the right way to FIND a symbol and
+   the wrong way to REACH one you use every week. So the ones you pin sit in a
+   strip of their own at the top, in whatever order you put them. */
+function pinList(){ return (S.glyphPin = S.glyphPin || []); }
+function isPinned(id){ return pinList().indexOf(id) >= 0; }
+
+function pinGlyph(id, on){
+  const p = pinList();
+  const at = p.indexOf(id);
+  if(on && at < 0) p.push(id);
+  if(!on && at >= 0) p.splice(at, 1);
+}
+
+/* Move a pinned symbol to another place in the strip. */
+function movePin(id, to){
+  const p = pinList();
+  const from = p.indexOf(id);
+  if(from < 0) return;
+  p.splice(from, 1);
+  p.splice(Math.max(0, Math.min(p.length, to)), 0, id);
+  saveGlyphStore(); saveSoon();
+}
+
+/* ---- the little menu a long press opens ----
+   It used to go straight to a confirm box asking whether to delete, which is a
+   great deal to happen from a press you did not mean to make, and left pinning
+   with nowhere to live. */
+const glyphMenu = document.getElementById("glyphMenu");
+
+function closeGlyphMenu(){ if(glyphMenu) glyphMenu.classList.remove("show"); }
+document.addEventListener("pointerdown", e =>{
+  if(glyphMenu && glyphMenu.classList.contains("show") && !glyphMenu.contains(e.target))
+    closeGlyphMenu();
+}, true);
+
+function openGlyphMenu(gl, x, y){
+  if(!glyphMenu) return;
   const mine = (S.glyphs || []).some(g2 => g2.id === gl.id);
-  const msg = mine
-    ? "Delete “" + gl.n + "”? You drew this one, so it will be gone for good."
-    : "Hide “" + gl.n + "” from the list? You can bring it back at the foot of the rail.";
-  if(!confirm(msg)) return;
-  if(mine){
-    S.glyphs = (S.glyphs || []).filter(g2 => g2.id !== gl.id);
-    /* Written down as deliberately gone. The symbols are merged between devices
-       by union — which is right, because a symbol going missing takes the look
-       of every mark made with it — so without a note of the deletion the next
-       sync simply fetches it back from the repository, which is exactly what
-       was happening. */
-    S.glyphGone = S.glyphGone || {};
-    S.glyphGone[gl.id] = Date.now();
-    kvSet("glyphs", { seq:S.glyphSeq, list:S.glyphs, gone:S.glyphGone });
-    note("Symbol deleted", gl.n);
-  } else {
-    S.glyphHidden = S.glyphHidden || {};
-    S.glyphHidden[gl.id] = 1;
-    note("Symbol hidden", gl.n);
-  }
-  if(S.markMode === gl.id) S.markMode = "emphasis";
-  saveSoon(); paintMarks(); render();
+  const pinned = isPinned(gl.id);
+  document.getElementById("gmName").textContent = gl.n;
+  [...glyphMenu.querySelectorAll("button")].forEach(b => b.remove());
+
+  const add = (label, fn, danger)=>{
+    const b = document.createElement("button");
+    b.textContent = label;
+    if(danger) b.className = "danger";
+    b.onclick = ()=>{ closeGlyphMenu(); fn(); };
+    glyphMenu.appendChild(b);
+  };
+
+  add(pinned ? "Unpin from the top" : "Pin to the top", ()=>{
+    pinGlyph(gl.id, !pinned);
+    saveGlyphStore(); saveSoon(); paintMarks();
+    note(pinned ? "Unpinned" : "Pinned to the top", gl.n);
+  });
+  if(mine)
+    add("Remove from the rail", ()=>{
+      dropGlyph(gl.id);
+      note("Removed", gl.n + " — it is still in the library");
+    }, true);
+  else
+    add("Hide from the rail", ()=>{
+      S.glyphHidden = S.glyphHidden || {};
+      S.glyphHidden[gl.id] = 1;
+      if(S.markMode === gl.id) S.markMode = "emphasis";
+      saveSoon(); paintMarks(); render();
+      note("Symbol hidden", gl.n);
+    }, true);
+
+  glyphMenu.classList.add("show");
+  /* Keep it on the screen — the rail is at the very edge of it. */
+  const r = glyphMenu.getBoundingClientRect();
+  glyphMenu.style.left = Math.max(6, Math.min(x, window.innerWidth  - r.width  - 6)) + "px";
+  glyphMenu.style.top  = Math.max(6, Math.min(y, window.innerHeight - r.height - 6)) + "px";
 }
 
 /* ---- the marks rail ----
@@ -5973,8 +6223,15 @@ function useMark(mode){
   saveSoon();
 }
 
+/* As with the colours: one pending hold, cancelled by any repaint. Choosing a
+   symbol repaints the rail, which destroys the cell the press began on, so a
+   per-cell timer would fire its menu half a second after an ordinary tap. */
+const GLHOLD = { timer:null };
+
 function paintMarks(){
   if(!marksEl) return;
+  clearTimeout(GLHOLD.timer);
+  closeGlyphMenu();
   const hue = COLORS[S.ci].hue;
   marksEl.innerHTML = '<div class="plbl">Symbols</div>';
 
@@ -5988,27 +6245,43 @@ function paintMarks(){
 
   const wrap = document.createElement("div"); marksEl.appendChild(wrap);
 
-  function cell(gl){
+  function cell(gl, pinned){
     const b = document.createElement("div");
     b.className = "s" + (S.markMode === gl.id ? " on" : "");
     b.setAttribute("title", gl.n);
+    b.dataset.gid = gl.id;
     b.innerHTML = glyphSVG(gl.id, hue, 22) || "";
     b.onclick = ()=>{ if(!b._held) useMark(gl.id); b._held = false; };
 
-    /* Hold one down, as you would an app on a phone, and it offers to go. */
-    let timer = null;
-    const start = ()=>{ clearTimeout(timer);
-      timer = setTimeout(()=>{ b._held = true; offerRemoveGlyph(gl); }, 550); };
-    const stop  = ()=> clearTimeout(timer);
+    /* Hold one down, as you would an app on a phone, and a small menu opens.
+       A press that wanders is a scroll, not a hold: without that check, moving
+       the rail under your finger fired the menu. */
+    let from = null;
+    const start = e =>{
+      if(pinned && S.arrangePins) return;        // arranging: the press is a drag
+      from = { x:e.clientX, y:e.clientY };
+      clearTimeout(GLHOLD.timer);
+      const x = e.clientX, y = e.clientY;
+      GLHOLD.timer = setTimeout(()=>{ b._held = true; openGlyphMenu(gl, x + 6, y - 8); }, 550);
+    };
+    const moved = e =>{
+      if(from && Math.hypot(e.clientX - from.x, e.clientY - from.y) > 9)
+        clearTimeout(GLHOLD.timer);
+    };
+    const stop = ()=>{ clearTimeout(GLHOLD.timer); from = null; };
     b.addEventListener("pointerdown", start);
+    b.addEventListener("pointermove", moved);
     b.addEventListener("pointerup", stop);
     b.addEventListener("pointerleave", stop);
     b.addEventListener("pointercancel", stop);
-    b.addEventListener("contextmenu", e=>{ e.preventDefault(); offerRemoveGlyph(gl); });
+    b.addEventListener("contextmenu", e=>{
+      e.preventDefault(); b._held = true; openGlyphMenu(gl, e.clientX + 6, e.clientY - 8);
+    });
     return b;
   }
 
-  /* The handful you actually reach for, kept at the top. */
+  /* The handful you actually reach for, kept at the top — until you pin some
+     of your own, at which point guessing is no longer wanted. */
   function oftenUsed(){
     const used = S.glyphUse || {};
     return Object.keys(used)
@@ -6019,18 +6292,89 @@ function paintMarks(){
       .filter(Boolean);
   }
 
+  /* ---- dragging one pinned symbol past another ----
+     Pointer events rather than HTML drag-and-drop, because drag-and-drop does
+     not exist on iPadOS Safari for a Pencil. */
+  function wireArrange(grid){
+    let held = null, ghost = null;
+    grid.addEventListener("pointerdown", e =>{
+      const t = e.target.closest(".s");
+      if(!t || !S.arrangePins) return;
+      e.preventDefault();
+      held = t; t.classList.add("drag");
+      if(grid.setPointerCapture) grid.setPointerCapture(e.pointerId);
+    });
+    grid.addEventListener("pointermove", e =>{
+      if(!held) return;
+      const over = document.elementFromPoint(e.clientX, e.clientY);
+      const cellEl = over && over.closest && over.closest(".s");
+      grid.querySelectorAll(".s.over").forEach(x => x.classList.remove("over"));
+      if(cellEl && cellEl !== held && grid.contains(cellEl)){
+        cellEl.classList.add("over");
+        ghost = cellEl;
+      } else ghost = null;
+    });
+    const drop = ()=>{
+      const from = held, onto = ghost;
+      if(from) from.classList.remove("drag");
+      grid.querySelectorAll(".s.over").forEach(x => x.classList.remove("over"));
+      held = ghost = null;
+      if(!from) return;
+      /* A drag must not also count as choosing the symbol: the click arrives
+         after the pointerup, and would arm whatever was dropped. */
+      from._held = true;
+      if(!onto) return;
+      const ids = [...grid.querySelectorAll(".s")].map(x => x.dataset.gid);
+      movePin(from.dataset.gid, ids.indexOf(onto.dataset.gid));
+      paintMarks();
+    };
+    grid.addEventListener("pointerup", drop);
+    grid.addEventListener("pointercancel", drop);
+  }
+
   function drawGrid(){
     wrap.innerHTML = "";
     const q = (S.glyphQ || "").trim().toLowerCase();
     const hidden = S.glyphHidden || {};
     const mine = (S.glyphs || []);
 
-    // a symbol you drew sits in the category you filed it under
+    /* ---- the pinned strip ---- */
+    const pins = q ? [] : pinList().map(anyGlyph).filter(Boolean);
+    if(!q){
+      const hd = document.createElement("div"); hd.className = "gcat"; hd.textContent = "Pinned";
+      wrap.appendChild(hd);
+      if(pins.length){
+        const row = document.createElement("div"); row.className = "pinrow";
+        const arr = document.createElement("button");
+        arr.textContent = S.arrangePins ? "done" : "arrange";
+        if(S.arrangePins) arr.className = "on";
+        arr.onclick = ()=>{ S.arrangePins = !S.arrangePins; paintMarks(); };
+        row.appendChild(arr);
+        wrap.appendChild(row);
+
+        const grid = document.createElement("div");
+        grid.className = "ggrid" + (S.arrangePins ? " arrange" : "");
+        pins.forEach(gl => grid.appendChild(cell(gl, true)));
+        wrap.appendChild(grid);
+        if(S.arrangePins) wireArrange(grid);
+        if(S.arrangePins){
+          const h = document.createElement("div"); h.className = "pinhint";
+          h.textContent = "Drag them into the order you want.";
+          wrap.appendChild(h);
+        }
+      } else {
+        const h = document.createElement("div"); h.className = "pinhint";
+        h.textContent = "Hold any symbol down to pin it here.";
+        wrap.appendChild(h);
+      }
+    }
+
+    // a symbol you added sits in the category it was filed under
     const own = {};
     mine.forEach(gl=>{ const c = gl.cat || "Your own"; (own[c] || (own[c] = [])).push(gl); });
 
     const cats = [];
-    const often = q ? [] : oftenUsed();
+    const often = (q || pins.length) ? [] : oftenUsed();
     if(often.length) cats.push({ c:"Often used", g:often, top:true });
     GLYPHS.forEach(cat=>{
       const extra = own[cat.c] || [];
@@ -6068,16 +6412,18 @@ function paintMarks(){
   drawGrid();
 
   const acts = document.createElement("div"); acts.className = "gacts";
-  const drawBtn = document.createElement("button");
-  drawBtn.textContent = "✎ Draw one";
-  drawBtn.onclick = ()=> openDrawSheet();
-  acts.appendChild(drawBtn);
+  const libBtn = document.createElement("button");
+  libBtn.textContent = "＋ Library";
+  libBtn.title = "Four thousand more symbols to choose from";
+  libBtn.onclick = ()=> openLibrary();
+  acts.appendChild(libBtn);
   marksEl.appendChild(acts);
 
   const foot = document.createElement("div");
   foot.className = "foot";
-  foot.textContent = "Select words, then tap a symbol. Underlines and boxes come from the " +
-                     "Line and Box tools — tap a word with one rather than dragging.";
+  foot.textContent = "Select words, then tap a symbol. Hold one down to pin or hide it. " +
+                     "Underlines and boxes come from the Line and Box tools — tap a word " +
+                     "with one rather than dragging.";
   marksEl.appendChild(foot);
 }
 
@@ -6154,129 +6500,187 @@ function markHere(w, kind){
 
 
 /* ============================================================
-   MAKING NEW SYMBOLS
-   Two routes. Drawing works offline and costs nothing; asking a model needs
-   the reader's own key. Either way the result is stored as plain SVG path
-   data and validated before it is ever rendered.
+   THE SYMBOL LIBRARY
+   Ninety-six symbols sit on the rail. Behind them is the whole of
+   game-icons.net — some four thousand — which you scroll through and pick
+   from. The two are kept deliberately apart: a rail you can read at a glance
+   is worth more than a rail with everything on it.
+
+   The library is a separate file rather than part of the app, because it is
+   five megabytes and is wanted perhaps once a month. It is fetched the first
+   time you open the sheet and then cached, so it works offline afterwards.
+   A symbol you pick is COPIED onto the rail, so once picked it no longer
+   depends on the library file at all — it is stored and synced like any
+   other symbol you own.
    ============================================================ */
-let drawStrokes = [], drawing = null;
+let LIB = null, libPending = null;
 
-function padCtx(){
-  const c = document.getElementById("drawPad");
-  return c.getContext ? c.getContext("2d") : null;
-}
-function repaintPad(){
-  const c = document.getElementById("drawPad"), ctx = padCtx();
-  if(!ctx) return;
-  ctx.clearRect(0,0,c.width,c.height);
-  ctx.strokeStyle = COLORS[S.ci].hue;
-  ctx.lineWidth = 9; ctx.lineCap = "round"; ctx.lineJoin = "round";
-  drawStrokes.forEach(st=>{
-    if(st.length < 2) return;
-    ctx.beginPath(); ctx.moveTo(st[0].x, st[0].y);
-    for(let i=1;i<st.length;i++) ctx.lineTo(st[i].x, st[i].y);
-    ctx.stroke();
-  });
-  const d = strokesToPaths();
-  if(d.length){
-    S.glyphs.push({ id:"__preview", n:"preview", d });
-    document.getElementById("drawPrev").innerHTML = glyphSVG("__preview", COLORS[S.ci].hue, 24) || "";
-    S.glyphs = S.glyphs.filter(g=>g.id !== "__preview");
-  } else document.getElementById("drawPrev").innerHTML = "";
+function loadLibrary(){
+  if(LIB) return Promise.resolve(LIB);
+  if(libPending) return libPending;
+  libPending = fetch("icons.json", { cache:"force-cache" })
+    .then(r =>{ if(!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+    .then(j =>{
+      /* Never render path data straight from a file. This one is ours, but
+         the rule is the rule: anything that is not path commands is dropped
+         before it can reach the DOM. */
+      const auth = Array.isArray(j.authors) ? j.authors : [];
+      /* The id carries the artist as well as the name. Forty-seven names in
+         the library belong to two different drawings by two different hands —
+         two bats, two castles, two cauldrons — and keying on the name alone
+         meant the second of each pair could never be picked up: the rail
+         already "had" it, and showed the other one. */
+      LIB = (j.icons || []).map(r => ({
+        id:"g:" + (auth[r[1]] || "x") + "/" + r[0],
+        name:r[0], by:auth[r[1]] || "", d:safePath(r[2])
+      })).filter(x => x.d);
+      libPending = null;
+      return LIB;
+    })
+    .catch(e =>{ libPending = null; throw e; });
+  return libPending;
 }
 
-/* Normalise the sketch into a 24x24 box, preserving aspect and centring it. */
-function strokesToPaths(){
-  const pts = drawStrokes.flat();
-  if(pts.length < 2) return [];
-  const xs = pts.map(p=>p.x), ys = pts.map(p=>p.y);
-  const minX = Math.min(...xs), maxX = Math.max(...xs);
-  const minY = Math.min(...ys), maxY = Math.max(...ys);
-  const w = Math.max(1, maxX-minX), h = Math.max(1, maxY-minY);
-  const sc = 18 / Math.max(w,h);
-  const ox = 12 - (minX + w/2)*sc, oy = 12 - (minY + h/2)*sc;
-  const r = n => Math.round(n*10)/10;
-  return drawStrokes.filter(st=>st.length>1).map(st=>{
-    let d = "M" + r(st[0].x*sc+ox) + " " + r(st[0].y*sc+oy);
-    let last = st[0];
-    st.slice(1).forEach(p=>{
-      if(Math.hypot(p.x-last.x, p.y-last.y) < 4) return;   // thin out
-      d += "L" + r(p.x*sc+ox) + " " + r(p.y*sc+oy); last = p;
+/* "holy-grail" is how it is filed and how you would search for it; "Holy
+   grail" is how it should be read. */
+function libLabel(name){
+  const s = String(name).replace(/-/g, " ");
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+const LIBPAGE = 240;            // how many are added to the grid at a time
+const LIBSTATE = { list:[], shown:0, q:"" };
+
+function libHave(id){ return (S.glyphs || []).some(g => g.id === id); }
+
+function libDraw(more){
+  const grid = document.getElementById("libGrid");
+  const cnt  = document.getElementById("libCount");
+  if(!grid) return;
+  if(!more){ grid.innerHTML = ""; LIBSTATE.shown = 0; grid.scrollTop = 0; }
+
+  const list = LIBSTATE.list;
+  if(!list.length){
+    grid.innerHTML = '<div class="libmsg">Nothing matches “' +
+      LIBSTATE.q.replace(/[<&]/g, "") + '”.</div>';
+    if(cnt) cnt.textContent = "";
+    return;
+  }
+
+  const to = Math.min(list.length, LIBSTATE.shown + LIBPAGE);
+  const frag = document.createDocumentFragment();
+  for(let i = LIBSTATE.shown; i < to; i++){
+    const it = list[i];
+    const cell = document.createElement("div");
+    cell.className = "li" + (libHave(it.id) ? " have" : "");
+    cell.title = libLabel(it.name) + (it.by ? " — " + it.by : "");
+    const art = document.createElement("div");
+    art.innerHTML = '<svg viewBox="0 0 512 512" width="34" height="34" style="display:block">' +
+      '<path d="' + it.d + '" fill="currentColor" fill-rule="evenodd"/></svg>';
+    const nm = document.createElement("div");
+    nm.className = "ln"; nm.textContent = libLabel(it.name);
+    cell.appendChild(art); cell.appendChild(nm);
+    cell.onclick = ()=>{
+      if(libHave(it.id)){ dropGlyph(it.id); cell.classList.remove("have"); }
+      else { addFromLibrary(it); cell.classList.add("have"); }
+    };
+    frag.appendChild(cell);
+  }
+  grid.appendChild(frag);
+  LIBSTATE.shown = to;
+  if(cnt) cnt.textContent = list.length.toLocaleString() + " symbol" +
+    (list.length === 1 ? "" : "s") +
+    (to < list.length ? " · showing " + to.toLocaleString() : "");
+}
+
+function libFilter(){
+  const q = (LIBSTATE.q || "").trim().toLowerCase().replace(/\s+/g, "-");
+  const all = LIB || [];
+  if(!q){ LIBSTATE.list = all; }
+  else {
+    /* Searching "cross" should lead with the cross, then "cross-mark", then
+       "crossbow" — the word itself, then things that begin with it, then
+       things that merely contain it, and the shorter name first within each,
+       because a shorter name is usually the plainer thing. */
+    const exact = [], starts = [], has = [];
+    all.forEach(it =>{
+      const n = it.name;
+      if(n === q) exact.push(it);
+      else if(n.startsWith(q)) starts.push(it);
+      else if(n.includes(q)) has.push(it);
     });
-    return d;
+    const byLength = (a, b) => a.name.length - b.name.length ||
+                               (a.name < b.name ? -1 : 1);
+    LIBSTATE.list = exact.concat(starts.sort(byLength), has.sort(byLength));
+  }
+  libDraw(false);
+}
+
+function openLibrary(){
+  const sheet = document.getElementById("libSheet");
+  const grid  = document.getElementById("libGrid");
+  sheet.classList.add("show");
+  grid.innerHTML = '<div class="libmsg">Fetching the library…</div>';
+  loadLibrary().then(()=>{
+    LIBSTATE.q = document.getElementById("libQ").value || "";
+    libFilter();
+  }).catch(()=>{
+    grid.innerHTML = '<div class="libmsg">The library could not be fetched.<br>' +
+      'It is a separate file — <b>icons.json</b> — which needs to be sitting ' +
+      'beside the app, and it has to be downloaded once while you are online.</div>';
   });
 }
 
-function openDrawSheet(){
-  drawStrokes = [];
-  document.getElementById("drawName").value = "";
-  fillDrawCats();
-  document.getElementById("drawSheet").classList.add("show");
-  repaintPad();
-}
-
-/* Where a symbol you have drawn will live: one of the groups already in the
-   rail, or a new one of your own. */
-function fillDrawCats(){
-  const sel = document.getElementById("drawCat");
-  const nu  = document.getElementById("drawNewCat");
-  if(!sel) return;
-  const mine = [...new Set((S.glyphs || []).map(g2 => g2.cat).filter(Boolean))];
-  const all = [...new Set(GLYPHS.map(c => c.c).concat(mine))];
-  sel.innerHTML = all.map(c => '<option value="' + c.replace(/"/g,"&quot;") + '">' + c + '</option>')
-                     .join("") + '<option value="__new">New category…</option>';
-  sel.value = S.lastGlyphCat && all.includes(S.lastGlyphCat)
-    ? S.lastGlyphCat : "Structure & emphasis";
-  if(nu){ nu.style.display = "none"; nu.value = ""; }
-  sel.onchange = ()=>{
-    if(!nu) return;
-    const isNew = sel.value === "__new";
-    nu.style.display = isNew ? "" : "none";
-    if(isNew) nu.focus();
-  };
-}
-function closeDrawSheet(){ document.getElementById("drawSheet").classList.remove("show"); }
-
-(function wireDrawPad(){
-  const pad = document.getElementById("drawPad");
-  if(!pad.addEventListener) return;
-  const at = e =>{
-    const r = pad.getBoundingClientRect();
-    return { x:(e.clientX-r.left) * (pad.width/r.width),
-             y:(e.clientY-r.top)  * (pad.height/r.height) };
-  };
-  pad.addEventListener("pointerdown", e=>{
-    e.preventDefault(); drawing = [at(e)]; drawStrokes.push(drawing);
-    if(pad.setPointerCapture) pad.setPointerCapture(e.pointerId);
+(function wireLibrary(){
+  const sheet = document.getElementById("libSheet");
+  const grid  = document.getElementById("libGrid");
+  const q     = document.getElementById("libQ");
+  document.getElementById("libClose").onclick = ()=> sheet.classList.remove("show");
+  sheet.addEventListener("click", e =>{ if(e.target === sheet) sheet.classList.remove("show"); });
+  q.addEventListener("input", ()=>{ LIBSTATE.q = q.value; if(LIB) libFilter(); });
+  /* Fill in another page as the bottom comes into view. */
+  grid.addEventListener("scroll", ()=>{
+    if(grid.scrollTop + grid.clientHeight > grid.scrollHeight - 400 &&
+       LIBSTATE.shown < LIBSTATE.list.length) libDraw(true);
   });
-  pad.addEventListener("pointermove", e=>{ if(drawing){ drawing.push(at(e)); repaintPad(); } });
-  pad.addEventListener("pointerup",   ()=>{ drawing = null; repaintPad(); });
-  pad.addEventListener("pointercancel",()=>{ drawing = null; });
 })();
 
-document.getElementById("drawUndo").onclick  = ()=>{ drawStrokes.pop(); repaintPad(); };
-document.getElementById("drawClear").onclick = ()=>{ drawStrokes = []; repaintPad(); };
-document.getElementById("drawCancel").onclick= ()=> closeDrawSheet();
-document.getElementById("drawOk").onclick    = ()=>{
-  const d = strokesToPaths();
-  if(!d.length) return;
-  const name = (document.getElementById("drawName").value || "").trim() || "My symbol";
-  const sel = document.getElementById("drawCat");
-  const nu  = document.getElementById("drawNewCat");
-  let cat = sel ? sel.value : "Structure & emphasis";
-  if(cat === "__new") cat = ((nu && nu.value) || "").trim() || "Your own";
-  S.lastGlyphCat = cat;
-  saveGlyph(name, d, cat);
-  closeDrawSheet();
-};
-
-/* ---- storing them ---- */
-function saveGlyph(name, paths, cat){
+/* Copy one onto the rail — and pin it, because a symbol you have just gone
+   looking for is one you mean to use. */
+function addFromLibrary(it){
   S.glyphs = S.glyphs || [];
-  const id = "u:" + (++S.glyphSeq || (S.glyphSeq = 1));
-  S.glyphs.push({ id, n:name, cat:cat || "Your own", d:paths.map(safePath).filter(Boolean) });
-  kvSet("glyphs", { seq:S.glyphSeq, list:S.glyphs });
-  useMark(id);                      // the one you just made is the one you want
+  if(!S.glyphs.some(g => g.id === it.id))
+    S.glyphs.push({ id:it.id, n:libLabel(it.name), cat:"From the library",
+                    d:[it.d], f:1, vb:512, by:it.by });
+  if(S.glyphGone) delete S.glyphGone[it.id];
+  pinGlyph(it.id, true);
+  saveGlyphStore();
+
+  /* Armed, but NOT laid down. Tapping a symbol on the rail puts it on whatever
+     is selected, which is right there; in the library you are collecting, and
+     picking out five would have stamped all five on the same words. */
+  S.markMode = it.id;
+  S.glyphUse = S.glyphUse || {};
+  S.glyphUse[it.id] = (S.glyphUse[it.id] || 0) + 1;
+  if(S.tool !== "mark") pickTool("mark");
+  paintMarks(); saveSoon();
+  note("Added to your rail", libLabel(it.name));
+}
+
+function dropGlyph(id){
+  S.glyphs = (S.glyphs || []).filter(g => g.id !== id);
+  S.glyphGone = S.glyphGone || {};
+  S.glyphGone[id] = Date.now();                // so a sync cannot fetch it back
+  pinGlyph(id, false);
+  if(S.markMode === id) S.markMode = "emphasis";
+  saveGlyphStore();
+  paintMarks(); render(); saveSoon();
+}
+
+/* One place that writes the symbol store, so the pinned order can never be
+   saved by one route and dropped by another. */
+function saveGlyphStore(){
+  kvSet("glyphs", { seq:S.glyphSeq, list:S.glyphs, gone:S.glyphGone, pin:S.glyphPin });
 }
 
 
@@ -6664,6 +7068,45 @@ function renderBand(top, bottom, want, width){
   return { canvas:c, w, h, scale };
 }
 
+/* ---- putting a file somewhere ----
+   A plain download link gives you no say in where the thing lands: on a Mac it
+   goes to Downloads, on an iPad into Files under whatever name it was given.
+   Where the browser will let us, ask instead — the system's own save panel,
+   which remembers the last folder used and lets the file be renamed on the way
+   out. Safari has no such panel, so there the download is still the answer,
+   and the share sheet from Files is how it gets where it is going. */
+async function saveFile(blob, name, desc, mime, ext){
+  if(window.showSaveFilePicker){
+    try{
+      const h = await window.showSaveFilePicker({
+        suggestedName: name,
+        /* `ext` is already a list of suffixes. Wrapping it in another array
+           gives [[".docx"]], which the panel rejects outright — and since a
+           rejection here falls through to the download, the whole feature
+           would have been quietly absent rather than visibly broken. */
+        types: [{ description: desc || "File",
+                  accept: { [mime]: Array.isArray(ext) ? ext : [ext] } }]
+      });
+      const w = await h.createWritable();
+      await w.write(blob);
+      await w.close();
+      note("Saved", h.name || name);
+      return true;
+    }catch(err){
+      // the reader cancelling the panel is not a failure, and nothing else
+      // should happen afterwards
+      if(err && err.name === "AbortError") return false;
+      // anything else (a sandbox, a permission) falls through to the download
+    }
+  }
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 0);
+  return true;
+}
+
 function exportPNG(){
   const w = boardWidth(), h = board.offsetHeight;
   const { canvas: c } = renderBand(0, h, 2);
@@ -6672,11 +7115,7 @@ function exportPNG(){
                (S.chapter && S.chapter !== "all"
                   ? "-" + String(S.chapter).replace(/[:\s]/g,"-") : "") + ".png";
   c.toBlob(blob=>{
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = name;
-    document.body.appendChild(a); a.click();
-    setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 0);
+    saveFile(blob, name, "PNG image", "image/png", [".png"]);
   }, "image/png");
   closePops();
 }
@@ -7004,11 +7443,10 @@ function exportOutline(){
   const bytes = zipStored(files);
   const blob = new Blob([bytes],
     {type:"application/vnd.openxmlformats-officedocument.wordprocessingml.document"});
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = heading.replace(/\s+/g,"-").toLowerCase() + "-outline.docx";
-  document.body.appendChild(a); a.click();
-  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 0);
+  saveFile(blob, heading.replace(/\s+/g,"-").toLowerCase() + "-outline.docx",
+           "Word document",
+           "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+           [".docx"]);
   document.getElementById("outlineSheet").classList.remove("show");
 }
 
@@ -7314,7 +7752,7 @@ const SHORTCUTS = [
                      pushUndo();
                      sel.forEach(w => { delete S.marks[w.uid]; delete S.hits[w.uid]; });
                      render(); saveSoon(); return true; },
-                                              "⌘⌫", "Clear the marks on it"],
+                                              "⌘⌫", "Clear the symbols on it"],
   [1, 0, "k", ()=> { const w = S.words[S.sel]; if(!w) return false;
                      openNoteDrawer(w); return true; },
                                               "⌘K", "Write a note on it"],
@@ -8214,26 +8652,40 @@ async function syncGlyphs(){
   kept.forEach(g => { byId[g.id] = g; });
   const list = Object.keys(byId).sort().map(k => byId[k]);
 
+  /* The pinned strip travels too. Theirs first, so the order set on the other
+     device is kept; anything pinned only here is appended rather than lost.
+     Ids that no longer name a symbol are dropped on the way through. */
+  const alive = {}; list.forEach(g => { alive[g.id] = 1; });
+  GLYPHS.forEach(c => c.g.forEach(g => { alive[g.id] = 1; }));
+  const pin = [];
+  ((theirs && theirs.pin) || []).concat(S.glyphPin || []).forEach(id =>{
+    if(alive[id] && !gone[id] && pin.indexOf(id) < 0) pin.push(id);
+  });
+
   const newTomb = Object.keys(gone).length !== Object.keys(S.glyphGone).length;
-  if(gained.length || lost.length || newTomb){
+  const newPin  = JSON.stringify(pin) !== JSON.stringify(S.glyphPin || []);
+  if(gained.length || lost.length || newTomb || newPin){
     S.glyphs = kept.concat(gained);
     S.glyphGone = gone;
+    S.glyphPin = pin;
     S.glyphSeq = Math.max(S.glyphSeq || 0, S.glyphs.length);
-    kvSet("glyphs", { seq:S.glyphSeq, list:S.glyphs, gone });
+    saveGlyphStore();
     if(lost.indexOf(S.markMode) >= 0) S.markMode = "emphasis";
     paintMarks(); render();
     if(gained.length)
       note("Sync brought in " + gained.length + " symbol" + (gained.length === 1 ? "" : "s"),
-           "drawn on your other device");
+           "added on your other device");
     if(lost.length)
       note("Sync removed " + lost.length + " symbol" + (lost.length === 1 ? "" : "s"),
-           "deleted on your other device");
+           "removed on your other device");
   }
 
   const was = JSON.stringify({ l:((theirs && theirs.list) || []).map(g => g.id).sort(),
-                               g:Object.keys((theirs && theirs.gone) || {}).sort() });
-  const now = JSON.stringify({ l:list.map(g => g.id).sort(), g:Object.keys(gone).sort() });
-  if(was !== now) await ghWrite("glyphs", { v:2, at:Date.now(), list, gone }, sha);
+                               g:Object.keys((theirs && theirs.gone) || {}).sort(),
+                               p:(theirs && theirs.pin) || [] });
+  const now = JSON.stringify({ l:list.map(g => g.id).sort(),
+                               g:Object.keys(gone).sort(), p:pin });
+  if(was !== now) await ghWrite("glyphs", { v:3, at:Date.now(), list, gone, pin }, sha);
   return gained.length;
 }
 
@@ -8395,6 +8847,9 @@ async function loadSaved(){
     S.glyphs = glyphs.list.filter(g => g && g.id && g.id !== "__preview");
     S.glyphSeq = glyphs.seq || S.glyphSeq || S.glyphs.length;
     S.glyphGone = glyphs.gone || {};        // and which ones were deliberately removed
+    /* The pinned order is kept with the symbols rather than with the settings,
+       because it is a list of their ids and is meaningless without them. */
+    S.glyphPin = (Array.isArray(glyphs.pin) ? glyphs.pin : []).filter(id => anyGlyph(id));
   }
 
   /* The localStorage mirror is not merely a fallback for when IndexedDB comes
@@ -8505,11 +8960,7 @@ function saveProjectFile(){
   const payload = { v:2, at:Date.now(), corpus:{ files:S.corpusFiles },
                     docs:S.docs, prefs:prefsSnapshot() };
   const blob = new Blob([JSON.stringify(payload)], {type:"application/json"});
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = "nous-workspace.json";
-  document.body.appendChild(a); a.click();
-  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 0);
+  saveFile(blob, "nous-workspace.json", "Nous workspace", "application/json", [".json"]);
   closePops();
 }
 
@@ -8589,7 +9040,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-09-11d";
+const BUILD = "2026-09-11e";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file
@@ -8902,11 +9353,13 @@ function tourSteps(){
        + "at once, then colour them all together." },
 
   { sel:"#marks",
-    title:"Marks",
-    body:"Tap a word, then tap a mark to put it over the word. They are for the "
+    title:"Symbols",
+    body:"Tap a word, then tap a symbol to put it over the word. They are for the "
        + "things you want to see at a glance a week later: a contrast, a repetition, "
        + "a word that carries the weight.<br><br>"
-       + "Hold one down to remove it from the rail, or draw your own at the bottom." },
+       + "Hold one down to pin it to the top or hide it, and drag the pinned ones "
+       + "into the order you want. <b>＋ Library</b> at the foot opens four "
+       + "thousand more to choose from." },
 
   { sel:"#lineBtn",
     title:"Lines — and the shape of the sermon",
@@ -8930,7 +9383,7 @@ function tourSteps(){
        + "Accordance." },
 
   { sel:'[data-tool="chain"]',
-    title:"Chains",
+    title:"Links",
     body:"Tap a word to hang a chain link on it and write where it points — "
        + "<b>5:21</b>, or <b>Rom 6:4</b>. Tapping the link takes you there if you "
        + "have the book loaded, and opens Accordance if you do not.<br><br>"
@@ -9142,11 +9595,11 @@ function demoSteps(){
         + "together."; } }),
 
   Object.assign(at(5), { sel:"#marks",
-    title:"Put a mark on a word",
+    title:"Put a symbol on a word",
     body:"Each of the four pairs in verses 8 and 9 turns on a negative — "
-       + "<b>ἀλλ᾽ οὐ</b>, <i>but not</i>. A <b>contrast</b> mark on each one says "
+       + "<b>ἀλλ᾽ οὐ</b>, <i>but not</i>. A <b>contrast</b> symbol on each one says "
        + "at a glance what kind of pair it is.<br><br>"
-       + "Select a word, tap a mark in the rail, and it goes on. Select several "
+       + "Select a word, tap a symbol in the rail, and it goes on. Select several "
        + "and one tap marks them all." }),
 
   Object.assign(at(6), { sel:'[data-tool="rect"]',

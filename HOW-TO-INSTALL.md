@@ -98,9 +98,13 @@ saved books and diagrams are untouched by updates.
 | File | Purpose |
 |---|---|
 | `index.html` | The entire app — all the code, in one file |
+| `icons.json` | The symbol library: 4,180 drawings, fetched only if you open it |
 | `manifest.webmanifest` | Makes it installable, sets name and icon |
 | `sw.js` | Service worker; caches the app so it runs offline |
 | `icon-*.png` | Home Screen icons |
+
+`icons.json` has to sit beside `index.html`. Upload the whole folder and it
+will.
 
 ---
 
@@ -133,10 +137,34 @@ in the header remains the full reference for every feature.
 
 ## The symbols
 
-The pictorial marks in the rail come from [game-icons.net](https://game-icons.net),
-by Lorc, Delapouite, Skoll, Carl Olsen, Generalace135, sbed and others, used under
-[CC BY 3.0](https://creativecommons.org/licenses/by/3.0/). The credit is in the
-app under **Key → Symbols**, which is what that licence asks for; leave it there.
+Ninety-six sit on the rail. Behind **＋ Library**, at the foot of it, are the
+other four thousand: scroll or search, tap one to put it on your rail, tap it
+again to take it off. Anything you pick is copied onto the rail and syncs with
+the rest of your work, so it does not depend on the library afterwards.
 
-The structural marks — contrast, repetition, therefore, prohibition and so on —
+Hold any symbol down for a small menu — **pin to the top**, or **hide**. The
+pinned strip is yours to arrange: tap **arrange** and drag them into whatever
+order you want. That order syncs too.
+
+**The library is a separate five-megabyte file**, `icons.json`, because it is
+wanted perhaps once a month and there is no sense carrying it on every launch.
+It is fetched the first time you open the sheet and then kept for good — so
+open it once while you have a connection, and it works offline from then on.
+A new version of the app does not throw it away.
+
+The pictorial symbols come from [game-icons.net](https://game-icons.net), by
+Lorc, Delapouite, Skoll, Caro Asercion, Viscious Speed, sbed and thirty others,
+used under [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/). The credit
+is in the app under **Key → Symbols**, which is what that licence asks for;
+leave it there.
+
+The structural ones — contrast, repetition, therefore, prohibition and so on —
 were drawn for Nous.
+
+## Reading the context
+
+A passage no longer sits on a page with nothing either side of it. Above and
+below the diagram are **what comes before** and **what comes after**: tap
+either and the surrounding verses open as running text, and keep coming as you
+scroll, to the ends of the book. It is for reading, not for marking — nothing
+in it can be annotated, and nothing in it moves the diagram by a pixel.

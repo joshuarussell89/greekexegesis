@@ -142,6 +142,12 @@ other four thousand: scroll or search, tap one to put it on your rail, tap it
 again to take it off. Anything you pick is copied onto the rail and syncs with
 the rest of your work, so it does not depend on the library afterwards.
 
+One group behaves differently on purpose: **Above the word** — two little
+arrows, a small **of**, and a small **to/for**. These are set small and solid in
+the gap *above* the word instead of lying over it, the way you would pencil a
+note over a line of text: an arrow back to what a word governs, **of** over a
+genitive, **to/for** over a dative.
+
 Hold any symbol down for a small menu — **pin to the top**, or **hide**. The
 pinned strip is yours to arrange: tap **arrange** and drag them into whatever
 order you want. That order syncs too.
@@ -163,8 +169,15 @@ were drawn for Nous.
 
 ## Reading the context
 
-A passage no longer sits on a page with nothing either side of it. Above and
-below the diagram are **what comes before** and **what comes after**: tap
-either and the surrounding verses open as running text, and keep coming as you
-scroll, to the ends of the book. It is for reading, not for marking — nothing
-in it can be annotated, and nothing in it moves the diagram by a pixel.
+A passage no longer sits on a page with nothing either side of it. In the
+margin above the first verse and below the last is a faint line naming the six
+verses on that side. Tap it — or just scroll to the edge of the page — and
+those verses are **brought into the passage**: laid out, numbered, indentable,
+markable, exactly like everything else, because they *are* everything else.
+Keep going and it widens as far as one page will carry, then says so rather
+than letting the ink layer collapse.
+
+Nothing you have already done is disturbed. Every mark, ring, symbol and arrow
+is attached to the word it belongs to, so when the lines move down to make room
+above, the work moves with them. The reference at the top updates to whatever
+is actually on the page.

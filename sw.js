@@ -9,7 +9,7 @@
    having instantly.
 
    Books and diagrams live in IndexedDB and are never touched here. */
-const VERSION = "2026-09-11e";
+const VERSION = "2026-09-11g";
 const CACHE   = "nous-" + VERSION;
 /* The symbol library is five megabytes and never changes, so it is kept in a
    cache of its own that the version sweep below leaves alone. Putting it in

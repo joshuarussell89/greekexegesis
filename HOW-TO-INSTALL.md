@@ -73,6 +73,17 @@ work. If you go this way, use **⋯ → Save a copy as a file…** often.
 The app stores everything on the device in IndexedDB. That is durable for an
 installed Home Screen app, but it is still one device with no backup.
 
+### If the two devices fall out of step
+
+The dot beside **Sync** in the header tells the truth about it. Green means
+everything on this device is also on the other one. **Red means it is not** —
+either a push was refused or the repository answered with an out-of-date copy —
+and the line under **⋯ → Sync** says which book and why. Nous keeps trying on
+its own; leaving the app open for a few seconds is usually all it needs.
+
+It used to say "Everything matches" in both of those cases, which is how a
+morning's work could sit on one device looking as though it were on both.
+
 - **⋯ → Save a copy as a file…** exports a single `nous-workspace.json`
   containing every book and every diagram.
 - Dropping that file back onto the app restores everything.

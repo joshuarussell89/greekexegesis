@@ -75,6 +75,7 @@
   button.act:hover{background:#774c24;}
   button.ghost{border:1px solid var(--rule);}
   button.ghost:hover{background:var(--chip);}
+  button.ghost.on{border-color:var(--accent);color:var(--accent);background:var(--chip);}
 
   select{font:inherit;font-size:13px;padding:7px 26px 7px 10px;border:1px solid var(--rule);
     border-radius:8px;background:var(--paper);color:var(--ink);appearance:none;cursor:pointer;
@@ -192,6 +193,17 @@
   #marks .foot{font-size:9.5px;line-height:1.45;color:var(--dim);padding-top:6px;}
   @media (max-width:640px){ #marks{width:60px;} #marks .ggrid{grid-template-columns:1fr;} }
   #palette .sw[data-kind="tint"]{border-radius:3px;}
+  /* ---- your own English, under the line it renders ----
+     A translation is not another kind of annotation laid over the Greek: it is
+     a second line of text, set at the same indent as the line above it, so the
+     shape you found in the Greek is the shape your English comes out in. */
+  .tr{position:absolute;font-family:Inter,-apple-system,sans-serif;font-size:15px;
+    line-height:1.35;color:#5f584c;font-style:italic;cursor:text;z-index:1;
+    padding:1px 4px;border-radius:4px;white-space:nowrap;overflow:hidden;
+    text-overflow:ellipsis;}
+  .tr:hover{background:rgba(138,90,43,.07);}
+  .tr.empty{color:var(--dim);opacity:.65;}
+  .tr.heb{direction:rtl;text-align:right;}
   #page{position:relative;width:1120px;height:1750px;}
 
   /* ---- bringing in the verses on either side ----
@@ -664,6 +676,7 @@
       </div>
       <div class="right">
         <button id="findBtn" class="ghost" title="Find words by grammar, lemma or gloss"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="9.6" cy="9.6" r="5.8"/><path d="M13.9 13.9l4 4"/><path d="M7.4 9.6h4.4M9.6 7.4v4.4" stroke-width="1.3"/></svg><span class="lbl-hide">Find</span></button>
+      <button id="transBtn" class="ghost" title="Show your own English under each line"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h8M7 6v10M4.5 16h5"/><path d="M12.5 19l4-11 4 11M13.9 15.4h5.2"/></svg></button>
       <button id="helpBtn" class="ghost" title="Show the key"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4.2h8.6l3.4 3.4v10.2H5z"/><path d="M13.6 4.2v3.4H17"/><path d="M8.4 11.4h5.2M8.4 14.4h3.4" stroke-width="1.3"/></svg><span class="lbl-hide">Key</span></button>
       <span id="syncDot" class="syncdot off" style="display:none" title="Sync"></span>
       <button id="setBtn" class="ghost" title="Accordance links and page actions"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="4.8" r="1.6"/><circle cx="11" cy="11" r="1.6"/><circle cx="11" cy="17.2" r="1.6"/></svg></button>
@@ -765,6 +778,7 @@
       is headed with an empty <b>Aim:</b> line for you to fill in.</div>
     <div class="outopts">
       <label><input type="checkbox" id="outRefs" checked> Verses in brackets beside each heading</label>
+      <label><input type="checkbox" id="outEng" checked> Your own English, under each heading</label>
       <label><input type="checkbox" id="outPic" checked> The diagram itself, exactly as it looks here</label>
       <label><input type="checkbox" id="outNotes" checked> Your notes, as bullet points</label>
     </div>
@@ -953,6 +967,14 @@
     alone. Tapping the <em>same</em> colour straight afterwards takes it off again — but a colour
     never removes anything on its own, so a selection you had forgotten about cannot lose its
     marks. <b>esc</b> deselects.</div></div>
+  <div class="item"><div class="kbd">Your own English</div><div>The <b>A/文</b> button in the
+    header opens a line of your own English under every line of Greek, set at that line's
+    indent. Tap one to write it — the whole line's Greek sits above the field, and <b>Enter</b>
+    moves you to the next line, so you can work straight down the passage.<br><br>
+    It is a translation per <em>line</em>, not per verse, on purpose: the lines are the
+    propositions you decided on when you broke the passage up, so your English comes out with
+    the shape of the argument already in it. It follows a line if you split it again, and it
+    goes into the sermon outline under each heading, above the diagram.</div></div>
   <div class="item"><div class="kbd">Context</div><div>A faint line sits in the margin above the
     first verse and below the last, naming the six verses either side. Tap one — or simply
     scroll to the edge of the page — and they are <em>brought into the passage</em>: laid out,
@@ -1258,6 +1280,7 @@ function maxIndent(){
   return Math.max(1, Math.floor((room - 90) / INDENT));
 }
 const MAX_LAYOUT_WORDS = 2600;   // about a long chapter
+const TRROW = 26;           // the row your own English takes under a line
 const SECGAP = 46;          // vertical space a section break opens up
 
 /* The four drawable line weights. "thick" is deliberately absent: choosing it
@@ -1272,7 +1295,8 @@ const LINESTYLE = {
 const S = {
   key:"", chapter:"all", docs:{}, undo:[], redo:[],
   lineStarts:{}, byUid:{},
-  hits:{}, marks:{}, notes:{}, summaries:{}, markMode:"emphasis", findQ:"", glyphs:[],
+  hits:{}, marks:{}, notes:{}, summaries:{}, trans:{}, showTrans:false,
+  markMode:"emphasis", findQ:"", glyphs:[],
   glyphUse:{}, glyphHidden:{}, glyphGone:{}, glyphPin:[], arrangePins:false,
   words:[], lines:[], strokes:[], conns:[], sections:[],
   tool:"move", lastInk:"pen", ci:12, lineStyle:"regular", nib:"fineliner",
@@ -1918,7 +1942,7 @@ function measureWords(){
 }
 
 function layout(){
-  board.querySelectorAll(".vn,.lh").forEach(n=>n.remove());
+  board.querySelectorAll(".vn,.lh,.tr").forEach(n=>n.remove());
   const secs = sectionsByLine();
   S.sections.forEach(s => s._y = undefined);
   /* A strip of margin at the top, but only when there is something above the
@@ -2000,6 +2024,26 @@ function layout(){
     lh.dataset.line = line.id;
     board.appendChild(lh);
     line.hx = hx; line.hy = line.y + 2; line.hw = 16; line.hh = R - 12;
+
+    /* The English, if it is being shown. It takes its own row under the Greek,
+       at the line's own indent, and it is recorded on the line as well as put
+       on the page — an exported picture is drawn on a canvas and would
+       otherwise have no way of knowing it was there. */
+    if(S.showTrans){
+      const uid = uidOf(line.ids[0]);
+      const text = (S.trans || {})[uid] || "";
+      const tw = (rtl ? x0 - MARGIN : WRAP - x0);
+      line.tr = { x: rtl ? MARGIN : x0, y: y + R - 4, w:Math.max(120, tw),
+                  h:TRROW - 6, uid, text, rtl };
+      const el = document.createElement("div");
+      el.className = "tr" + (text ? "" : " empty") + (rtl ? " heb" : "");
+      el.textContent = text || "translate this line…";
+      el.style.left = line.tr.x + "px"; el.style.top = line.tr.y + "px";
+      el.style.width = line.tr.w + "px";
+      el.dataset.line = line.id;
+      board.appendChild(el);
+      y += TRROW;
+    } else line.tr = null;
 
     y += R + 10;
   });
@@ -3582,6 +3626,11 @@ hit.addEventListener("pointerdown", e=>{
   }
 
   // ---- move ----
+  /* The English slot comes first: it lies in the gap between two lines, where
+     there is nothing else to take hold of. */
+  const tl = transAt(p.x, p.y);
+  if(tl){ drag = { kind:"maybetrans", line:tl, sx:p.x, sy:p.y, moved:false }; return; }
+
   // a corner of whatever is already held comes first, so it can be resized
   const grip2 = handleAt(p.x, p.y);
   if(grip2){
@@ -3695,7 +3744,7 @@ hit.addEventListener("pointermove", e=>{
     const dx = p.x - drag.sx, dy = p.y - drag.sy;
     if(Math.abs(dx) > 6 || Math.abs(dy) > 6) drag.moved = true;
   }
-  if(drag.kind === "maybesym"){
+  if(drag.kind === "maybesym" || drag.kind === "maybetrans"){
     // a press that travels is a scroll or a stray hand, not a tap
     if(Math.abs(p.x - drag.sx) > 8 || Math.abs(p.y - drag.sy) > 8) drag.moved = true;
     return;
@@ -3821,6 +3870,11 @@ hit.addEventListener("pointerup", e=>{
         insertBend(drag.s, drag.sx, drag.sy);
     }
     drag = null; endPointer(e); redraw(); saveSoon();
+    return;
+  }
+  if(drag && drag.kind === "maybetrans"){
+    const d = drag; drag = null; endPointer(e);
+    if(!d.moved) openTransDrawer(d.line);
     return;
   }
   if(drag && drag.kind === "maybesym"){
@@ -4617,6 +4671,10 @@ function openNoteDrawer(w){
   wd.textContent = w.surface;
   wd.className = "ndword" + (p.lang === "he" ? " heb" : "");
   wd.dir = (p.lang === "he") ? "rtl" : "ltr";
+  wd.style.whiteSpace = "";
+  document.getElementById("ndText").placeholder =
+    "Write with your Pencil — iPadOS turns it into text";
+  transLine = null;
   document.getElementById("ndRef").textContent =
     ((p.title || "") + " " + w.verse).trim().toUpperCase();
   ta.value = S.notes[w.uid] || "";
@@ -4632,6 +4690,60 @@ function openNoteDrawer(w){
     "It saves as you write. Esc, or Done, to put it away.";
   el.classList.add("show");
   ta.focus();                        // inside the gesture, so Scribble is ready
+}
+
+/* ---- writing your own English for one line ----
+   The same drawer the notes use, with the line's Greek across the top instead
+   of a single word. Tapping the English slot under a line is the only way in,
+   which is why the slot shows even when it is empty. */
+let transLine = null;
+
+function openTransDrawer(line){
+  if(!line) return;
+  transLine = line;
+  const p = PASSAGES[S.key] || {};
+  const uid = uidOf(line.ids[0]);
+  const el = document.getElementById("noteDrawer");
+  const ta = document.getElementById("ndText");
+  const wd = document.getElementById("ndWord");
+  const greek = line.ids.map(id => S.words[id].surface).join(" ");
+  wd.textContent = greek;
+  wd.className = "ndword" + (p.lang === "he" ? " heb" : "");
+  wd.dir = (p.lang === "he") ? "rtl" : "ltr";
+  wd.style.whiteSpace = "normal";
+  document.getElementById("ndRef").textContent =
+    ((p.title || "") + " " + (S.words[line.ids[0]] || {}).verse + " · your English")
+      .trim().toUpperCase();
+  ta.value = (S.trans || {})[uid] || "";
+  ta.placeholder = "Say it in English, as you would read it aloud";
+  ta.oninput = ()=>{
+    const t = ta.value.trim();
+    S.trans = S.trans || {};
+    if(t) S.trans[uid] = t; else delete S.trans[uid];
+    layout(); saveSoon();
+  };
+  ta.onkeydown = e =>{
+    if(e.key === "Escape") closeNoteDrawer();
+    /* Enter moves to the next line rather than breaking this one in two: a
+       translation is one line of English for one line of Greek, and the moment
+       it takes paragraphs it has stopped being a translation. */
+    if(e.key === "Enter" && !e.shiftKey){
+      e.preventDefault();
+      const next = S.lines[S.lines.findIndex(l => l.id === line.id) + 1];
+      if(next) openTransDrawer(next); else closeNoteDrawer();
+    }
+  };
+  document.getElementById("ndFoot").textContent =
+    "It saves as you write. Enter for the next line; Esc, or Done, to put it away.";
+  el.classList.add("show");
+  ta.focus();
+}
+
+/* Which line's English slot is under this point. */
+function transAt(x, y){
+  if(!S.showTrans) return null;
+  return S.lines.find(l => l.tr && x >= l.tr.x && x <= l.tr.x + l.tr.w &&
+                           y >= l.tr.y - 2 && y <= l.tr.y + l.tr.h + 2) || null;
 }
 
 function closeNoteDrawer(){
@@ -6932,6 +7044,23 @@ function paintBoard(g){
   });
   g.restore();
 
+  /* Your own English, under the line it renders — drawn only where there is
+     one, because an empty slot is a thing on the screen to write in rather
+     than a thing on the page to keep. */
+  if(S.showTrans){
+    g.save();
+    g.font = "italic 15px Inter, -apple-system, sans-serif";
+    g.textBaseline = "top";
+    g.fillStyle = "#5f584c";
+    S.lines.forEach(line=>{
+      if(!line.tr || !line.tr.text) return;
+      const t = line.tr.text;
+      const w = g.measureText(t).width;
+      g.fillText(t, line.tr.rtl ? line.tr.x + line.tr.w - w : line.tr.x, line.tr.y + 2);
+    });
+    g.restore();
+  }
+
   // the big idea, at the head of the page
   const bigIdea = summaryNow().trim();
   if(bigIdea){
@@ -7165,6 +7294,11 @@ function bandOf(lines, sec){
       grow(v.y - 2, v.y + 14);
       wide(v.x + v.w);
     });
+    // and so is your English, or the picture would cut it off at the bottom
+    if(line.tr && line.tr.text){
+      grow(line.tr.y - 2, line.tr.y + line.tr.h + 6);
+      wide(line.tr.x + 40);
+    }
     line.ids.forEach(id=>{
       const w = S.words[id];
       if(!w) return;
@@ -7261,6 +7395,19 @@ function exportPNG(){
   closePops();
 }
 
+/* Showing the English changes how much room every line needs, so the page is
+   laid out again — which is safe, because every mark and stroke is anchored to
+   a word and moves down with it. */
+document.getElementById("transBtn").onclick = ()=>{
+  S.showTrans = !S.showTrans;
+  const b = document.getElementById("transBtn");
+  b.classList.toggle("on", S.showTrans);
+  if(!S.showTrans) closeNoteDrawer();
+  layout(); saveSoon();
+  note(S.showTrans ? "Your own English is showing" : "Back to the Greek alone",
+       S.showTrans ? "tap a line's English to write it" : "");
+};
+
 document.getElementById("exportPng").onclick = exportPNG;
 document.getElementById("exportOutline").onclick = ()=>{ closePops(); openOutline(); };
 document.getElementById("exportPrint").onclick = ()=>{ closePops(); setTimeout(()=>window.print(), 60); };
@@ -7349,6 +7496,10 @@ function buildOutline(){
                          .map(w => ({ ref:w.verse, surface:w.surface, text:S.notes[w.uid] }));
     return {
       title: b.title,
+      /* Your own English for this part, one line of it per line of the
+         diagram — which is why it comes out shaped like the argument. */
+      english: b.lines.map(l => (S.trans || {})[uidOf(l.ids[0])])
+                      .filter(t => t && t.trim()),
       numbered: !!b.sec,
       lvl: b.sec ? (b.sec.lvl || 1) : 1,
       count: b.words.length,
@@ -7426,6 +7577,17 @@ function docxTitleBlock(idea, ref){
          '</w:p><w:p/>';
 }
 
+/* Your own English, as a block under the heading: one line of the diagram per
+   line, so the shape of the argument is carried into the prose. Set in the
+   body face rather than in red — it is the passage, not a heading. */
+function docxEnglish(lines){
+  const runs = lines.map((t, i) =>
+    (i ? '<w:br/>' : "") + '<w:t xml:space="preserve">' + xmlEsc(t) + '</w:t>').join("");
+  return '<w:p><w:pPr><w:spacing w:before="60" w:after="120"/>' +
+         '<w:ind w:left="720"/></w:pPr><w:r><w:rPr><w:i/><w:iCs/></w:rPr>' +
+         runs + '</w:r></w:p>';
+}
+
 function docxImage(rid, wPx, hPx, alt){
   const wEmu = Math.round(CONTENT_IN * 914400);
   const hEmu = Math.max(1, Math.round(wEmu * (hPx / wPx)));
@@ -7460,6 +7622,7 @@ function pngBytes(canvas){
 function exportOutline(){
   const inc = id => { const el = document.getElementById(id); return el ? el.checked : false; };
   const withPic = inc("outPic"), withNotes = inc("outNotes"), withRefs = inc("outRefs");
+  const withEng = inc("outEng");
   const p = PASSAGES[S.key];
   const heading = (p ? p.title : "Passage") +
     (S.chapter && S.chapter !== "all" ? " " + rangeLabel(S.chapter).replace("chapter ","") : "");
@@ -7499,6 +7662,11 @@ function exportOutline(){
     } else if(outline.length > 1){
       body += docxHeading("Intro:", span);
     }
+
+    /* Before the diagram, not after it: this is the passage in your own words,
+       and it is what the section is about. The diagram is the working. */
+    if(withEng && b.english.length)
+      body += docxEnglish(b.english);
 
     if(withPic && b.count && b.band && b.band.bottom > b.band.top){
       try{
@@ -8141,6 +8309,10 @@ function docSnapshot(){
     conns:   S.conns.map(c => [c.a, c.b, c.color || CONNINK]),
     sections:S.sections.map(s => ({ w:s.beforeWord, t:s.title, ci:s.ci, l:s.lvl || 1 })),
     summaries: Object.assign({}, S.summaries),
+    /* Your own English, one line of it per line of the diagram, kept under the
+       uid of the word that line begins at — so it survives a re-split, a
+       widening of the passage, and the three-way merge, exactly as ink does. */
+    trans: Object.assign({}, S.trans),
     lem: Object.assign({}, S.lemHi),
     notes: Object.assign({}, S.notes),
     hits: Object.assign({}, S.hits),
@@ -8152,6 +8324,7 @@ function docSnapshot(){
 /* Bring a book's work into memory. Nothing is filtered to the current
    window: a stroke anchored outside it simply is not drawn. */
 function applyDoc(d, p){
+  S.trans = Object.assign({}, (d && d.trans) || {});
   S.lineStarts = Object.assign({}, (d && d.lineStarts) || {});
   if(!Object.keys(S.lineStarts).length && p) S.lineStarts = defaultLineStarts(p);
   S.strokes = ((d && d.strokes) || []).map(s => ({
@@ -8251,6 +8424,7 @@ function prefsSnapshot(){
     abbr:document.getElementById("mgAbbr").value,
     use:S.glyphUse, hidden:S.glyphHidden,
     tour:!!S.tourSeen, paint:S.paintMode, sw:(S.swatches || []), erase:S.eraseMode,
+    showTrans:!!S.showTrans,
     swHide:(S.colourHidden || {}),
     scroll: readScroll()
   };
@@ -8263,6 +8437,9 @@ function applyPrefs(p){
   S.swatches = Array.isArray(p.sw) ? p.sw : [];
   S.colourHidden = p.swHide || {};
   S.eraseMode = p.erase === "part" ? "part" : "object";
+  S.showTrans = !!p.showTrans;
+  const tb = document.getElementById("transBtn");
+  if(tb) tb.classList.toggle("on", S.showTrans);
   rebuildSwatches();
   S._scrollWant = p.scroll || null;
   if(p.mods){
@@ -8506,7 +8683,7 @@ function docParts(d){
   return {
     marks: d.marks || {}, hits: d.hits || {}, notes: d.notes || {},
     lem: d.lem || {}, lineStarts: d.lineStarts || {},
-    summaries: d.summaries || {},
+    summaries: d.summaries || {}, trans: d.trans || {},
     strokes: byId(d.strokes, s => s.id),
     conns:   byId(d.conns, c => c[0] + ">" + c[1]),
     /* A break is known by the word it sits above AND how heavy it is: a
@@ -8522,7 +8699,7 @@ function partsToDoc(parts, at, dev){
     v:3, at: at || Date.now(), dev: dev || deviceId(),
     marks:parts.marks, hits:parts.hits, notes:parts.notes, lem:parts.lem,
     lineStarts:parts.lineStarts,
-    summaries:parts.summaries,
+    summaries:parts.summaries, trans:parts.trans,
     strokes: Object.keys(parts.strokes).map(k => parts.strokes[k]),
     conns:   Object.keys(parts.conns).map(k => parts.conns[k]),
     sections:Object.keys(parts.sections).map(k => parts.sections[k])
@@ -9300,7 +9477,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-09-16a";
+const BUILD = "2026-09-21a";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file

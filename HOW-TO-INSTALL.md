@@ -178,6 +178,24 @@ leave it there.
 The structural ones — contrast, repetition, therefore, prohibition and so on —
 were drawn for Nous.
 
+## Writing your own English
+
+The **A/文** button in the header opens a line of your own English under every
+line of Greek, at that line's own indent. Tap a line's English to write it: the
+whole line's Greek sits above the field, and **Enter** takes you to the next
+line, so you can work straight down the passage. Dictation and Scribble both
+work, as they do in a note.
+
+It is one line of English per line of the diagram, not per verse, and that is
+the point. The lines are the propositions *you* decided on when you broke the
+passage up — so your translation comes out carrying the shape of the argument
+rather than flattening it again. Split a line later and its English stays with
+the half it belongs to.
+
+It is off by default; the page is for the Greek. And it goes into the sermon
+outline under each heading, above the diagram — which is what makes it worth
+the trouble: the outline you preach from becomes a text you actually wrote.
+
 ## Reading the context
 
 A passage no longer sits on a page with nothing either side of it. In the

@@ -75,7 +75,6 @@
   button.act:hover{background:#774c24;}
   button.ghost{border:1px solid var(--rule);}
   button.ghost:hover{background:var(--chip);}
-  button.ghost.on{border-color:var(--accent);color:var(--accent);background:var(--chip);}
 
   select{font:inherit;font-size:13px;padding:7px 26px 7px 10px;border:1px solid var(--rule);
     border-radius:8px;background:var(--paper);color:var(--ink);appearance:none;cursor:pointer;
@@ -193,17 +192,18 @@
   #marks .foot{font-size:9.5px;line-height:1.45;color:var(--dim);padding-top:6px;}
   @media (max-width:640px){ #marks{width:60px;} #marks .ggrid{grid-template-columns:1fr;} }
   #palette .sw[data-kind="tint"]{border-radius:3px;}
-  /* ---- your own English, under the line it renders ----
-     A translation is not another kind of annotation laid over the Greek: it is
-     a second line of text, set at the same indent as the line above it, so the
-     shape you found in the Greek is the shape your English comes out in. */
-  .tr{position:absolute;font-family:Inter,-apple-system,sans-serif;font-size:15px;
-    line-height:1.35;color:#5f584c;font-style:italic;cursor:text;z-index:1;
-    padding:1px 4px;border-radius:4px;white-space:nowrap;overflow:hidden;
-    text-overflow:ellipsis;}
-  .tr:hover{background:rgba(138,90,43,.07);}
-  .tr.empty{color:var(--dim);opacity:.65;}
-  .tr.heb{direction:rtl;text-align:right;}
+  /* ---- your own English, in the margin beside the verse ----
+     A translation is not an annotation laid over the Greek. It is the verse
+     said again in your own words, and it belongs beside the verse rather than
+     on top of it — where it can be read down on its own, and where it takes
+     nothing away from the diagram. */
+  .tr{position:absolute;font-family:Inter,-apple-system,sans-serif;font-size:14px;
+    line-height:1.45;color:#5f584c;z-index:1;padding:2px 6px;border-radius:5px;
+    border-left:2px solid var(--rule2);cursor:text;}
+  .tr:hover{background:rgba(138,90,43,.06);border-left-color:var(--accent);}
+  /* the verse number is the way in, so it has to look like one */
+  .vn.can{pointer-events:auto;cursor:pointer;}
+  .vn.has{opacity:1;text-decoration:underline;text-underline-offset:2px;}
   #page{position:relative;width:1120px;height:1750px;}
 
   /* ---- bringing in the verses on either side ----
@@ -676,7 +676,6 @@
       </div>
       <div class="right">
         <button id="findBtn" class="ghost" title="Find words by grammar, lemma or gloss"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="9.6" cy="9.6" r="5.8"/><path d="M13.9 13.9l4 4"/><path d="M7.4 9.6h4.4M9.6 7.4v4.4" stroke-width="1.3"/></svg><span class="lbl-hide">Find</span></button>
-      <button id="transBtn" class="ghost" title="Show your own English under each line"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h8M7 6v10M4.5 16h5"/><path d="M12.5 19l4-11 4 11M13.9 15.4h5.2"/></svg></button>
       <button id="helpBtn" class="ghost" title="Show the key"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4.2h8.6l3.4 3.4v10.2H5z"/><path d="M13.6 4.2v3.4H17"/><path d="M8.4 11.4h5.2M8.4 14.4h3.4" stroke-width="1.3"/></svg><span class="lbl-hide">Key</span></button>
       <span id="syncDot" class="syncdot off" style="display:none" title="Sync"></span>
       <button id="setBtn" class="ghost" title="Accordance links and page actions"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="4.8" r="1.6"/><circle cx="11" cy="11" r="1.6"/><circle cx="11" cy="17.2" r="1.6"/></svg></button>
@@ -967,14 +966,14 @@
     alone. Tapping the <em>same</em> colour straight afterwards takes it off again — but a colour
     never removes anything on its own, so a selection you had forgotten about cannot lose its
     marks. <b>esc</b> deselects.</div></div>
-  <div class="item"><div class="kbd">Your own English</div><div>The <b>A/文</b> button in the
-    header opens a line of your own English under every line of Greek, set at that line's
-    indent. Tap one to write it — the whole line's Greek sits above the field, and <b>Enter</b>
-    moves you to the next line, so you can work straight down the passage.<br><br>
-    It is a translation per <em>line</em>, not per verse, on purpose: the lines are the
-    propositions you decided on when you broke the passage up, so your English comes out with
-    the shape of the argument already in it. It follows a line if you split it again, and it
-    goes into the sermon outline under each heading, above the diagram.</div></div>
+  <div class="item"><div class="kbd">Your own English</div><div>Tap a <b>verse number</b> in
+    the margin and the whole verse is laid out above a field. Say it in your own words and it
+    appears out to the right of the page, level with that verse, where the whole passage can be
+    read straight down in your English. <b>Enter</b> takes you to the next verse.<br><br>
+    A verse number you have translated is underlined, and tapping your English opens it again
+    to reword. Nothing about it moves a word of the Greek — the diagram is untouched; only the
+    page gets wider. It goes into the sermon outline under each heading, above the
+    diagram.</div></div>
   <div class="item"><div class="kbd">Context</div><div>A faint line sits in the margin above the
     first verse and below the last, naming the six verses either side. Tap one — or simply
     scroll to the edge of the page — and they are <em>brought into the passage</em>: laid out,
@@ -1280,7 +1279,6 @@ function maxIndent(){
   return Math.max(1, Math.floor((room - 90) / INDENT));
 }
 const MAX_LAYOUT_WORDS = 2600;   // about a long chapter
-const TRROW = 26;           // the row your own English takes under a line
 const SECGAP = 46;          // vertical space a section break opens up
 
 /* The four drawable line weights. "thick" is deliberately absent: choosing it
@@ -1295,7 +1293,7 @@ const LINESTYLE = {
 const S = {
   key:"", chapter:"all", docs:{}, undo:[], redo:[],
   lineStarts:{}, byUid:{},
-  hits:{}, marks:{}, notes:{}, summaries:{}, trans:{}, showTrans:false,
+  hits:{}, marks:{}, notes:{}, summaries:{}, trans:{},
   markMode:"emphasis", findQ:"", glyphs:[],
   glyphUse:{}, glyphHidden:{}, glyphGone:{}, glyphPin:[], arrangePins:false,
   words:[], lines:[], strokes:[], conns:[], sections:[],
@@ -2008,7 +2006,12 @@ function layout(){
        there. */
     line.vns.forEach(m=>{
       const vn = document.createElement("div");
-      vn.className = "vn" + (m.inline ? " inl" : "");
+      const ref = m.text.indexOf(":") >= 0 ? m.text
+                : (line.verse || "").split(":")[0] + ":" + m.text;
+      vn.className = "vn can" + (m.inline ? " inl" : "") +
+                     ((S.trans || {})[ref] ? " has" : "");
+      vn.title = ((S.trans || {})[ref] ? "Your English: " + (S.trans || {})[ref]
+                                       : "Write this verse in your own English");
       vn.textContent = m.text;
       vn.style.left = m.x + "px"; vn.style.top = m.y + "px";
       vn.style.width = m.w + "px";
@@ -2025,34 +2028,63 @@ function layout(){
     board.appendChild(lh);
     line.hx = hx; line.hy = line.y + 2; line.hw = 16; line.hh = R - 12;
 
-    /* The English, if it is being shown. It takes its own row under the Greek,
-       at the line's own indent, and it is recorded on the line as well as put
-       on the page — an exported picture is drawn on a canvas and would
-       otherwise have no way of knowing it was there. */
-    if(S.showTrans){
-      const uid = uidOf(line.ids[0]);
-      const text = (S.trans || {})[uid] || "";
-      const tw = (rtl ? x0 - MARGIN : WRAP - x0);
-      line.tr = { x: rtl ? MARGIN : x0, y: y + R - 4, w:Math.max(120, tw),
-                  h:TRROW - 6, uid, text, rtl };
-      const el = document.createElement("div");
-      el.className = "tr" + (text ? "" : " empty") + (rtl ? " heb" : "");
-      el.textContent = text || "translate this line…";
-      el.style.left = line.tr.x + "px"; el.style.top = line.tr.y + "px";
-      el.style.width = line.tr.w + "px";
-      el.dataset.line = line.id;
-      board.appendChild(el);
-      y += TRROW;
-    } else line.tr = null;
-
     y += R + 10;
   });
 
+  paintTrans();
   render(); drawConns(); redraw(); renderSections(); saveSoon();
-  S._contentBottom = y;
+  S._contentBottom = Math.max(y, S._trBottom || 0);
   paintGrow();
   const need = y + 120;
   if(need > board.offsetHeight){ board.style.height = need + "px"; applyZoom(); }
+}
+
+/* ---- your own English, in the margin ----
+   Each verse's translation sits level with the line that verse begins on, out
+   to the right of the text, where it can be read straight down. Two verses can
+   begin close together and a translation can run to several lines, so one is
+   pushed down rather than allowed to sit on top of the one before it: aligned
+   where there is room, in order always.
+
+   None of this moves a word. The text still wraps at WRAP; only the board gets
+   wider, so no diagram is re-flowed by turning a translation on. */
+const TRGAP = 26;                // between the text and the column
+const TRWIDE = 300;              // how wide the column is
+
+function transCol(){ return WRAP + TRGAP; }
+
+function paintTrans(){
+  board.querySelectorAll(".tr").forEach(n => n.remove());
+  S._trBoxes = []; S._trBottom = 0;
+  const has = S.trans && Object.keys(S.trans).length;
+  if(!has) return;
+
+  const x = isRTL() ? 8 : transCol();
+  let floor = 0;
+  versesHere().forEach(v=>{
+    const text = S.trans[v.ref];
+    if(!text) return;
+    const el = document.createElement("div");
+    el.className = "tr";
+    el.textContent = text;
+    el.style.left = x + "px";
+    el.style.width = TRWIDE + "px";
+    el.dataset.ref = v.ref;
+    board.appendChild(el);
+    /* Measured after it is on the page, because how tall it is depends on how
+       far the words wrap. Before the browser has laid it out there is nothing
+       to measure, so the height is estimated from the length of the text —
+       which is also what makes this testable away from a browser. */
+    const h = el.offsetHeight ||
+              Math.max(22, Math.ceil(text.length / 40) * 20 + 4);
+    /* Level with its verse where there is room, and below the one before it
+       where there is not: aligned when it can be, in order always. */
+    const top = Math.max(v.line.y, floor);
+    el.style.top = top + "px";
+    S._trBoxes.push({ ref:v.ref, x, y:top, w:TRWIDE, h, text });
+    floor = top + h + 8;
+    if(floor > S._trBottom) S._trBottom = floor;
+  });
 }
 
 /* A word sits where the line puts it. Dragging words out of the flow was a
@@ -3481,6 +3513,17 @@ hit.addEventListener("pointerdown", e=>{
   hit.setPointerCapture(e.pointerId);
   const p = bpt(e);
 
+  /* The verse number, and your own English out in the margin, both open the
+     same drawer. They come before everything else — including the line grip,
+     which reaches far enough into the margin to swallow the number sitting
+     beside it — because neither is anything else's target. */
+  const vref = verseAt(p.x, p.y) || (transAt(p.x, p.y) || {}).ref;
+  if(vref){
+    if(S.tool !== "move") pickTool("move");
+    drag = { kind:"maybetrans", ref:vref, sx:p.x, sy:p.y, moved:false };
+    return;
+  }
+
   /* The grip beside a line is for moving that line, so reaching for it means
      you want to move it — whatever tool happens to be in hand, and whether you
      use a finger or the Pencil. Nous switches to Move/Select and gets on with
@@ -3626,11 +3669,6 @@ hit.addEventListener("pointerdown", e=>{
   }
 
   // ---- move ----
-  /* The English slot comes first: it lies in the gap between two lines, where
-     there is nothing else to take hold of. */
-  const tl = transAt(p.x, p.y);
-  if(tl){ drag = { kind:"maybetrans", line:tl, sx:p.x, sy:p.y, moved:false }; return; }
-
   // a corner of whatever is already held comes first, so it can be resized
   const grip2 = handleAt(p.x, p.y);
   if(grip2){
@@ -3874,7 +3912,7 @@ hit.addEventListener("pointerup", e=>{
   }
   if(drag && drag.kind === "maybetrans"){
     const d = drag; drag = null; endPointer(e);
-    if(!d.moved) openTransDrawer(d.line);
+    if(!d.moved) openTransDrawer(d.ref);
     return;
   }
   if(drag && drag.kind === "maybesym"){
@@ -4674,7 +4712,7 @@ function openNoteDrawer(w){
   wd.style.whiteSpace = "";
   document.getElementById("ndText").placeholder =
     "Write with your Pencil — iPadOS turns it into text";
-  transLine = null;
+  transVerse = null;
   document.getElementById("ndRef").textContent =
     ((p.title || "") + " " + w.verse).trim().toUpperCase();
   ta.value = S.notes[w.uid] || "";
@@ -4692,58 +4730,87 @@ function openNoteDrawer(w){
   ta.focus();                        // inside the gesture, so Scribble is ready
 }
 
-/* ---- writing your own English for one line ----
-   The same drawer the notes use, with the line's Greek across the top instead
-   of a single word. Tapping the English slot under a line is the only way in,
-   which is why the slot shows even when it is empty. */
-let transLine = null;
+/* ---- writing your own English for a verse ----
+   The way in is the verse number in the margin: tap it and the whole verse is
+   laid out above a field. It is the verse, not the line, because a translation
+   is the verse said again — the lines are how the argument is put together,
+   which is the diagram's job, not the prose's. */
+let transVerse = null;
 
-function openTransDrawer(line){
-  if(!line) return;
-  transLine = line;
+function versesHere(){
+  /* Every verse on the page, in order, with the line it begins on. */
+  const out = [], seen = new Set();
+  S.lines.forEach(line=>{
+    line.ids.forEach(id=>{
+      const w = S.words[id];
+      if(!w || seen.has(w.verse)) return;
+      seen.add(w.verse);
+      out.push({ ref:w.verse, line });
+    });
+  });
+  return out;
+}
+
+function verseWords(ref){
+  return S.words.filter(w => w.verse === ref);
+}
+
+function openTransDrawer(ref){
+  if(!ref) return;
+  transVerse = ref;
   const p = PASSAGES[S.key] || {};
-  const uid = uidOf(line.ids[0]);
   const el = document.getElementById("noteDrawer");
   const ta = document.getElementById("ndText");
   const wd = document.getElementById("ndWord");
-  const greek = line.ids.map(id => S.words[id].surface).join(" ");
-  wd.textContent = greek;
+  wd.textContent = verseWords(ref).map(w => w.surface).join(" ");
   wd.className = "ndword" + (p.lang === "he" ? " heb" : "");
   wd.dir = (p.lang === "he") ? "rtl" : "ltr";
   wd.style.whiteSpace = "normal";
   document.getElementById("ndRef").textContent =
-    ((p.title || "") + " " + (S.words[line.ids[0]] || {}).verse + " · your English")
-      .trim().toUpperCase();
-  ta.value = (S.trans || {})[uid] || "";
-  ta.placeholder = "Say it in English, as you would read it aloud";
+    ((p.title || "") + " " + ref + " · your own words").trim().toUpperCase();
+  ta.value = (S.trans || {})[ref] || "";
+  ta.placeholder = "Say the verse in your own English";
   ta.oninput = ()=>{
     const t = ta.value.trim();
     S.trans = S.trans || {};
-    if(t) S.trans[uid] = t; else delete S.trans[uid];
+    if(t) S.trans[ref] = t; else delete S.trans[ref];
     layout(); saveSoon();
   };
   ta.onkeydown = e =>{
     if(e.key === "Escape") closeNoteDrawer();
-    /* Enter moves to the next line rather than breaking this one in two: a
-       translation is one line of English for one line of Greek, and the moment
-       it takes paragraphs it has stopped being a translation. */
+    /* Enter moves on to the next verse rather than breaking this one into
+       paragraphs: the moment it takes paragraphs it has stopped being a
+       translation and started being a manuscript. */
     if(e.key === "Enter" && !e.shiftKey){
       e.preventDefault();
-      const next = S.lines[S.lines.findIndex(l => l.id === line.id) + 1];
+      const all = versesHere().map(v => v.ref);
+      const next = all[all.indexOf(ref) + 1];
       if(next) openTransDrawer(next); else closeNoteDrawer();
     }
   };
   document.getElementById("ndFoot").textContent =
-    "It saves as you write. Enter for the next line; Esc, or Done, to put it away.";
+    "It saves as you write. Enter for the next verse; Esc, or Done, to put it away.";
   el.classList.add("show");
   ta.focus();
 }
 
-/* Which line's English slot is under this point. */
+/* Which verse number is under this point. The numbers are small, so the box is
+   given a little room on every side — a near miss is still a tap at it. */
+function verseAt(x, y){
+  let best = null;
+  S.lines.forEach(line=>{
+    (line.vns || []).forEach(v=>{
+      if(x >= v.x - 8 && x <= v.x + v.w + 8 && y >= v.y - 8 && y <= v.y + 22)
+        best = v.text.indexOf(":") >= 0 ? v.text : (line.verse || "").split(":")[0] + ":" + v.text;
+    });
+  });
+  return best;
+}
+
+/* Which translation in the margin is under this point. */
 function transAt(x, y){
-  if(!S.showTrans) return null;
-  return S.lines.find(l => l.tr && x >= l.tr.x && x <= l.tr.x + l.tr.w &&
-                           y >= l.tr.y - 2 && y <= l.tr.y + l.tr.h + 2) || null;
+  return (S._trBoxes || []).find(b => x >= b.x && x <= b.x + b.w &&
+                                      y >= b.y && y <= b.y + b.h) || null;
 }
 
 function closeNoteDrawer(){
@@ -7044,23 +7111,6 @@ function paintBoard(g){
   });
   g.restore();
 
-  /* Your own English, under the line it renders — drawn only where there is
-     one, because an empty slot is a thing on the screen to write in rather
-     than a thing on the page to keep. */
-  if(S.showTrans){
-    g.save();
-    g.font = "italic 15px Inter, -apple-system, sans-serif";
-    g.textBaseline = "top";
-    g.fillStyle = "#5f584c";
-    S.lines.forEach(line=>{
-      if(!line.tr || !line.tr.text) return;
-      const t = line.tr.text;
-      const w = g.measureText(t).width;
-      g.fillText(t, line.tr.rtl ? line.tr.x + line.tr.w - w : line.tr.x, line.tr.y + 2);
-    });
-    g.restore();
-  }
-
   // the big idea, at the head of the page
   const bigIdea = summaryNow().trim();
   if(bigIdea){
@@ -7101,6 +7151,28 @@ function paintBoard(g){
       g.fillStyle = col; g.fillText(sec.title, left + 36, sec._y + 4);
     }
   });
+
+  /* Your own English, in the margin beside the verse it renders. Wrapped by
+     hand, because a canvas has no idea what a line break is. */
+  if((S._trBoxes || []).length){
+    g.save();
+    g.font = "14px Inter, -apple-system, sans-serif";
+    g.textBaseline = "top";
+    S._trBoxes.forEach(b2=>{
+      g.strokeStyle = "#ddd6c8"; g.lineWidth = 2;
+      g.beginPath(); g.moveTo(b2.x - 4, b2.y); g.lineTo(b2.x - 4, b2.y + b2.h); g.stroke();
+      g.fillStyle = "#5f584c";
+      let line = "", yy = b2.y + 2;
+      b2.text.split(/\s+/).forEach(word=>{
+        const next = line ? line + " " + word : word;
+        if(g.measureText(next).width > b2.w - 14 && line){
+          g.fillText(line, b2.x + 2, yy); yy += 20; line = word;
+        } else line = next;
+      });
+      if(line) g.fillText(line, b2.x + 2, yy);
+    });
+    g.restore();
+  }
 
   // arrows
   g.strokeStyle = "#8a5a2b"; g.lineWidth = 1.8; g.globalAlpha = .8;
@@ -7278,7 +7350,8 @@ function paintBoard(g){
 }
 
 function boardWidth(){
-  return Math.max(board.offsetWidth || 0, WRAP + 60);
+  const col = (S._trBoxes || []).length ? transCol() + TRWIDE + 20 : 0;
+  return Math.max(board.offsetWidth || 0, WRAP + 60, col);
 }
 
 /* Everything that belongs to a run of lines, in page coordinates: the words,
@@ -7294,11 +7367,11 @@ function bandOf(lines, sec){
       grow(v.y - 2, v.y + 14);
       wide(v.x + v.w);
     });
-    // and so is your English, or the picture would cut it off at the bottom
-    if(line.tr && line.tr.text){
-      grow(line.tr.y - 2, line.tr.y + line.tr.h + 6);
-      wide(line.tr.x + 40);
-    }
+    /* Your own English is deliberately NOT part of a section's picture. The
+       outline already carries it as text above the diagram, and a picture wide
+       enough to hold the margin as well would shrink the diagram on the page
+       to pay for saying the same thing twice. The picture is the working; the
+       English is the passage. */
     line.ids.forEach(id=>{
       const w = S.words[id];
       if(!w) return;
@@ -7395,19 +7468,6 @@ function exportPNG(){
   closePops();
 }
 
-/* Showing the English changes how much room every line needs, so the page is
-   laid out again — which is safe, because every mark and stroke is anchored to
-   a word and moves down with it. */
-document.getElementById("transBtn").onclick = ()=>{
-  S.showTrans = !S.showTrans;
-  const b = document.getElementById("transBtn");
-  b.classList.toggle("on", S.showTrans);
-  if(!S.showTrans) closeNoteDrawer();
-  layout(); saveSoon();
-  note(S.showTrans ? "Your own English is showing" : "Back to the Greek alone",
-       S.showTrans ? "tap a line's English to write it" : "");
-};
-
 document.getElementById("exportPng").onclick = exportPNG;
 document.getElementById("exportOutline").onclick = ()=>{ closePops(); openOutline(); };
 document.getElementById("exportPrint").onclick = ()=>{ closePops(); setTimeout(()=>window.print(), 60); };
@@ -7496,10 +7556,11 @@ function buildOutline(){
                          .map(w => ({ ref:w.verse, surface:w.surface, text:S.notes[w.uid] }));
     return {
       title: b.title,
-      /* Your own English for this part, one line of it per line of the
-         diagram — which is why it comes out shaped like the argument. */
-      english: b.lines.map(l => (S.trans || {})[uidOf(l.ids[0])])
-                      .filter(t => t && t.trim()),
+      /* Your own English for this part: the verses it covers, in order, each
+         one as you said it. */
+      english: [...new Set(b.words.map(w => w.verse))]
+                 .map(ref => (S.trans || {})[ref])
+                 .filter(t => t && t.trim()),
       numbered: !!b.sec,
       lvl: b.sec ? (b.sec.lvl || 1) : 1,
       count: b.words.length,
@@ -8324,7 +8385,17 @@ function docSnapshot(){
 /* Bring a book's work into memory. Nothing is filtered to the current
    window: a stroke anchored outside it simply is not drawn. */
 function applyDoc(d, p){
-  S.trans = Object.assign({}, (d && d.trans) || {});
+  /* Translations were briefly keyed by the word a LINE began at. They belong
+     to the verse, so anything in the old shape is folded onto its verse —
+     joined in order where a verse had been split across several lines, because
+     throwing half a translation away is never the kinder choice. */
+  S.trans = {};
+  Object.keys((d && d.trans) || {}).sort().forEach(k=>{
+    const ref = k.indexOf("#") > 0 ? k.slice(0, k.indexOf("#")) : k;
+    const t = d.trans[k];
+    if(!t) return;
+    S.trans[ref] = S.trans[ref] ? S.trans[ref] + " " + t : t;
+  });
   S.lineStarts = Object.assign({}, (d && d.lineStarts) || {});
   if(!Object.keys(S.lineStarts).length && p) S.lineStarts = defaultLineStarts(p);
   S.strokes = ((d && d.strokes) || []).map(s => ({
@@ -8424,7 +8495,6 @@ function prefsSnapshot(){
     abbr:document.getElementById("mgAbbr").value,
     use:S.glyphUse, hidden:S.glyphHidden,
     tour:!!S.tourSeen, paint:S.paintMode, sw:(S.swatches || []), erase:S.eraseMode,
-    showTrans:!!S.showTrans,
     swHide:(S.colourHidden || {}),
     scroll: readScroll()
   };
@@ -8437,9 +8507,6 @@ function applyPrefs(p){
   S.swatches = Array.isArray(p.sw) ? p.sw : [];
   S.colourHidden = p.swHide || {};
   S.eraseMode = p.erase === "part" ? "part" : "object";
-  S.showTrans = !!p.showTrans;
-  const tb = document.getElementById("transBtn");
-  if(tb) tb.classList.toggle("on", S.showTrans);
   rebuildSwatches();
   S._scrollWant = p.scroll || null;
   if(p.mods){
@@ -9477,7 +9544,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-09-21a";
+const BUILD = "2026-09-21b";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file

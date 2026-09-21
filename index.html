@@ -380,6 +380,37 @@
   .sheet .wsbtns{display:flex;justify-content:flex-end;gap:8px;margin-top:12px;}
   .sheet .wsbtns button{font-size:13px;padding:10px 16px;border-radius:9px;
     border:1px solid var(--rule);}
+  /* ---- the reference sheet ----
+     A reference is short, but it is typed with a Pencil on glass, so the field
+     is as big as a note's. Beside it, a picker: three columns you scroll, so a
+     reference can be chosen rather than spelled. */
+  .sheet .ws.ref{width:min(760px,96vw);}
+  .refrow{display:flex;gap:10px;align-items:stretch;margin-bottom:8px;}
+  .refbox{font:inherit;flex:1;min-width:0;font-size:20px;line-height:1.4;
+    padding:12px 14px;border-radius:10px;border:1px solid var(--rule);
+    background:var(--paper);color:var(--ink);resize:none;min-height:56px;}
+  .refbox:focus{outline:none;border-color:var(--accent);}
+  .refpick{flex:0 0 auto;font:inherit;font-size:13px;padding:0 16px;
+    border:1px solid var(--rule);border-radius:10px;background:var(--paper);
+    color:var(--muted);cursor:pointer;}
+  .refpick:hover,.refpick.on{color:var(--accent);border-color:var(--accent);}
+  .refadd{font:inherit;font-size:12.5px;color:var(--dim);background:none;border:0;
+    padding:2px 0 6px;cursor:pointer;text-decoration:underline;}
+  .refadd:hover{color:var(--ink);}
+  .refadd.off{display:none;}
+  #refPick{display:none;gap:10px;margin:4px 0 10px;}
+  #refPick.show{display:flex;}
+  .pkcol{flex:1;min-width:0;display:flex;flex-direction:column;}
+  .pkhd{font-size:9px;letter-spacing:.11em;text-transform:uppercase;color:var(--muted);
+    font-weight:700;padding:0 0 5px 2px;}
+  .pklist{height:210px;overflow-y:auto;-webkit-overflow-scrolling:touch;
+    border:1px solid var(--rule);border-radius:9px;background:var(--paper);}
+  .pklist button{display:block;width:100%;text-align:left;font:inherit;font-size:15px;
+    padding:9px 12px;border:0;background:none;color:var(--ink);cursor:pointer;
+    border-radius:0;}
+  .pklist button:hover{background:var(--chip);}
+  .pklist button.on{background:var(--chip);color:var(--accent);font-weight:500;}
+  .pknone{font-size:12px;color:var(--dim);padding:12px;line-height:1.5;}
   #askWhat{font:inherit;width:100%;font-size:17px;padding:14px;border-radius:9px;
     border:1px solid var(--rule);background:var(--paper);color:var(--ink);}
 
@@ -851,10 +882,30 @@
 </div>
 
 <div id="refSheet" class="sheet">
-  <div class="ws">
+  <div class="ws ref">
     <div class="wslbl" id="refSheetLbl"></div>
-    <input type="text" id="refIn" spellcheck="false" enterkeyhint="done"
-           placeholder="Write here" autocapitalize="words">
+
+    <div class="refrow" data-slot="1">
+      <textarea id="refIn" class="refbox" rows="1" spellcheck="false"
+                enterkeyhint="done" autocapitalize="words"
+                placeholder="Write here"></textarea>
+      <button class="refpick" data-for="refIn">Choose…</button>
+    </div>
+
+    <div class="refrow" id="refRow2" data-slot="2" style="display:none">
+      <textarea id="refIn2" class="refbox" rows="1" spellcheck="false"
+                enterkeyhint="done" autocapitalize="words"
+                placeholder="And also…"></textarea>
+      <button class="refpick" data-for="refIn2">Choose…</button>
+    </div>
+    <button id="refAdd" class="refadd">＋ a second reference</button>
+
+    <div id="refPick">
+      <div class="pkcol"><div class="pkhd">Book</div><div class="pklist" id="pkBook"></div></div>
+      <div class="pkcol"><div class="pkhd">Chapter</div><div class="pklist" id="pkCh"></div></div>
+      <div class="pkcol"><div class="pkhd">Verse</div><div class="pklist" id="pkVs"></div></div>
+    </div>
+
     <div class="askstate" id="refSheetState"></div>
     <div class="wsbtns">
       <button id="refSheetDel">Remove</button>
@@ -1037,6 +1088,15 @@
   <div class="item"><div class="kbd">Cross-ref</div><div>Drag a square round a quotation or
     allusion and write what it quotes — <b>Isaiah 49:8</b>. Tapping its label opens that passage
     in Accordance, in the English translation set under <b>⋯</b>.</div></div>
+  <div class="item"><div class="kbd">Choosing one</div><div>Either kind opens a sheet with a
+    field big enough to write in with a Pencil, and a <b>Choose…</b> button beside it: three
+    columns — book, chapter, verse — that you scroll and tap. What it offers is read out of the
+    books installed on this device, so it can never offer a verse that is not there; a book you
+    have not installed is still listed, you just type the numbers yourself. Whatever you choose
+    is written into the field, which you can then edit by hand.</div></div>
+  <div class="item"><div class="kbd">Two at once</div><div><b>＋ a second reference</b> lets one
+    link or box point at two places — a quotation that turns up twice, say. Both are drawn on
+    the page, and tapping asks which one you meant.</div></div>
   <hr>
   <h4>Finding a passage</h4>
   <div class="item"><div class="kbd">Reference</div><div>Type it in the box at the top left:
@@ -2035,7 +2095,20 @@ function layout(){
   render(); drawConns(); redraw(); renderSections(); saveSoon();
   S._contentBottom = Math.max(y, S._trBottom || 0);
   paintGrow();
-  const need = y + 120;
+
+  /* The sheet of paper itself grows to hold the margin. Without this the
+     English sat past the edge of the page, on the desk rather than on the
+     paper — which is where the eye says it does not belong. The text is
+     untouched: WRAP has not moved, so no word re-flows. */
+  const wantW = boardWidth();
+  /* Compared against the width this has SET, not against offsetWidth: that
+     includes the border, and on a page still being laid out it lags what was
+     asked for — so the sheet would grow and then never shrink back. */
+  if(parseFloat(board.style.width) !== wantW){
+    board.style.width = wantW + "px";
+    applyZoom();
+  }
+  const need = Math.max(y, S._trBottom || 0) + 120;
   if(need > board.offsetHeight){ board.style.height = need + "px"; applyZoom(); }
 }
 
@@ -2493,12 +2566,18 @@ function paintTag(g, st){
 
   if(st.mode === "chain"){
     paintChain(g, pts[0].x, pts[0].y, col);
-    if(st.ref){
+    /* One reference under the rings, or two stacked — a link can point at two
+       places, and a quotation that turns up twice is the commonest reason to
+       want one. */
+    const refs = [st.ref, st.ref2].filter(Boolean);
+    if(refs.length){
       g.font = "600 13px Inter, -apple-system, sans-serif";
       g.textBaseline = "top";
       g.fillStyle = col;
-      const tw = g.measureText(st.ref).width;
-      g.fillText(st.ref, pts[0].x - tw / 2, pts[0].y + 19);
+      refs.forEach((r, i)=>{
+        const tw = g.measureText(r).width;
+        g.fillText(r, pts[0].x - tw / 2, pts[0].y + 19 + i * 16);
+      });
     }
   } else {
     const a = pts[0], b = pts[1] || pts[0];
@@ -2506,16 +2585,23 @@ function paintTag(g, st){
     const w = Math.abs(b.x - a.x), h = Math.abs(b.y - a.y);
     g.lineWidth = 2.2;
     g.beginPath(); g.rect(x, y, w, h); g.stroke();
-    if(st.ref){
+    const refs = [st.ref, st.ref2].filter(Boolean);
+    if(refs.length){
       g.font = "600 11.5px Inter, -apple-system, sans-serif";
       g.textBaseline = "top";
-      const tw = g.measureText(st.ref).width;
-      g.fillStyle = "#fffefb";
-      g.fillRect(x, y - 16, tw + 11, 17);       // a chip, so the rule reads through
-      g.strokeStyle = col; g.lineWidth = 1.2;
-      g.strokeRect(x + .5, y - 15.5, tw + 10, 16);
-      g.fillStyle = col;
-      g.fillText(st.ref, x + 5.5, y - 12.5);
+      /* Two chips side by side above the box, rather than one long label: two
+         references are two things, and reading them as one is the mistake. */
+      let cx2 = x;
+      refs.forEach(r=>{
+        const tw = g.measureText(r).width;
+        g.fillStyle = "#fffefb";
+        g.fillRect(cx2, y - 16, tw + 11, 17);   // a chip, so the rule reads through
+        g.strokeStyle = col; g.lineWidth = 1.2;
+        g.strokeRect(cx2 + .5, y - 15.5, tw + 10, 16);
+        g.fillStyle = col;
+        g.fillText(r, cx2 + 5.5, y - 12.5);
+        cx2 += tw + 17;
+      });
     }
   }
   g.restore();
@@ -5829,10 +5915,129 @@ document.getElementById("refBox").addEventListener("keydown", e=>{
 const TAGMODES = new Set(["chain", "xref", "note"]);
 let refTarget = null;
 
+/* ---- choosing a reference rather than spelling it ----
+   The chapters and verses offered are read out of the books actually installed
+   on this device, not out of a table shipped with the app. That is the honest
+   source: it can never offer Philippians 5, and it needs no list of verse
+   counts to be kept in step with anything. A book that is not installed can
+   still be referred to — it is simply typed. */
+const PICK = { field:null, book:null, ch:null };
+
+function pickBooks(){
+  /* Every book of the canon, in canonical order, saying which are installed. */
+  const loaded = {};
+  Object.keys(PASSAGES).forEach(k=>{
+    const p = PASSAGES[k];
+    if(!p || !BOOKKEY.test(k) || !Array.isArray(p.verses)) return;
+    const c = canonRef((p.title || "") + " 1:1");
+    if(c) loaded[c.name] = k;
+  });
+  return CANON.map(b => ({ name:b[1], key:loaded[b[1]] || null }));
+}
+
+function pickChapters(key){
+  const p = PASSAGES[key];
+  if(!p || !Array.isArray(p.verses)) return [];
+  const out = [];
+  p.verses.forEach(([vn])=>{
+    const c = String(vn).indexOf(":") >= 0 ? String(vn).split(":")[0] : String(p.ch || "1");
+    if(out[out.length - 1] !== c) out.push(c);
+  });
+  return [...new Set(out)].sort((a, b) => (+a) - (+b));
+}
+
+function pickVerses(key, ch){
+  const p = PASSAGES[key];
+  if(!p || !Array.isArray(p.verses)) return [];
+  return p.verses
+    .map(([vn]) => String(vn))
+    .filter(v => (v.indexOf(":") >= 0 ? v.split(":")[0] : String(p.ch || "1")) === String(ch))
+    .map(v => v.indexOf(":") >= 0 ? v.split(":")[1] : v);
+}
+
+function paintPicker(){
+  const box = (id, items, chosen, onPick, empty)=>{
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.innerHTML = "";
+    if(!items.length){
+      const d = document.createElement("div");
+      d.className = "pknone";
+      d.textContent = empty || "";
+      el.appendChild(d);
+      return;
+    }
+    items.forEach(it=>{
+      const b = document.createElement("button");
+      b.textContent = it.label;
+      if(it.value === chosen) b.className = "on";
+      b.onclick = ()=> onPick(it.value);
+      el.appendChild(b);
+    });
+  };
+
+  const books = pickBooks();
+  box("pkBook", books.map(b => ({ label:b.name + (b.key ? "" : " ·"), value:b.name })),
+      PICK.book, name =>{
+        PICK.book = name; PICK.ch = null;
+        writePick(); paintPicker();
+      });
+
+  const hit = books.find(b => b.name === PICK.book);
+  const chs = hit && hit.key ? pickChapters(hit.key) : [];
+  box("pkCh", chs.map(c => ({ label:c, value:c })), PICK.ch, c =>{
+        PICK.ch = c; writePick(); paintPicker();
+      },
+      PICK.book ? "That book is not installed on this device, so type the "
+                + "chapter and verse yourself." : "Choose a book first.");
+
+  const vs = (hit && hit.key && PICK.ch) ? pickVerses(hit.key, PICK.ch) : [];
+  box("pkVs", vs.map(v => ({ label:v, value:v })), null, v =>{
+        writePick(v);
+      },
+      PICK.ch ? "" : "Choose a chapter.");
+}
+
+/* What the picker has chosen so far, written straight into the field — so it
+   is always a reference you can also edit by hand. */
+function writePick(verse){
+  const f = PICK.field && document.getElementById(PICK.field);
+  if(!f || !PICK.book) return;
+  f.value = PICK.book + (PICK.ch ? " " + PICK.ch + (verse ? ":" + verse : "") : "");
+  refSheetSay("");
+}
+
+function refSheetSay(t){
+  const el = document.getElementById("refSheetState");
+  if(el) el.textContent = t || "";
+}
+
+/* Opening the picker on a field starts it wherever that field already points,
+   so reopening a reference lands you next to it rather than at Genesis. */
+function openPicker(fieldId){
+  PICK.field = fieldId;
+  const f = document.getElementById(fieldId);
+  const c = f && canonRef(f.value);
+  PICK.book = c ? c.name : null;
+  PICK.ch = c ? (c.nums.split(":")[0] || null) : null;
+  document.getElementById("refPick").classList.add("show");
+  document.querySelectorAll(".refpick").forEach(b =>
+    b.classList.toggle("on", b.dataset.for === fieldId));
+  paintPicker();
+}
+
+function closePicker(){
+  const el = document.getElementById("refPick");
+  if(el) el.classList.remove("show");
+  document.querySelectorAll(".refpick").forEach(b => b.classList.remove("on"));
+  PICK.field = null;
+}
+
 function openRefSheet(st){
   refTarget = st;
   const sheet = document.getElementById("refSheet");
   const inp = document.getElementById("refIn");
+  const inp2 = document.getElementById("refIn2");
   const chain = st.mode === "chain";
   document.getElementById("refSheetLbl").textContent = chain
     ? "Where does it point? Numbers alone mean this book — 5:21, or 1:12–2:4. " +
@@ -5841,12 +6046,39 @@ function openRefSheet(st){
     : "What is being quoted? Write the reference — Isaiah 49:8, Ps. 110:1.";
   inp.placeholder = chain ? "5:21  ·  Isaiah 49:8" : "Isaiah 49:8";
   inp.value = st.ref || "";
-  document.getElementById("refSheetState").textContent = "";
+  inp2.value = st.ref2 || "";
+  /* The second slot only appears once it is wanted — one reference is the
+     ordinary case and a second empty box every time is clutter. */
+  showSecondRef(!!st.ref2);
+  closePicker();
+  refSheetSay("");
   document.getElementById("refSheetDel").style.display = st.ref ? "" : "none";
   sheet.classList.add("show");
   inp.focus();
   if(inp.select) inp.select();
 }
+
+function showSecondRef(on){
+  const row = document.getElementById("refRow2");
+  const add = document.getElementById("refAdd");
+  if(row) row.style.display = on ? "" : "none";
+  if(add) add.classList.toggle("off", on);
+}
+
+(function wireRefSheet(){
+  document.querySelectorAll(".refpick").forEach(b=>{
+    b.onclick = ()=>{
+      if(PICK.field === b.dataset.for) closePicker();
+      else openPicker(b.dataset.for);
+    };
+  });
+  const add = document.getElementById("refAdd");
+  if(add) add.onclick = ()=>{
+    showSecondRef(true);
+    const f = document.getElementById("refIn2");
+    if(f) f.focus();
+  };
+})();
 
 /* What a chain points at, resolved inside the book being read. */
 function chainTarget(ref){
@@ -5867,6 +6099,7 @@ function chainTarget(ref){
 function closeRefSheet(action){
   const sheet = document.getElementById("refSheet");
   const inp = document.getElementById("refIn");
+  const inp2 = document.getElementById("refIn2");
   const st = refTarget;
   if(!st){ sheet.classList.remove("show"); return; }
 
@@ -5875,17 +6108,39 @@ function closeRefSheet(action){
     if(i >= 0) S.strokes.splice(i, 1);
   } else if(action === "ok"){
     const v = inp.value.trim();
-    if(!v){                                           // nothing written: drop a new tag
+    const v2 = (inp2 ? inp2.value : "").trim();
+    if(!v && !v2){                                    // nothing written: drop a new tag
       if(!st.ref){ const i = S.strokes.indexOf(st); if(i >= 0) S.strokes.splice(i, 1); }
+      st.ref = ""; st.ref2 = "";
     } else {
-      const good = st.mode === "chain" ? !!chainTarget(v) : !!canonRef(v);
-      if(!good){
-        document.getElementById("refSheetState").textContent = st.mode === "chain"
-          ? "That is not a place in a book you have loaded."
-          : "I do not recognise that reference. Try “Isaiah 49:8”.";
+      /* Both references are checked, and the sheet stays open naming whichever
+         one is wrong — saying only "that is not a reference" when there are two
+         of them is no help at all. */
+      const check = t =>
+        st.mode === "chain" ? !!chainTarget(t) : !!canonRef(t);
+      const bad = [v, v2].filter(t => t && !check(t));
+      if(bad.length){
+        refSheetSay((st.mode === "chain"
+          ? "“" + bad[0] + "” is not a place in a book you have loaded."
+          : "I do not recognise “" + bad[0] + "”. Try “Isaiah 49:8”.") +
+          " Use Choose… to pick one.");
         return;                                       // keep the sheet open
       }
-      st.ref = st.mode === "xref" ? canonRef(v).label : v;
+      /* Tidied to the canon's own name for the book — "Psalm 110:1" becomes
+         "Psalms 110:1", which is what Accordance is handed. It must not lean on
+         the check above having run: a reference it cannot read is kept as
+         written rather than throwing, so a mistake upstream costs a scruffy
+         label and not the whole page. */
+      const tidy = t =>{
+        if(!t) return "";
+        if(st.mode !== "xref") return t;
+        const c = canonRef(t);
+        return c ? c.label : t;
+      };
+      /* If only the second is filled in, it becomes the first — a link with a
+         hole in the middle of it is not a thing anyone means. */
+      st.ref  = tidy(v) || tidy(v2);
+      st.ref2 = (v && v2) ? tidy(v2) : "";
     }
   } else {                                            // cancelled
     if(!st.ref){ const i = S.strokes.indexOf(st); if(i >= 0) S.strokes.splice(i, 1); }
@@ -5943,10 +6198,47 @@ function tagAt(x, y){
   return null;
 }
 
+/* Following a tag that points at two places. Which one you meant is not
+   something to guess at, so it asks — using the menu the symbols already use,
+   rather than inventing a second kind of little list. */
 function followTag(st){
   if(st.mode === "note"){ openNoteSheet(st); return true; }
+  if(st.ref && st.ref2){
+    const pt = tagPoint(st);
+    chooseRef(st, pt.x, pt.y);
+    return true;
+  }
+  return followRef(st, st.ref);
+}
+
+function tagPoint(st){
+  const pts = strokePoints(st);
+  const p0 = pts[0] || { x:0, y:0 };
+  const r = hit.getBoundingClientRect ? hit.getBoundingClientRect() : { left:0, top:0 };
+  const z = S.zoom || 1;
+  return { x:(r.left || 0) + p0.x * z - (scroller.scrollLeft || 0),
+           y:(r.top || 0) + p0.y * z - (scroller.scrollTop || 0) };
+}
+
+function chooseRef(st, x, y){
+  if(!glyphMenu) return;
+  document.getElementById("gmName").textContent = "This points at two places";
+  [...glyphMenu.querySelectorAll("button")].forEach(b => b.remove());
+  [st.ref, st.ref2].filter(Boolean).forEach(r=>{
+    const b = document.createElement("button");
+    b.textContent = r;
+    b.onclick = ()=>{ closeGlyphMenu(); followRef(st, r); };
+    glyphMenu.appendChild(b);
+  });
+  glyphMenu.classList.add("show");
+  const box = glyphMenu.getBoundingClientRect();
+  glyphMenu.style.left = Math.max(6, Math.min(x, window.innerWidth  - box.width  - 6)) + "px";
+  glyphMenu.style.top  = Math.max(6, Math.min(y, window.innerHeight - box.height - 6)) + "px";
+}
+
+function followRef(st, ref){
   if(st.mode === "chain"){
-    const t = chainTarget(st.ref);
+    const t = chainTarget(ref);
     if(!t) return false;
     if(t.away){                       // not a book you have loaded
       const url = accordEnglish(t.ref);
@@ -5962,7 +6254,7 @@ function followTag(st){
     if(box) box.value = PASSAGES[t.key].title + " " + rangeLabel(t.range).replace("chapter ", "");
     return true;
   }
-  const url = accordEnglish(st.ref);
+  const url = accordEnglish(ref);
   if(!url) return false;
   window.location.href = url;          // hands over to Accordance
   return true;
@@ -7349,9 +7641,12 @@ function paintBoard(g){
   S.strokes.filter(s => TAGMODES.has(s.mode)).forEach(s => paintTag(g, s));
 }
 
+/* How wide the sheet needs to be. Deliberately NOT measured from the board:
+   the board is what this decides, so reading it back would let the page grow
+   and never shrink again once a translation had been deleted. */
 function boardWidth(){
   const col = (S._trBoxes || []).length ? transCol() + TRWIDE + 20 : 0;
-  return Math.max(board.offsetWidth || 0, WRAP + 60, col);
+  return Math.max(WRAP + 60, col);
 }
 
 /* Everything that belongs to a run of lines, in page coordinates: the words,
@@ -8362,6 +8657,7 @@ function docSnapshot(){
     strokes:S.strokes.map(s => ({
       id:s.sid || (s.sid = newSid()),
       m:s.mode, a:s.anchor, c:s.color, st:s.style, r:s.ref || undefined,
+      r2:s.ref2 || undefined,
       tx:s.text || undefined,
       nb:s.nib || undefined,
       gl:s.glyph || undefined,          // which symbol, for a mark on the paper
@@ -8401,6 +8697,7 @@ function applyDoc(d, p){
   S.strokes = ((d && d.strokes) || []).map(s => ({
     sid:s.id || newSid(),
     mode:s.m, anchor:(s.a == null ? null : s.a), color:s.c, style:s.st, ref:s.r || "",
+    ref2:s.r2 || "",
     text:s.tx || "",
     nib:s.nb || undefined,
     glyph:s.gl || undefined,
@@ -9544,7 +9841,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-09-21b";
+const BUILD = "2026-09-21c";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file
@@ -9847,6 +10144,17 @@ function tourSteps(){
        + "it is doing something to it — explaining, qualifying, giving the purpose "
        + "or the ground." },
 
+  { sel:"#board", ring:false,
+    title:"Saying it in your own English",
+    body:"Tap a <b>verse number</b> out in the left margin. The whole verse comes "
+       + "up above a field; say it in your own words and it appears in the margin "
+       + "on the right, level with that verse. <b>Enter</b> moves on to the next "
+       + "one, so you can work straight down the passage.<br><br>"
+       + "Read down the right-hand side and you have the passage as you would say "
+       + "it aloud — which is the reason for writing one. It goes into the sermon "
+       + "outline under each heading, and nothing about it moves a word of the "
+       + "Greek." },
+
   { sel:"#palette",
     title:"Colour",
     body:"Select a word — or drag a box over several — and tap a colour to highlight "
@@ -10055,7 +10363,17 @@ function demoActs(){
       }
       S.secSeq = S.sections.length;
     },
-    ()=>{                                        // 8: the big idea
+    ()=>{                                        // 8: the passage in your own words
+      /* Three verses said plainly. The point of the move is that the English
+         comes AFTER the diagram: by now the grammar has been settled, so there
+         is something to be plain about. */
+      S.trans["4:7"] = "But we hold this treasure in pots of baked clay, " +
+                       "so that the extraordinary power belongs to God and not to us";
+      S.trans["4:8"] = "pressed in on from every side, but not hemmed in; " +
+                       "at a loss, but not at a dead end";
+      S.trans["4:9"] = "hunted, but never abandoned; knocked down, but not destroyed";
+    },
+    ()=>{                                        // 9: the big idea
       S.summaries[viewKey()] =
         "God's powerful, life-giving ministry operates through the weakness and "
       + "death of his ministers.";
@@ -10069,7 +10387,7 @@ function demoActs(){
 function demoApply(n){
   if(S.key !== DEMO.key) return;
   S.hits = {}; S.marks = {}; S.notes = {}; S.lemHi = {};
-  S.sections = []; S.summaries = {}; S.strokes = []; S.conns = [];
+  S.sections = []; S.summaries = {}; S.strokes = []; S.conns = []; S.trans = {};
   S.lineStarts = defaultLineStarts(PASSAGES[DEMO.key]);
   rebuildLines();
   for(let i = 1; i <= n; i++) if(DEMO.acts[i]) DEMO.acts[i]();
@@ -10157,26 +10475,36 @@ function demoSteps(){
        + "longer describing the grammar, you are saying what each movement is "
        + "<i>for</i>." }),
 
-  Object.assign(at(8), { sel:"#sumBox",
+  Object.assign(at(8), { sel:"#board", ring:false,
+    title:"Now say it in your own English",
+    body:"Out in the right-hand margin, a verse at a time. Tap a verse number to "
+       + "write one; <b>Enter</b> moves on to the next.<br><br>"
+       + "It comes at this point on purpose. Having settled what the grammar is "
+       + "doing, you now have to commit to what it <i>says</i> — every ambiguity "
+       + "has to be decided before it can be written down plainly. Read the "
+       + "right-hand side down and you have the passage as you would say it "
+       + "aloud." }),
+
+  Object.assign(at(9), { sel:"#sumBox",
     title:"Say it in one sentence",
     body:"The big idea, in one sentence. It belongs to this passage rather than "
        + "to the whole book, so a different range gets its own box.<br><br>"
        + "When you export the diagram as a sermon outline, this is written at the "
        + "top of page 1." }),
 
-  Object.assign(at(8), { sel:"#setBtn",
+  Object.assign(at(9), { sel:"#setBtn",
     title:"And out it goes",
     body:"<b>⋯ → Sermon outline as a Word document</b> would now give you a "
        + "document with <b>Treasure in Jars of Clay</b> as heading 1, "
        + "<b>Constantly Battered yet Unbreakable</b> as 1.1, the verse ranges "
-       + "beside them, the diagram itself as a picture under each heading, and "
-       + "your notes as bullet points." }),
+       + "beside them, your own English and the diagram itself under each "
+       + "heading, and your notes as bullet points." }),
 
-  Object.assign(at(8), { ring:false,
+  Object.assign(at(9), { ring:false,
     title:"Your turn",
     body:"That is the whole method: break it up, mark the joints, find what is "
        + "asserted, follow the words that repeat, name the movements, say it in "
-       + "a sentence.<br><br>"
+       + "your own English, then say it in a sentence.<br><br>"
        + "This scratch copy is about to be thrown away and your own page put back "
        + "as you left it. You can watch this again from "
        + "<b>⋯ → Walk me through a passage</b>.",

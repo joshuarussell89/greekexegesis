@@ -202,7 +202,10 @@
     border-left:2px solid var(--rule2);cursor:text;}
   .tr:hover{background:rgba(138,90,43,.06);border-left-color:var(--accent);}
   /* the verse number is the way in, so it has to look like one */
-  .vn.can{pointer-events:auto;cursor:pointer;}
+  /* No pointer-events here: a verse number is found by verseAt() inside the
+     pointer handler, because #hit covers it. The cursor is still worth setting
+     so it looks like what it is. */
+  .vn.can{cursor:pointer;}
   .vn.has{opacity:1;text-decoration:underline;text-underline-offset:2px;}
   #page{position:relative;width:1120px;height:1750px;}
 
@@ -211,7 +214,13 @@
      below the last. They are not a second kind of text: pressing one widens the
      passage, and what arrives is laid out, numbered and diagrammable exactly
      like everything else on the page. */
-  .grow{position:absolute;display:none;border:0;background:none;padding:0;z-index:2;
+  /* Above #hit, which covers the whole board at z-index 10 and takes every
+     pointer event on it. At z-index 2 these sat underneath it and the taps
+     never arrived — the buttons were there, visible, and dead. The Big idea
+     box has always had to sit above the same overlay for the same reason.
+     The cost is that a stroke cannot be drawn through the strip, which is
+     fair: it is a control, in the margin, not part of the page. */
+  .grow{position:absolute;display:none;border:0;background:none;padding:0;z-index:12;
     border-top:1px dashed var(--rule2);border-bottom:1px dashed var(--rule2);}
   .grow.on{display:flex;justify-content:center;gap:4px;flex-wrap:wrap;}
   .growopt{font:inherit;font-size:11.5px;letter-spacing:.02em;color:var(--dim);
@@ -10173,7 +10182,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-10-01b";
+const BUILD = "2026-10-01c";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file

@@ -226,15 +226,16 @@ drawn on the page, and tapping it asks which one you meant.
 
 ## Reading the context
 
-A passage no longer sits on a page with nothing either side of it. In the
-margin above the first verse and below the last is a faint line naming the six
-verses on that side. Tap it — or just scroll to the edge of the page — and
-those verses are **brought into the passage**: laid out, numbered, indentable,
-markable, exactly like everything else, because they *are* everything else.
-Keep going and it widens as far as one page will carry, then says so rather
-than letting the ink layer collapse.
+A faint line sits in the margin above the first verse and below the last,
+offering **the rest of the chapter** or **the whole book**. Tap one and those
+verses are laid out around your passage. They are ordinary text — you can
+split, mark and translate them — but they are set back a little on the page,
+so it is always plain which words the sermon is actually on. **↩ back to…**
+returns to the passage alone. A book too big for one page is opened as far as
+it will go, evenly on both sides, and says so.
 
-Nothing you have already done is disturbed. Every mark, ring, symbol and arrow
-is attached to the word it belongs to, so when the lines move down to make room
-above, the work moves with them. The reference at the top updates to whatever
-is actually on the page.
+**This does not change what you are preaching on.** The passage is what you
+searched for, and only the reference box, the book and chapter menus, or
+following a link will change it. The big idea stays filed under it, the
+reference box keeps saying it, "remove my work on this passage" still means it,
+and the sermon outline exports it and not the context.

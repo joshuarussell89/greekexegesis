@@ -211,13 +211,14 @@
      below the last. They are not a second kind of text: pressing one widens the
      passage, and what arrives is laid out, numbered and diagrammable exactly
      like everything else on the page. */
-  .grow{position:absolute;display:none;font:inherit;font-size:11.5px;
-    letter-spacing:.02em;color:var(--dim);background:none;border:0;
-    border-top:1px dashed var(--rule2);border-bottom:1px dashed var(--rule2);
-    padding:5px 0;cursor:pointer;text-align:center;z-index:2;}
-  .grow.on{display:block;}
-  .grow:hover{color:var(--ink);background:rgba(138,90,43,.05);}
-  .grow:active{background:rgba(138,90,43,.11);}
+  .grow{position:absolute;display:none;border:0;background:none;padding:0;z-index:2;
+    border-top:1px dashed var(--rule2);border-bottom:1px dashed var(--rule2);}
+  .grow.on{display:flex;justify-content:center;gap:4px;flex-wrap:wrap;}
+  .growopt{font:inherit;font-size:11.5px;letter-spacing:.02em;color:var(--dim);
+    background:none;border:0;padding:5px 12px;cursor:pointer;border-radius:5px;
+    white-space:nowrap;}
+  .growopt:hover{color:var(--ink);background:rgba(138,90,43,.07);}
+  .growopt:active{background:rgba(138,90,43,.13);}
 
   #board{position:relative;width:1120px;height:1750px;transform-origin:0 0;background:var(--paper);
     border:1px solid var(--rule);border-radius:4px;
@@ -240,6 +241,11 @@
   .w{position:absolute;font-family:Cardo,Georgia,serif;font-size:27px;line-height:1.15;
     padding:2px 4px;border-radius:4px;white-space:nowrap;z-index:1;
     transition:box-shadow .12s;}
+  /* Verses brought in to read around the passage. Still fully workable — you
+     may want to mark them — but set back a little, so there is never any doubt
+     about which words the sermon is actually on. */
+  .w.ctx{opacity:.55;}
+  .vn.ctx{opacity:.4;}
   .w.sel{background:rgba(194,65,12,.12);outline:1.5px solid var(--sel);outline-offset:1px;}
   .w.lem{box-shadow:inset 0 -2px 0 rgba(0,0,0,.10);}
   /* A marked word carries its symbol as a child, so it moves with the word.
@@ -747,8 +753,8 @@
   <div id="scroll">
    <div id="page">
     <div id="board">
-      <button id="growUp" class="grow"></button>
-      <button id="growDn" class="grow"></button>
+      <div id="growUp" class="grow"></div>
+      <div id="growDn" class="grow"></div>
       <div id="pagesum"><span class="sumlbl">Big idea</span><input type="text" id="sumBox"
            spellcheck="true" autocapitalize="sentences" enterkeyhint="done"
            placeholder="in ten words or less, the idea that unifies the passage"></div>
@@ -1032,12 +1038,14 @@
     page gets wider. It goes into the sermon outline under each heading, above the
     diagram.</div></div>
   <div class="item"><div class="kbd">Context</div><div>A faint line sits in the margin above the
-    first verse and below the last, naming the six verses either side. Tap one — or simply
-    scroll to the edge of the page — and they are <em>brought into the passage</em>: laid out,
-    numbered, and diagrammable exactly like the rest, because they are the rest. Keep going and
-    the passage widens as far as a page will carry. Your work is not disturbed: every mark,
-    ring, symbol and arrow is attached to its word, so it moves down with it, and the reference
-    at the top follows what is actually on the page.</div></div>
+    first verse and below the last, offering <b>the rest of the chapter</b> or <b>the whole
+    book</b>. Tap one and those verses are laid out around your passage, to be read and marked
+    up like any others — they are set back a little on the page, so it is always plain which
+    words the sermon is on. <b>↩ back to…</b> returns to the passage alone.<br><br>
+    Doing this does <em>not</em> change what you are preaching on. The passage is what you
+    searched for, and only the reference box, the book and chapter menus, or following a link
+    change it. The big idea stays with it, and the sermon outline exports it and not the
+    context.</div></div>
   <div class="item"><div class="kbd">Size of the page</div><div>Nous opens at whatever fits
     between the two rails, so nothing is ever hidden behind them. From there, pinch with two
     fingers to make the page larger or smaller; panning carries on at the same time.
@@ -1880,7 +1888,7 @@ async function loadFiles(files){
   // land on the first newly added book
   const first = incoming.map(f=>registerBook(f)).filter(Boolean)[0];
   if(first){
-    S.key = first.key; S.chapter = "all";
+    S.key = first.key; setFocus("all");
     document.getElementById("passage").value = first.key;
   }
   refreshChapterMenu();
@@ -1984,7 +1992,7 @@ function buildPassage(key){
   const rb = document.getElementById("refBox");
   if(rb && document.activeElement !== rb && PASSAGES[key]){
     rb.value = PASSAGES[key].title +
-      (S.chapter && S.chapter !== "all" ? " " + rangeLabel(S.chapter).replace("chapter ","") : "");
+      (focusRange() !== "all" ? " " + rangeLabel(focusRange()).replace("chapter ","") : "");
   }
   if(capped){
     wc.textContent = "showing chapter " + S.chapter + " — " +
@@ -2089,7 +2097,8 @@ function layout(){
       const ref = m.text.indexOf(":") >= 0 ? m.text
                 : (line.verse || "").split(":")[0] + ":" + m.text;
       vn.className = "vn can" + (m.inline ? " inl" : "") +
-                     ((S.trans || {})[ref] ? " has" : "");
+                     ((S.trans || {})[ref] ? " has" : "") +
+                     (inFocus(ref) ? "" : " ctx");
       vn.title = ((S.trans || {})[ref] ? "Your English: " + (S.trans || {})[ref]
                                        : "Write this verse in your own English");
       vn.textContent = m.text;
@@ -2208,6 +2217,7 @@ function render(){
       + (S._selNow && S._selNow.has(w.uid) ? " sel" : "")
       + (lc ? " lem" : "")
       + (S.notes[w.uid] ? " hasnote" : "")
+      + (inFocus(w.verse) ? "" : " ctx")
 ;
     if(w._wcls !== cls){ w.el.className = cls; w._wcls = cls; }
 
@@ -3355,10 +3365,33 @@ const scroller = document.getElementById("scroll");
    Only ink drawn out in open paper, far from any word, is absolute — and that
    was already true of every other thing that re-lays the page.
    ============================================================ */
-const GROWSTEP = 6;              // verses brought in at a time
 const GROWROOM = 34;             // the strip of margin the upper control sits in
 
-/* Where the passage on screen sits within the book's list of verses. */
+/* ============================================================
+   THE PASSAGE, AND WHAT IS ON THE PAGE
+   These are two different things, and treating them as one was the mistake.
+
+   S.focus is the PASSAGE — what you searched for, what the sermon is about,
+   what the big idea belongs to and what the outline exports. It changes only
+   when you ask for a different passage: the reference box, the book or chapter
+   menu, or following a link.
+
+   S.chapter is what is LAID OUT — which may be wider, because you have asked
+   to see the rest of the chapter or the rest of the book around it. Reading
+   the context, and even marking it up, must not quietly redefine what you are
+   preaching on.
+   ============================================================ */
+function focusRange(){ return String(S.focus || S.chapter || "all"); }
+function inFocus(ref){ return inRange(ref, focusRange()); }
+
+/* Set the passage AND the page to the same thing: what the reader just asked
+   for. Everything that chooses a passage goes through here. */
+function setFocus(range){
+  S.focus = String(range || "all");
+  S.chapter = S.focus;
+}
+
+/* Where the range on the page sits within the book's list of verses. */
 function rangeExtent(){
   const p = PASSAGES[S.key];
   if(!p || !Array.isArray(p.verses)) return null;
@@ -3379,60 +3412,87 @@ function fullRef(label, p){
   return s.indexOf(":") >= 0 ? s : (p.ch || "1") + ":" + s;
 }
 
-/* How many words the passage would hold if it grew this way. The layout cap is
-   not arbitrary: past it the ink canvas exceeds what iOS Safari will allocate
-   and stops responding to touch altogether, which is far worse than a passage
-   that will not widen. */
-function growWould(ext, which){
-  const from = which === "up" ? Math.max(0, ext.first - GROWSTEP) : ext.first;
-  const to   = which === "up" ? ext.last : Math.min(ext.p.verses.length - 1, ext.last + GROWSTEP);
-  let n = 0;
-  for(let i = from; i <= to; i++) n += ext.p.verses[i][1].length;
-  return { from, to, words:n };
+/* The span of verses the passage itself covers, as indices into the book. */
+function focusSpan(){
+  const p = PASSAGES[S.key];
+  if(!p || !Array.isArray(p.verses)) return null;
+  const label = vn => (typeof vn === "number") ? p.ch + ":" + vn : String(vn);
+  let first = -1, last = -1;
+  p.verses.forEach(([vn], i)=>{
+    if(inFocus(label(vn))){ if(first < 0) first = i; last = i; }
+  });
+  return first < 0 ? null : { p, label, first, last };
 }
 
-function growPassage(which){
-  const ext = rangeExtent();
-  if(!ext) return;
-  if(which === "up" ? !ext.before : !ext.after) return;
+/* What "the rest of the chapter" and "the whole book" come to, as indices.
+   The book is capped: a Gospel is eighteen thousand words, and past the layout
+   cap the ink canvas exceeds what iOS Safari will allocate and stops answering
+   touch at all. So a book too big to show whole is widened as far as it goes,
+   evenly on both sides of the passage. */
+function growPlan(kind){
+  const f = focusSpan();
+  if(!f) return null;
+  const vs = f.p.verses;
+  const chOf = i => String(f.label(vs[i][0])).split(":")[0];
 
-  const plan = growWould(ext, which);
-  if(plan.words > MAX_LAYOUT_WORDS){
-    note("That is as wide as the page will go",
-         plan.words.toLocaleString() + " words is more than one page can carry");
-    return;
+  if(kind === "chapter"){
+    const a = chOf(f.first), b = chOf(f.last);
+    let from = f.first, to = f.last;
+    while(from > 0 && chOf(from - 1) === a) from--;
+    while(to < vs.length - 1 && chOf(to + 1) === b) to++;
+    return { from, to };
   }
 
-  /* Keep the reader where they are. The passage is about to move down the page
-     by however many lines arrive above it, so the thing to hold still is not a
-     scroll position but a WORD: note the one at the top of the window, and put
-     it back under the same part of the screen afterwards. */
+  let from = 0, to = vs.length - 1, n = 0;
+  for(let i = from; i <= to; i++) n += vs[i][1].length;
+  if(n <= MAX_LAYOUT_WORDS) return { from, to };
+
+  /* Too big whole: grow outwards from the passage until the page is full. */
+  from = f.first; to = f.last; n = 0;
+  for(let i = from; i <= to; i++) n += vs[i][1].length;
+  let grew = true;
+  while(grew){
+    grew = false;
+    if(from > 0 && n + vs[from - 1][1].length <= MAX_LAYOUT_WORDS){
+      from--; n += vs[from][1].length; grew = true;
+    }
+    if(to < vs.length - 1 && n + vs[to + 1][1].length <= MAX_LAYOUT_WORDS){
+      to++; n += vs[to][1].length; grew = true;
+    }
+  }
+  return { from, to, capped:true };
+}
+
+/* Show more of the book around the passage — or go back to the passage alone.
+   S.focus is deliberately untouched: this changes the page, not the sermon. */
+function growTo(kind){
+  const f = focusSpan();
+  if(!f) return;
+
+  let range;
+  if(kind === "back"){
+    range = focusRange();
+  } else {
+    const plan = growPlan(kind);
+    if(!plan) return;
+    range = fullRef(f.label(f.p.verses[plan.from][0]), f.p) + "-" +
+            fullRef(f.label(f.p.verses[plan.to][0]), f.p);
+    if(plan.capped)
+      note("As much of the book as a page will hold",
+           "the rest is still there — search for it when you want it");
+  }
+  if(range === String(S.chapter)) return;
+
+  /* Hold the reader still. Lines arrive above the passage, so what must not
+     move is not a scroll position but a WORD. */
   const keep = topmostVisibleWord();
-
-  const was = viewKey();
-  S.chapter = fullRef(ext.label(ext.p.verses[plan.from][0]), ext.p) + "-" +
-              fullRef(ext.label(ext.p.verses[plan.to][0]), ext.p);
-
-  /* The summary belongs to the passage, and the passage is keyed by its range —
-     so widening it would have left the Big idea behind under the old range and
-     shown an empty box, which reads as work lost. It is the same passage with
-     more of its letter round it, so the summary comes too. */
-  const idea = (S.summaries || {})[was];
-  if(idea && !(S.summaries || {})[viewKey()]){
-    S.summaries[viewKey()] = idea;
-    delete S.summaries[was];
-  }
-
+  S.chapter = range;
   const sel = document.getElementById("chapter");
   refreshChapterMenu();
   if(sel) sel.value = S.chapter;
   build(S.key);
   if(keep) holdWord(keep);
   saveNow();
-
-  const got = which === "up" ? ext.first - plan.from : plan.to - ext.last;
-  note(which === "up" ? "Brought in what comes before" : "Brought in what comes after",
-       got + " verse" + (got === 1 ? "" : "s") + " — " + rangeLabel(S.chapter));
 }
 
 /* The word nearest the top of the window, and how far down the window it sits.
@@ -3455,31 +3515,40 @@ function holdWord(keep){
   scroller.scrollTop = Math.max(0, w.ly * (S.zoom || 1) - keep.off);
 }
 
-/* The two controls, put in place each time the page is laid out. */
+/* Is the page showing more than the passage? */
+function wider(){ return String(S.chapter) !== focusRange(); }
+
+/* The two lines in the margin. Each offers what is actually left to show, by
+   name — the rest of the chapter, or the rest of the book — rather than "six
+   more verses", which told you nothing about where you were going. */
 function paintGrow(){
-  const ext = rangeExtent();
-  const say = (el, on, arrow, verses)=>{
-    el.classList.toggle("on", !!on);
-    if(on) el.textContent = arrow + "  " + verses;
-  };
   const upEl = document.getElementById("growUp"), dnEl = document.getElementById("growDn");
   if(!upEl || !dnEl) return;
-  if(!ext){ upEl.classList.remove("on"); dnEl.classList.remove("on"); return; }
+  const ext = rangeExtent(), f = focusSpan();
+  if(!ext || !f){ upEl.classList.remove("on"); dnEl.classList.remove("on"); return; }
 
-  const span = (a, b)=>{
-    const n = b - a + 1;
-    const one = ext.label(ext.p.verses[a][0]), two = ext.label(ext.p.verses[b][0]);
-    return (n === 1 ? one : one + "–" + two.split(":").pop()) +
-           "  (" + n + " verse" + (n === 1 ? "" : "s") + ")";
+  const chapterPlan = growPlan("chapter"), bookPlan = growPlan("book");
+  const moreChapter = chapterPlan &&
+    (chapterPlan.from < ext.first || chapterPlan.to > ext.last);
+  const moreBook = bookPlan && (bookPlan.from < ext.first || bookPlan.to > ext.last);
+
+  const fill = (el, arrow)=>{
+    el.innerHTML = "";
+    const add = (label, fn)=>{
+      const b = document.createElement("button");
+      b.className = "growopt";
+      b.textContent = label;
+      b.onclick = e =>{ e.stopPropagation(); fn(); };
+      el.appendChild(b);
+    };
+    if(moreChapter) add(arrow + " the rest of the chapter", ()=> growTo("chapter"));
+    if(moreBook)    add(arrow + " the whole book",          ()=> growTo("book"));
+    if(wider())     add("↩ back to " + rangeLabel(focusRange()).replace("chapter ", ""),
+                        ()=> growTo("back"));
+    el.classList.toggle("on", !!el.children.length);
   };
-  if(ext.before){
-    const from = Math.max(0, ext.first - GROWSTEP);
-    say(upEl, true, "↑", span(from, ext.first - 1));
-  } else upEl.classList.remove("on");
-  if(ext.after){
-    const to = Math.min(ext.p.verses.length - 1, ext.last + GROWSTEP);
-    say(dnEl, true, "↓", span(ext.last + 1, to));
-  } else dnEl.classList.remove("on");
+  fill(upEl, "↑");
+  fill(dnEl, "↓");
 
   /* Set from the same constants the lines are laid out with, so the rule runs
      exactly the width of the text — and mirrored for Hebrew, which has its
@@ -3489,29 +3558,26 @@ function paintGrow(){
     el.style.left  = x0 + "px";
     el.style.width = (x1 - x0) + "px";
   });
-  /* Centred in the gap between the Big idea box and the first line, rather
-     than at a guessed offset that sat on top of it. */
   upEl.style.top = (TOP + GROWROOM - 42) + "px";
   dnEl.style.top = ((S._contentBottom || TOP) + 22) + "px";
 }
 
 /* How much room the upper control needs. Nothing at all when there is nothing
-   above the passage, so an ordinary whole-book view is not pushed down by an
-   empty strip. */
+   above to bring in and nothing to go back to. */
 function growRoom(){
-  const ext = rangeExtent();
-  return (ext && ext.before) ? GROWROOM : 0;
+  const ext = rangeExtent(), f = focusSpan();
+  if(!ext || !f) return 0;
+  const ch = growPlan("chapter"), bk = growPlan("book");
+  const more = (ch && ch.from < ext.first) || (bk && bk.from < ext.first);
+  return (more || wider()) ? GROWROOM : 0;
 }
 
-/* Widening the passage is deliberate: the line in the margin has to be tapped.
-   It used to happen on its own whenever a scroll came near either edge, which
+/* Widening the page is deliberate: a line in the margin has to be tapped. It
+   used to happen on its own whenever a scroll came near either edge, which
    meant reaching the end of the page to read the last verse quietly fetched
-   six more — and the page you were looking at moved under you. Bringing in
-   context is a decision about what you are studying, not a side effect of
-   looking at it. */
+   six more — and the page you were looking at moved under you. */
 
-document.getElementById("growUp").onclick = ()=> growPassage("up");
-document.getElementById("growDn").onclick = ()=> growPassage("dn");
+
 
 const active = new Map();
 let panning = false, panRef = null, lastPointerAt = 0;
@@ -5424,7 +5490,7 @@ async function installNT(){
     });
     const books = refreshBookMenu();
     const total = books.reduce((n,p)=>n+p.words, 0);
-    S.key = firstBookKey(); S.chapter = "all";
+    S.key = firstBookKey(); setFocus("all");
     document.getElementById("passage").value = S.key;
     refreshChapterMenu();
     build(S.key); syncJoin();
@@ -5532,7 +5598,7 @@ async function installOT(){
 
     refreshBookMenu();
     if(!PASSAGES[S.key]) S.key = firstBookKey();
-    S.chapter = "all";
+    setFocus("all");
     document.getElementById("passage").value = S.key;
     refreshChapterMenu();
     build(S.key); syncJoin();
@@ -5785,7 +5851,7 @@ function doImport(){
 
   refreshBookMenu();
   S.key = key;
-  S.chapter = words > MAX_LAYOUT_WORDS && chapters.length ? chapters[0] : "all";
+  setFocus(words > MAX_LAYOUT_WORDS && chapters.length ? chapters[0] : "all");
   document.getElementById("passage").value = key;
   refreshChapterMenu();
   build(key); syncJoin();
@@ -5920,7 +5986,7 @@ function goToRef(input){
     return false;
   }
   saveNow();
-  S.key = r.key; S.chapter = r.range;
+  S.key = r.key; setFocus(r.range);
   document.getElementById("passage").value = r.key;
   refreshChapterMenu();
   build(S.key); syncJoin(); saveNow();
@@ -6278,7 +6344,7 @@ function followRef(st, ref){
       return !!url;
     }
     saveNow();
-    S.key = t.key; S.chapter = t.range;
+    S.key = t.key; setFocus(t.range);
     document.getElementById("passage").value = t.key;
     refreshChapterMenu();
     build(S.key); syncJoin(); saveNow();
@@ -6612,7 +6678,7 @@ document.getElementById("mgFile").onchange = e => handleFiles(e.target.files);
    passage keeps its own work. */
 document.getElementById("chapter").onchange = e =>{
   saveNow();
-  S.chapter = e.target.value;
+  setFocus(e.target.value);
   build(S.key); syncJoin(); saveNow();
   snapToPassage();
 };
@@ -7574,7 +7640,10 @@ function paintBoard(g, opts){
     g.font = heb ? '29px "SBL Hebrew", "Ezra SIL", "Noto Serif Hebrew", Cardo, serif'
                  : "27px Cardo, Georgia, serif";
     g.textBaseline = "top";
+    const own = inFocus(wd.verse);
+    if(!own) g.globalAlpha = .55;         // context reads as context here too
     g.fillText(wd.surface, x + 4, y + 3);
+    g.globalAlpha = 1;
     if(mk && mk.s){
       const gl = (typeof Path2D !== "undefined") ? anyGlyph(mk.s) : null;
       const glAny = anyGlyph(mk.s);
@@ -7797,8 +7866,8 @@ function exportPNG(){
   const { canvas: c } = renderBand(0, h, 2);
   const p = PASSAGES[S.key];
   const name = ((p && p.title) || "nous").replace(/\s+/g,"-").toLowerCase() +
-               (S.chapter && S.chapter !== "all"
-                  ? "-" + String(S.chapter).replace(/[:\s]/g,"-") : "") + ".png";
+               (focusRange() !== "all"
+                  ? "-" + focusRange().replace(/[:\s]/g,"-") : "") + ".png";
   c.toBlob(blob=>{
     saveFile(blob, name, "PNG image", "image/png", [".png"]);
   }, "image/png");
@@ -7876,7 +7945,10 @@ const xmlEsc = t => String(t == null ? "" : t)
 function buildOutline(){
   const secs = sectionsByLine();
   const buckets = [{ title:null, lines:[], words:[], sec:null }];
-  S.lines.forEach(line=>{
+  /* Only the passage. Context brought in to read around it is on the page but
+     is not what the sermon is about, and it must not turn up in the outline. */
+  const mine = S.lines.filter(l => l.ids.some(id => inFocus((S.words[id] || {}).verse)));
+  mine.forEach(line=>{
     // a heading and its first subheading may share a boundary; each opens its
     // own part, and the heading's part is then simply empty of text
     (secs[line.id] || []).forEach(sec=>{
@@ -8023,7 +8095,7 @@ function exportOutline(){
   const withEng = inc("outEng");
   const p = PASSAGES[S.key];
   const heading = (p ? p.title : "Passage") +
-    (S.chapter && S.chapter !== "all" ? " " + rangeLabel(S.chapter).replace("chapter ","") : "");
+    (focusRange() !== "all" ? " " + rangeLabel(focusRange()).replace("chapter ","") : "");
   const summary = summaryNow().trim();
   const outline = buildOutline();
 
@@ -8584,8 +8656,8 @@ document.getElementById("passage").onchange = e =>{
   saveNow();                       // bank the diagram we are leaving
   S.key = e.target.value;
   const np = PASSAGES[S.key];
-  S.chapter = (np && np.words > MAX_LAYOUT_WORDS && np.chapters && np.chapters.length)
-    ? np.chapters[0] : "all";
+  setFocus((np && np.words > MAX_LAYOUT_WORDS && np.chapters && np.chapters.length)
+    ? np.chapters[0] : "all");
   refreshChapterMenu();
   build(S.key); syncJoin(); saveNow();
   snapToPassage();
@@ -8693,7 +8765,7 @@ function docMinusRange(d, uids){
 function wipe(scope){
   const title = (PASSAGES[S.key] || {}).title || "this book";
   const what = scope === "passage"
-      ? "your work on " + title + " " + rangeLabel(S.chapter).replace("chapter ", "")
+      ? "your work on " + title + " " + rangeLabel(focusRange()).replace("chapter ", "")
     : scope === "book" ? "your work on the whole of " + title
     : "your work on every book";
   if(!confirm("Remove " + what + "?\n\nIt is kept for " + BINDAYS +
@@ -8718,7 +8790,11 @@ function wipe(scope){
     applyDoc(blankDoc(), PASSAGES[S.key]);
   } else {
     const live = currentDoc(S.key) || S.docs[S.key] || blankDoc();
-    const split = docMinusRange(live, S.words.map(w => w.uid));
+    /* The PASSAGE, not the page. With the rest of the chapter brought in to
+       read around it, "my work on this passage" must still mean the verses the
+       sermon is on — not everything that happens to be laid out. */
+    const split = docMinusRange(live,
+      S.words.filter(w => inFocus(w.verse)).map(w => w.uid));
     if(docWeight(split.gone)) taken[S.key] = split.gone;
     binPut(what, taken);
     S.docs[S.key] = split.left;
@@ -9000,7 +9076,8 @@ function restoreScroll(want){
 /* ---- settings ---- */
 function prefsSnapshot(){
   return {
-    key:S.key, chapter:S.chapter, ci:S.ci, ls:S.lineStyle, nib:S.nib, mk:S.markMode,
+    key:S.key, chapter:S.focus || S.chapter, view:S.chapter,
+    ci:S.ci, ls:S.lineStyle, nib:S.nib, mk:S.markMode,
     tool:S.tool,
     finger:S.fingerMode, sawPen:S.sawPen,
     mods:[document.getElementById("mText").value, document.getElementById("mLex").value,
@@ -9044,7 +9121,8 @@ function applyPrefs(p){
   if(fm) fm.value = S.fingerMode;
   document.querySelectorAll("[data-tool]").forEach(x =>
     x.classList.toggle("on", x.dataset.tool === S.tool));
-  if(PASSAGES[p.key]){ S.key = p.key; S.chapter = p.chapter || "all"; }
+  if(PASSAGES[p.key]){ S.key = p.key; setFocus(p.chapter || "all");
+                       if(p.view) S.chapter = p.view; }
 }
 
 /* ============================================================
@@ -9748,7 +9826,10 @@ function retrySoon(){
 /* A summary of what the passage says. It belongs to the passage rather than to
    the book, because a summary of 2:5-11 is not a summary of the whole letter —
    so narrowing the view gives you a fresh box for that passage. */
-function viewKey(){ return String(S.chapter || "all"); }
+/* The big idea belongs to the PASSAGE, not to whatever happens to be laid out
+   around it — so reading the rest of the chapter does not hand you an empty
+   box where your sentence was. */
+function viewKey(){ return focusRange(); }
 function summaryNow(){ return (S.summaries && S.summaries[viewKey()]) || ""; }
 
 function showSummary(){
@@ -9759,8 +9840,8 @@ function showSummary(){
   box.value = summaryNow();
   const p = PASSAGES[S.key];
   box.placeholder = p
-    ? "what " + p.title + (S.chapter && S.chapter !== "all"
-        ? " " + rangeLabel(S.chapter).replace("chapter ", "") : "") + " says"
+    ? "what " + p.title + (focusRange() !== "all"
+        ? " " + rangeLabel(focusRange()).replace("chapter ", "") : "") + " says"
     : "what this passage says";
 }
 
@@ -10084,7 +10165,7 @@ document.getElementById("forget").onclick = ()=>{
   document.getElementById("mgStatus").textContent = "Nothing loaded.";
 
   document.getElementById("saveState").textContent = "Saved work cleared.";
-  S.key = ""; S.chapter = "all";
+  S.key = ""; setFocus("all");
   document.getElementById("passage").value = "";
   refreshChapterMenu();
   build(""); syncJoin(); closePops();
@@ -10092,7 +10173,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-10-01a";
+const BUILD = "2026-10-01b";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file
@@ -10776,9 +10857,9 @@ function runWorkedExample(){
     return false;
   }
   DEMO.acts = demoActs();
-  DEMO.back = { key:S.key, chapter:S.chapter };
+  DEMO.back = { key:S.key, chapter:S.focus, view:S.chapter };
   if(S.key) S.docs[S.key] = currentDoc(S.key);      // file the real page away first
-  S.chapter = "all";
+  setFocus("all");
   build(DEMO.key);
   demoApply(0);
   zoomToFit(); showZoom();
@@ -10790,7 +10871,8 @@ function runWorkedExample(){
 function demoFinish(){
   const back = DEMO.back || { key:"", chapter:"all" };
   DEMO.back = null;
-  S.chapter = back.chapter || "all";
+  setFocus(back.chapter || "all");
+  if(back.view) S.chapter = back.view;
   build(back.key);                       // files the scratch copy away, then leaves it
   delete S.docs[DEMO.key];
   delete PASSAGES[DEMO.key];

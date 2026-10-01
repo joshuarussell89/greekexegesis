@@ -411,6 +411,12 @@
   .pklist button:hover{background:var(--chip);}
   .pklist button.on{background:var(--chip);color:var(--accent);font-weight:500;}
   .pknone{font-size:12px;color:var(--dim);padding:12px;line-height:1.5;}
+  .binrow{display:flex;gap:12px;align-items:center;justify-content:space-between;
+    padding:9px 0;border-bottom:1px solid var(--rule2);}
+  .binrow:last-child{border-bottom:0;}
+  .bintxt{font-size:11.5px;line-height:1.5;color:var(--muted);min-width:0;}
+  .binwhen{color:var(--dim);}
+  .binrow .rowbtn{width:auto;flex:0 0 auto;white-space:nowrap;}
   #askWhat{font:inherit;width:100%;font-size:17px;padding:14px;border-radius:9px;
     border:1px solid var(--rule);background:var(--paper);color:var(--ink);}
 
@@ -1055,6 +1061,14 @@
     there first and it will say what happened.</div></div>
   <div class="item"><div class="kbd">Undo</div><div>Goes back forty steps, including a page
     rewritten by a sync. It is emptied when you open a different book.</div></div>
+  <div class="item"><div class="kbd">Starting again</div><div>Under <b>⋯</b> there is one way
+    to clear your work, at three scopes: <b>this passage</b>, <b>this book</b>, or
+    <b>every book</b>. It takes the lines, ink, colours, symbols, arrows, section breaks, notes
+    and your own English — never the text itself.<br><br>
+    Nothing it removes is thrown away. A copy is kept for ten days under
+    <b>What I have removed…</b>, and <b>Bring it back</b> puts it where it was. A restore only
+    ever adds, so anything done since is kept. The bin syncs, so a slip on the iPad can be
+    undone on the Mac.</div></div>
   <hr>
   <h4>Where the text comes from</h4>
   <div class="item"><div class="kbd">Greek</div><div>SBLGNT, © 2010 Society of Biblical
@@ -1265,7 +1279,7 @@
   <button class="rowbtn" id="logBtn">What has been removed…</button>
   <div id="logWrap" style="display:none"><div id="logBody"></div></div>
   <button class="rowbtn" id="saveFile">Save a copy as a file…</button>
-  <button class="rowbtn danger" id="forget">Forget every book and every diagram…</button>
+  <button class="rowbtn danger" id="forget">Uninstall the Scriptures from this device…</button>
   <hr>
   <h4>Sync between devices</h4>
   <div class="foot" style="padding-top:0">Keeps your work the same on the iPad and the
@@ -1306,10 +1320,16 @@
     arrows, section breaks and marks. Printing uses the iPad's own share sheet, where
     "Save to Files" produces a PDF.</div>
   <hr>
-  <h4>Page</h4>
-  <button class="rowbtn danger" id="reset">Reset the line structure of this book…</button>
-  <button class="rowbtn danger" id="clear">Clear all ink and arrows in this book…</button>
-  <button class="rowbtn danger" id="clearSec">Remove all section breaks in this book…</button>
+  <h4>Starting again</h4>
+  <div class="foot" style="padding-top:0">Whatever you remove here is kept for ten days
+    and can be brought back. It is the lines, the ink, the colours, the symbols, the
+    arrows, the section breaks, the notes and your own English — everything except the
+    text itself.</div>
+  <button class="rowbtn danger" id="wipePassage">Remove my work on this passage…</button>
+  <button class="rowbtn danger" id="wipeBook">Remove my work on this book…</button>
+  <button class="rowbtn danger" id="wipeAll">Remove my work on every book…</button>
+  <button class="rowbtn" id="binBtn">What I have removed…</button>
+  <div id="binWrap" style="display:none"><div id="binBody"></div></div>
 </div>
 
 <script>
@@ -1353,7 +1373,7 @@ const LINESTYLE = {
 const S = {
   key:"", chapter:"all", docs:{}, undo:[], redo:[],
   lineStarts:{}, byUid:{},
-  hits:{}, marks:{}, notes:{}, summaries:{}, trans:{},
+  hits:{}, marks:{}, notes:{}, summaries:{}, trans:{}, bin:[],
   markMode:"emphasis", findQ:"", glyphs:[],
   glyphUse:{}, glyphHidden:{}, glyphGone:{}, glyphPin:[], arrangePins:false,
   words:[], lines:[], strokes:[], conns:[], sections:[],
@@ -3483,18 +3503,12 @@ function growRoom(){
   return (ext && ext.before) ? GROWROOM : 0;
 }
 
-/* Reaching the very top or the very bottom brings more in by itself, so a
-   passage can simply be scrolled outwards. */
-scroller.addEventListener("scroll", ()=>{
-  if(S._growBusy) return;
-  const near = 40;
-  const room = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight;
-  const which = scroller.scrollTop < near ? "up" : (room < near ? "dn" : null);
-  if(!which) return;
-  S._growBusy = true;
-  setTimeout(()=>{ S._growBusy = false; }, 350);   // one helping per flick
-  growPassage(which);
-}, { passive:true });
+/* Widening the passage is deliberate: the line in the margin has to be tapped.
+   It used to happen on its own whenever a scroll came near either edge, which
+   meant reaching the end of the page to read the last verse quietly fetched
+   six more — and the page you were looking at moved under you. Bringing in
+   context is a decision about what you are studying, not a side effect of
+   looking at it. */
 
 document.getElementById("growUp").onclick = ()=> growPassage("up");
 document.getElementById("growDn").onclick = ()=> growPassage("dn");
@@ -5879,6 +5893,23 @@ function rangeLabel(range){
   return m[1] + ":" + m[2] + "\u2013" + m[3] + ":" + m[4];
 }
 
+/* Put the start of the passage in view.
+   Opening a reference used to leave the scroll wherever it happened to be, so
+   asking for 2 Cor 4:7-12 could land you halfway down it — or, after a long
+   passage, on blank paper below the end of a short one. Whatever you have just
+   asked to see is what should be on the screen. */
+function snapToPassage(){
+  if(!scroller) return;
+  const first = S.lines[0];
+  const z = S.zoom || 1;
+  /* A little above the first line, so the big idea and the margin line above it
+     are both in view rather than cut off at the top of the window. */
+  const want = first ? Math.max(0, (first.y - TOP) * z) : 0;
+  scroller.scrollTop = want;
+  scroller.scrollLeft = 0;
+  S._scrollWant = null;            // and this is the position worth remembering
+}
+
 function goToRef(input){
   const r = lookupRef(input);
   const box = document.getElementById("refBox");
@@ -5893,6 +5924,7 @@ function goToRef(input){
   document.getElementById("passage").value = r.key;
   refreshChapterMenu();
   build(S.key); syncJoin(); saveNow();
+  snapToPassage();
   box.value = PASSAGES[r.key].title + " " + rangeLabel(r.range).replace("chapter ", "");
   return true;
 }
@@ -6250,6 +6282,7 @@ function followRef(st, ref){
     document.getElementById("passage").value = t.key;
     refreshChapterMenu();
     build(S.key); syncJoin(); saveNow();
+    snapToPassage();                 // following a link lands you at its start
     const box = document.getElementById("refBox");
     if(box) box.value = PASSAGES[t.key].title + " " + rangeLabel(t.range).replace("chapter ", "");
     return true;
@@ -6581,6 +6614,7 @@ document.getElementById("chapter").onchange = e =>{
   saveNow();
   S.chapter = e.target.value;
   build(S.key); syncJoin(); saveNow();
+  snapToPassage();
 };
 
 /* ============================================================
@@ -7388,7 +7422,8 @@ document.getElementById("concClose").onclick = ()=>{
 /* The page, drawn on a canvas exactly as it appears on screen. Kept separate
    from saving it, because the sermon outline needs to draw bands of the same
    page into the Word document. */
-function paintBoard(g){
+function paintBoard(g, opts){
+  opts = opts || {};
   // verse numbers, in the margin the lines start from
   g.save();
   g.font = "700 10px Inter, -apple-system, sans-serif";
@@ -7421,8 +7456,13 @@ function paintBoard(g){
     g.restore();
   }
 
-  // section rules and their titles
-  S.sections.forEach(sec=>{
+  /* Section rules and their titles.
+     Left out of a section's own picture in the sermon outline: there the
+     heading above the picture already says where the section begins and what
+     it is called, so the rule and its label are the same thing said twice —
+     and a dashed line across the top of an image reads as part of the diagram
+     rather than as the edge of it. */
+  if(!opts.bare) S.sections.forEach(sec=>{
     if(sec._y === undefined) return;
     const col = (COLORS[sec.ci] || COLORS[12]).hue;
     const sub = (sec.lvl || 1) === 2;
@@ -7675,7 +7715,9 @@ function bandOf(lines, sec){
       wide(px(w) + w.w);
     });
   });
-  if(sec && sec._y !== undefined) grow(sec._y - 16, sec._y + 10);
+  /* The rule above a section is no longer drawn into its picture, so no room is
+     made for it either — otherwise every image would open with a band of empty
+     paper where the rule used to be. */
   S.strokes.forEach(st=>{
     if(st.anchor == null || !seen.has(st.anchor)) return;
     const pts = strokePoints(st);
@@ -7695,7 +7737,7 @@ function bandOf(lines, sec){
 /* One band of the page as a PNG, at something close to print resolution.
    Every band in an export is cut to the same width, so the indents of a flow
    diagram still line up from one section to the next on the page. */
-function renderBand(top, bottom, want, width){
+function renderBand(top, bottom, want, width, opts){
   const w = Math.max(120, Math.round(width || boardWidth())), h = Math.max(1, bottom - top);
   let scale = want || 2;
   if(w * h * scale * scale > CANVAS_BUDGET) scale = Math.sqrt(CANVAS_BUDGET / (w * h));
@@ -7707,7 +7749,7 @@ function renderBand(top, bottom, want, width){
   const g = c.getContext("2d");
   g.setTransform(scale, 0, 0, scale, 0, -top * scale);
   g.fillStyle = "#fffefb"; g.fillRect(0, top, w, h);
-  paintBoard(g);
+  paintBoard(g, opts);
   return { canvas:c, w, h, scale };
 }
 
@@ -8026,7 +8068,7 @@ function exportOutline(){
 
     if(withPic && b.count && b.band && b.band.bottom > b.band.top){
       try{
-        const r = renderBand(b.band.top, b.band.bottom, 2, cutWidth);
+        const r = renderBand(b.band.top, b.band.bottom, 2, cutWidth, { bare:true });
         const rid = "rIdImg" + (media.length + 1);
         media.push({ rid, file:"image" + (media.length + 1) + ".png", bytes:pngBytes(r.canvas) });
         body += docxImage(rid, r.canvas.width, r.canvas.height,
@@ -8546,32 +8588,207 @@ document.getElementById("passage").onchange = e =>{
     ? np.chapters[0] : "all";
   refreshChapterMenu();
   build(S.key); syncJoin(); saveNow();
+  snapToPassage();
 };
-document.getElementById("reset").onclick = ()=>{
-  if(!confirm("Put every line of " + ((PASSAGES[S.key] || {}).title || "this book") +
-              " back to one per verse? Your ink, marks and sections are kept.")) return;
-  pushUndo();
-  note("Line structure reset", (PASSAGES[S.key] || {}).title || S.key);
-  const ink = S.strokes, cn = S.conns, sec = S.sections;
-  build(S.key); S.strokes = ink; S.conns = cn; S.sections = sec;
-  layout(); syncJoin(); closePops(); saveSoon();
-};
-document.getElementById("clear").onclick = ()=>{
-  const n = S.strokes.length + S.conns.length;
-  if(!n) return;
-  if(!confirm("Remove all " + n + " strokes and arrows from " +
-              ((PASSAGES[S.key] || {}).title || "this book") + "?")) return;
-  pushUndo();
-  note("Cleared all ink", n + " strokes and arrows");
-  S.strokes = []; S.conns = []; drawConns(); redraw(); closePops();
-  saveSoon();
-};
-document.getElementById("clearSec").onclick = ()=>{
-  if(!S.sections.length) return;
-  if(!confirm("Remove all " + S.sections.length + " section breaks and their titles?")) return;
-  pushUndo();
-  note("Section breaks removed", S.sections.length + " of them");
-  S.sections = []; layout(); closePops(); saveSoon();
+/* ============================================================
+   STARTING AGAIN — and getting it back
+   Four separate buttons used to sit in the settings panel, each quietly
+   destroying a different slice of the work and none of them recoverable:
+   reset the line structure, clear the ink, remove the section breaks, forget
+   everything. They were easy to hit by accident and impossible to undo once
+   the app had been closed.
+
+   There is one control now, at three scopes — this passage, this book, every
+   book — and nothing it removes is actually thrown away. A copy goes into a
+   bin that keeps ten days of them, stored beside the diagrams and synced like
+   anything else, so what was removed on the iPad can be brought back on the
+   Mac.
+   ============================================================ */
+const BINDAYS = 10;
+
+function binLoad(){ return Array.isArray(S.bin) ? S.bin : (S.bin = []); }
+
+/* Older than ten days, or the twentieth entry back: the bin is a safety net
+   for a slip, not an archive. */
+function binPrune(list){
+  const cut = Date.now() - BINDAYS * 864e5;
+  return list.filter(e => e && e.at > cut).slice(-20);
+}
+
+function binSave(){
+  S.bin = binPrune(binLoad());
+  kvSet("bin", S.bin);
+  syncSoon();
+}
+
+function binPut(label, docs){
+  if(!Object.keys(docs).length) return null;
+  const e = { id:newSid(), at:Date.now(), label, docs:JSON.parse(JSON.stringify(docs)) };
+  binLoad().push(e);
+  binSave();
+  return e;
+}
+
+function binWhen(at){
+  const d = Math.floor((Date.now() - at) / 864e5);
+  return d <= 0 ? "today" : d === 1 ? "yesterday" : d + " days ago";
+}
+
+/* How much work is in a document, in words a person would use. */
+function workCount(d){
+  const p = docParts(d || {});
+  const n = k => Object.keys(p[k] || {}).length;
+  const bits = [];
+  const add = (x, one, many)=>{ if(x) bits.push(x + " " + (x === 1 ? one : many)); };
+  add(n("strokes"), "stroke", "strokes");
+  add(n("marks") + n("hits"), "marked word", "marked words");
+  add(n("sections"), "section break", "section breaks");
+  add(n("conns"), "arrow", "arrows");
+  add(n("notes"), "note", "notes");
+  add(n("trans"), "verse translated", "verses translated");
+  return bits.join(", ") || "the line structure";
+}
+
+/* An empty document for a book: the text is untouched, everything laid on top
+   of it is gone. */
+function blankDoc(){
+  return { v:3, at:Date.now(), dev:deviceId(), lineStarts:{}, strokes:[], conns:[],
+           sections:[], summaries:{}, trans:{}, lem:{}, notes:{}, hits:{}, marks:{},
+           findQ:"" };
+}
+
+/* Only the parts of a document that belong to the verses on screen. Removing
+   the work on ONE passage must not touch the rest of the book. */
+function docMinusRange(d, uids){
+  const keep = {};
+  const out = JSON.parse(JSON.stringify(d || blankDoc()));
+  uids.forEach(u => keep[u] = 1);
+  const gone = {};
+  ["marks","hits","notes","lem","lineStarts","trans"].forEach(k=>{
+    out[k] = out[k] || {};
+    Object.keys(out[k]).forEach(id=>{
+      /* trans is keyed by verse, everything else by word; a verse key matches
+         when any of its words is on screen. */
+      const on = keep[id] || Object.keys(keep).some(u => u.split("#")[0] === id);
+      if(on){ gone[k] = gone[k] || {}; gone[k][id] = out[k][id]; delete out[k][id]; }
+    });
+  });
+  const inRangeAnchor = a => a == null ? false : !!keep[a];
+  gone.strokes = (out.strokes || []).filter(x => inRangeAnchor(x.a));
+  out.strokes  = (out.strokes || []).filter(x => !inRangeAnchor(x.a));
+  gone.conns   = (out.conns || []).filter(c => keep[c[0]] || keep[c[1]]);
+  out.conns    = (out.conns || []).filter(c => !(keep[c[0]] || keep[c[1]]));
+  gone.sections= (out.sections || []).filter(x => keep[x.w]);
+  out.sections = (out.sections || []).filter(x => !keep[x.w]);
+  out.summaries = Object.assign({}, out.summaries);
+  gone.summaries = {};
+  if(out.summaries[viewKey()] !== undefined){
+    gone.summaries[viewKey()] = out.summaries[viewKey()];
+    delete out.summaries[viewKey()];
+  }
+  out.at = Date.now();
+  return { left:out, gone:partsToDoc(docParts(gone), Date.now()) };
+}
+
+function wipe(scope){
+  const title = (PASSAGES[S.key] || {}).title || "this book";
+  const what = scope === "passage"
+      ? "your work on " + title + " " + rangeLabel(S.chapter).replace("chapter ", "")
+    : scope === "book" ? "your work on the whole of " + title
+    : "your work on every book";
+  if(!confirm("Remove " + what + "?\n\nIt is kept for " + BINDAYS +
+              " days — “What I have removed…” brings it back.")) return;
+
+  saveNow();
+  const taken = {};
+  if(scope === "all"){
+    Object.keys(S.docs).forEach(k =>{ if(docWeight(S.docs[k])) taken[k] = S.docs[k]; });
+    if(S.key && S._loadedBook === S.key){
+      const live = currentDoc(S.key);
+      if(docWeight(live)) taken[S.key] = live;
+    }
+    binPut(what, taken);
+    S.docs = {};
+    applyDoc(blankDoc(), PASSAGES[S.key]);
+  } else if(scope === "book"){
+    const live = currentDoc(S.key) || S.docs[S.key];
+    if(docWeight(live)) taken[S.key] = live;
+    binPut(what, taken);
+    delete S.docs[S.key];
+    applyDoc(blankDoc(), PASSAGES[S.key]);
+  } else {
+    const live = currentDoc(S.key) || S.docs[S.key] || blankDoc();
+    const split = docMinusRange(live, S.words.map(w => w.uid));
+    if(docWeight(split.gone)) taken[S.key] = split.gone;
+    binPut(what, taken);
+    S.docs[S.key] = split.left;
+    applyDoc(split.left, PASSAGES[S.key]);
+  }
+
+  S.undo = []; S.redo = [];          // there is a bin now; an undo stack would lie
+  rebuildLines(); layout(); syncJoin(); closePops(); saveNow();
+  note("Removed", what + " — kept for " + BINDAYS + " days");
+  paintBin();
+}
+
+/* Putting it back. Merged rather than written over, so anything done since is
+   kept: a restore can only ever add. */
+function binRestore(id){
+  const e = binLoad().find(x => x.id === id);
+  if(!e) return;
+  saveNow();
+  Object.keys(e.docs).forEach(k=>{
+    const now = (S._loadedBook === k ? currentDoc(k) : S.docs[k]) || blankDoc();
+    S.docs[k] = mergeDocs(null, now, e.docs[k]);
+  });
+  if(S.docs[S.key]) applyDoc(S.docs[S.key], PASSAGES[S.key]);
+  S.bin = binLoad().filter(x => x.id !== id);
+  binSave();
+  rebuildLines(); layout(); syncJoin(); saveNow();
+  note("Brought back", e.label);
+  paintBin();
+}
+
+function paintBin(){
+  const body = document.getElementById("binBody");
+  if(!body) return;
+  S.bin = binPrune(binLoad());
+  body.innerHTML = "";
+  if(!S.bin.length){
+    const d = document.createElement("div");
+    d.className = "foot";
+    d.style.paddingTop = "0";
+    d.textContent = "Nothing has been removed in the last " + BINDAYS + " days.";
+    body.appendChild(d);
+    return;
+  }
+  S.bin.slice().reverse().forEach(e=>{
+    const row = document.createElement("div");
+    row.className = "binrow";
+    const what = Object.keys(e.docs)
+      .map(k => ((PASSAGES[k] || {}).title || k) + " — " + workCount(e.docs[k]))
+      .join("; ");
+    const t = document.createElement("div");
+    t.className = "bintxt";
+    t.innerHTML = "<b>" + xmlEsc(e.label) + "</b><br>" + xmlEsc(what) +
+                  "<br><span class=\"binwhen\">removed " + binWhen(e.at) + "</span>";
+    const b = document.createElement("button");
+    b.className = "rowbtn";
+    b.textContent = "Bring it back";
+    b.onclick = ()=> binRestore(e.id);
+    row.appendChild(t); row.appendChild(b);
+    body.appendChild(row);
+  });
+}
+
+document.getElementById("wipePassage").onclick = ()=> wipe("passage");
+document.getElementById("wipeBook").onclick    = ()=> wipe("book");
+document.getElementById("wipeAll").onclick     = ()=> wipe("all");
+document.getElementById("binBtn").onclick = ()=>{
+  const w = document.getElementById("binWrap");
+  const showing = w.style.display === "none";
+  w.style.display = showing ? "" : "none";
+  if(showing) paintBin();
 };
 
 window.addEventListener("resize", resizeCanvas);
@@ -9376,6 +9593,8 @@ async function syncAll(opts){
     }
     try{ await syncGlyphs(); }
     catch(e){ note("Symbols did not sync", e.message || String(e)); }
+    try{ await syncBin(); }
+    catch(e){ note("The bin did not sync", e.message || String(e)); }
 
     /* Record where we got to only once the local copy is safely written. The
        other order lets a sudden close leave a note saying work was synced that
@@ -9413,6 +9632,34 @@ async function syncAll(opts){
   }finally{
     SYNC.busy = false;
   }
+}
+
+/* What has been removed travels too, so work thrown away on the iPad can be
+   brought back on the Mac. Merged by union and keyed by the entry's own id:
+   the bin is a safety net, and an entry arriving twice is harmless where an
+   entry going missing is not. Entries older than ten days fall out of both
+   copies on their own. */
+async function syncBin(){
+  const { doc: theirs, sha } = await ghRead("bin");
+  const mine = binPrune(binLoad());
+  const byId = {};
+  ((theirs && theirs.list) || []).concat(mine).forEach(e=>{
+    if(e && e.id && e.at) byId[e.id] = e;
+  });
+  const list = binPrune(Object.keys(byId).map(k => byId[k]).sort((a, b) => a.at - b.at));
+
+  const gained = list.length - mine.length;
+  if(JSON.stringify(list.map(e => e.id)) !== JSON.stringify(mine.map(e => e.id))){
+    S.bin = list;
+    kvSet("bin", S.bin);
+    paintBin();
+    if(gained > 0)
+      note("Sync brought in " + gained + " thing" + (gained === 1 ? "" : "s") +
+           " you removed", "on your other device — still recoverable");
+  }
+  const was = JSON.stringify(((theirs && theirs.list) || []).map(e => e.id).sort());
+  const now = JSON.stringify(list.map(e => e.id).sort());
+  if(was !== now) await ghWrite("bin", { v:1, at:Date.now(), list }, sha);
 }
 
 /* Symbols you have drawn belong to no particular book, so they travel in a
@@ -9634,16 +9881,20 @@ function wireSync(){
 async function loadSaved(){
   // read first: the guard flag must not span an await, or every save made
   // while storage is still answering would be silently dropped
-  let corpus, docs, prefs, glyphs;
+  let corpus, docs, prefs, glyphs, bin;
   try{
-    [corpus, docs, prefs, glyphs] = await Promise.all([
-      kvGet("corpus"), kvGet("docs"), kvGet("prefs"), kvGet("glyphs")
+    /* The bin is read here with the rest, not awaited separately afterwards:
+       one round trip rather than two, and one place that handles a storage
+       that will not answer. */
+    [corpus, docs, prefs, glyphs, bin] = await Promise.all([
+      kvGet("corpus"), kvGet("docs"), kvGet("prefs"), kvGet("glyphs"), kvGet("bin")
     ]);
   }catch(err){ return false; }
 
   /* Symbols you have drawn yourself were being written to storage and never
      read back, so every one of them was gone at the next open — along with
      the look of every mark made with it. */
+  if(Array.isArray(bin)) S.bin = binPrune(bin);
   if(glyphs && Array.isArray(glyphs.list)){
     S.glyphs = glyphs.list.filter(g => g && g.id && g.id !== "__preview");
     S.glyphSeq = glyphs.seq || S.glyphSeq || S.glyphs.length;
@@ -9841,7 +10092,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-09-21c";
+const BUILD = "2026-10-01a";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file

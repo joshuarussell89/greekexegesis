@@ -68,6 +68,23 @@ work. If you go this way, use **⋯ → Save a copy as a file…** often.
 
 ---
 
+## Starting again on something
+
+Under **⋯** there is one way to clear your work, at three scopes: **this
+passage**, **this book**, or **every book**. It removes the lines, ink,
+colours, symbols, arrows, section breaks, notes and your own English — never
+the text itself.
+
+Nothing it removes is actually thrown away. A copy goes into a bin that keeps
+ten days of them: **What I have removed…** lists them with what each one held,
+and **Bring it back** puts it where it was. A restore only ever adds, so
+anything you have done since is kept. The bin syncs like everything else, so a
+slip on the iPad can be undone on the Mac.
+
+This replaced four separate buttons — reset the line structure, clear the ink,
+remove the section breaks, forget everything — each of which destroyed a
+different slice of the work with no way back.
+
 ## Keeping your work safe
 
 The app stores everything on the device in IndexedDB. That is durable for an
@@ -180,21 +197,32 @@ were drawn for Nous.
 
 ## Writing your own English
 
-The **A/文** button in the header opens a line of your own English under every
-line of Greek, at that line's own indent. Tap a line's English to write it: the
-whole line's Greek sits above the field, and **Enter** takes you to the next
-line, so you can work straight down the passage. Dictation and Scribble both
-work, as they do in a note.
+Tap a **verse number** in the margin. The whole verse is laid out above a
+field; say it in your own words and it appears out to the right of the page,
+level with that verse. **Enter** takes you to the next verse, so you can work
+straight down the passage. Dictation and Scribble both work, as they do in a
+note.
 
-It is one line of English per line of the diagram, not per verse, and that is
-the point. The lines are the propositions *you* decided on when you broke the
-passage up — so your translation comes out carrying the shape of the argument
-rather than flattening it again. Split a line later and its English stays with
-the half it belongs to.
+Read down the right-hand side and you have the passage in your own English —
+which is the point of writing one. A verse number you have translated is
+underlined; tapping your English opens it again to reword.
 
-It is off by default; the page is for the Greek. And it goes into the sermon
-outline under each heading, above the diagram — which is what makes it worth
-the trouble: the outline you preach from becomes a text you actually wrote.
+It disturbs nothing. Not a word of the Greek moves to make room: the text wraps
+where it always did and only the page gets wider. It goes into the sermon
+outline under each heading, above the diagram — the English is the passage, the
+diagram is the working.
+
+## Links and cross-references
+
+Both open a sheet with a field big enough to write in with a Pencil, and a
+**Choose…** button beside it: three scrollable columns — book, chapter, verse.
+What the picker offers comes out of the books actually installed on this
+device, so it can never offer you Philippians 5. A book you have not installed
+is still in the list; you just type the numbers yourself. Whatever you pick is
+written into the field, and you can edit it by hand afterwards.
+
+**＋ a second reference** lets one link or box point at two places. Both are
+drawn on the page, and tapping it asks which one you meant.
 
 ## Reading the context
 

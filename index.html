@@ -201,6 +201,17 @@
     line-height:1.45;color:#5f584c;z-index:1;padding:2px 6px;border-radius:5px;
     border-left:2px solid var(--rule2);cursor:text;}
   .tr:hover{background:rgba(138,90,43,.06);border-left-color:var(--accent);}
+  /* The reference written on a link or a cross-reference square. Type, not
+     ink: see paintTagLabels. No pointer-events — like everything else on the
+     board it is reached by hit-testing under #hit, which covers it. */
+  .tagref{position:absolute;display:flex;gap:6px;align-items:flex-start;
+    font-family:Inter,-apple-system,sans-serif;font-weight:600;font-size:11.5px;
+    line-height:15px;white-space:nowrap;z-index:4;pointer-events:none;}
+  .tagref span{background:#fffefb;border:1px solid currentColor;border-radius:2px;
+    padding:0 5px;}
+  .tagref.chain{flex-direction:column;align-items:center;gap:1px;
+    font-size:13px;line-height:16px;transform:translateX(-50%);}
+  .tagref.chain span{background:none;border:0;padding:0;}
   /* the verse number is the way in, so it has to look like one */
   /* No pointer-events here: a verse number is found by verseAt() inside the
      pointer handler, because #hit covers it. The cursor is still worth setting
@@ -2146,8 +2157,16 @@ function layout(){
     board.style.width = wantW + "px";
     applyZoom();
   }
+  /* Set, not merely grown. This used to only ever get taller, so reading the
+     whole book once left the sheet eight thousand pixels long forever after —
+     and the ink canvas, whose resolution is the pixel budget divided by the
+     area of the sheet, stayed at the blurry setting that forced even when you
+     had gone back to nine verses. */
   const need = Math.max(y, S._trBottom || 0) + 120;
-  if(need > board.offsetHeight){ board.style.height = need + "px"; applyZoom(); }
+  if(parseFloat(board.style.height) !== need){
+    board.style.height = need + "px";
+    applyZoom();
+  }
 }
 
 /* ---- your own English, in the margin ----
@@ -2593,8 +2612,19 @@ function paintNote(g, st){
   g.restore();
 }
 
-/* A tag, drawn the same way on the page and in an exported picture. */
-function paintTag(g, st){
+/* A tag. The shape of it — the rings of a link, the square of a cross
+   reference — is ink, and is drawn here on the canvas. The REFERENCE written on
+   it is not ink: it is small type, and small type drawn into a canvas is frozen
+   at whatever resolution the canvas happens to have. The sheet is large enough
+   that the ink layer runs below one device pixel per page pixel, and zooming in
+   magnifies that, so "Isaiah 52:11" at eleven and a half points came out as a
+   grey smudge. On the page the labels are real text instead (paintTagLabels),
+   which the browser redraws sharp at any zoom, exactly as it does the Greek.
+
+   An exported picture has no zoom to worry about and is rendered at its own
+   scale, so there `labels` stays on and this draws them as before. */
+function paintTag(g, st, opts){
+  const labels = !opts || opts.labels !== false;
   if(st.mode === "note") return paintNote(g, st);
   const pts = strokePoints(st);
   if(!pts.length) return;
@@ -2608,7 +2638,7 @@ function paintTag(g, st){
     /* One reference under the rings, or two stacked — a link can point at two
        places, and a quotation that turns up twice is the commonest reason to
        want one. */
-    const refs = [st.ref, st.ref2].filter(Boolean);
+    const refs = labels ? [st.ref, st.ref2].filter(Boolean) : [];
     if(refs.length){
       g.font = "600 13px Inter, -apple-system, sans-serif";
       g.textBaseline = "top";
@@ -2624,7 +2654,7 @@ function paintTag(g, st){
     const w = Math.abs(b.x - a.x), h = Math.abs(b.y - a.y);
     g.lineWidth = 2.2;
     g.beginPath(); g.rect(x, y, w, h); g.stroke();
-    const refs = [st.ref, st.ref2].filter(Boolean);
+    const refs = labels ? [st.ref, st.ref2].filter(Boolean) : [];
     if(refs.length){
       g.font = "600 11.5px Inter, -apple-system, sans-serif";
       g.textBaseline = "top";
@@ -2644,6 +2674,67 @@ function paintTag(g, st){
     }
   }
   g.restore();
+}
+
+/* The same labels, on the page, as type. One element per reference, laid out
+   by the browser rather than measured here, so a long book name is never cut
+   off by an estimate of how wide it would be. They live on the board, which is
+   what the zoom scales, so they stay sharp however far you zoom in.
+
+   S._tagBoxes is the record of where they ended up, which is what a tap is
+   tested against — the box the reader can actually see, rather than a guess at
+   six-point-two pixels a character. */
+function paintTagLabels(){
+  /* redraw() runs on every pointermove while a line is being drawn, and
+     rebuilding these elements each time would make inking stutter for nothing.
+     They are only rebuilt when something about them has actually changed. */
+  const want = S.strokes.filter(s => TAGMODES.has(s.mode) && s.mode !== "note" &&
+                                     (s.ref || s.ref2))
+    .map(s =>{ const p = strokePoints(s)[0];
+      return p ? [s.sid, s.ref, s.ref2, s.color, Math.round(p.x), Math.round(p.y)].join("|") : ""; })
+    .join("~");
+  if(want === S._tagSig && board.querySelectorAll(".tagref").length) return;
+  S._tagSig = want;
+
+  board.querySelectorAll(".tagref").forEach(n => n.remove());
+  S._tagBoxes = [];
+  S.strokes.forEach(st=>{
+    if(!TAGMODES.has(st.mode) || st.mode === "note") return;
+    const refs = [st.ref, st.ref2].filter(Boolean);
+    if(!refs.length) return;
+    const pts = strokePoints(st);
+    if(!pts.length) return;
+    const col = st.color || "#8a5a2b";
+
+    const box = document.createElement("div");
+    box.className = "tagref" + (st.mode === "chain" ? " chain" : "");
+    box.style.color = col;
+    refs.forEach(r=>{
+      const chip = document.createElement("span");
+      chip.textContent = r;
+      if(st.mode !== "chain") chip.style.borderColor = col;
+      box.appendChild(chip);
+    });
+
+    if(st.mode === "chain"){
+      box.style.left = pts[0].x + "px";
+      box.style.top  = (pts[0].y + 19) + "px";
+    } else {
+      const a = pts[0], b = pts[1] || pts[0];
+      box.style.left = Math.min(a.x, b.x) + "px";
+      box.style.top  = (Math.min(a.y, b.y) - 17) + "px";
+    }
+    board.appendChild(box);
+
+    /* Measured once it is on the page; estimated when there is no browser to
+       measure with, which is how this stays testable. */
+    const w = box.offsetWidth  || refs.reduce((n,r)=> n + r.length * 6.2 + 17, 0);
+    const h = box.offsetHeight || (st.mode === "chain" ? refs.length * 16 : 17);
+    const left = parseFloat(box.style.left), top = parseFloat(box.style.top);
+    S._tagBoxes.push({ sid:st.sid, h,
+                       x: st.mode === "chain" ? left - w / 2 : left,
+                       y: top, w });
+  });
 }
 
 
@@ -3031,8 +3122,17 @@ function paintSymObject(g, st, pts){
 }
 
 function redraw(){
-  ctx.setTransform(S.dpr,0,0,S.dpr,0,0);
+  /* Cleared in DEVICE pixels, with no transform on, and only then scaled for
+     drawing. It used to clear cv.width by cv.height with the dpr scale already
+     applied, which measures those out in page units — so the rectangle wiped
+     was dpr times too big. Harmless while dpr was above 1, and quietly
+     catastrophic below it: on a tall page the budget drops dpr under 1, only
+     the left-hand fraction of the canvas was ever cleared, and everything
+     drawn on the right stayed. Dragging a box across it left the box behind at
+     every position it had passed through. */
+  ctx.setTransform(1,0,0,1,0,0);
   ctx.clearRect(0,0,cv.width,cv.height);
+  ctx.setTransform(S.dpr,0,0,S.dpr,0,0);
   ctx.lineCap = "round"; ctx.lineJoin = "round";
 
   // highlighter first so it sits underneath everything else
@@ -3098,7 +3198,8 @@ function redraw(){
       ctx.globalAlpha = 1;
     });
   }
-  S.strokes.filter(s => TAGMODES.has(s.mode)).forEach(s => paintTag(ctx, s));
+  S.strokes.filter(s => TAGMODES.has(s.mode)).forEach(s => paintTag(ctx, s, { labels:false }));
+  paintTagLabels();           // the references themselves, as type on the page
   paintHandles(ctx);          // on the page only; never in an exported picture
 }
 
@@ -3438,34 +3539,46 @@ function focusSpan(){
    cap the ink canvas exceeds what iOS Safari will allocate and stops answering
    touch at all. So a book too big to show whole is widened as far as it goes,
    evenly on both sides of the passage. */
-function growPlan(kind){
+/* `dir` is which way the reader asked to look: "up" brings in what comes
+   BEFORE and leaves everything after exactly as it was, "down" the reverse.
+   Tapping the arrow above the passage used to return the whole chapter in both
+   directions, which is not what an arrow pointing up says it will do.
+
+   With a direction, the growth starts from what is on the page NOW rather than
+   from the passage, so having read back you can then read on and keep both.
+   Omit it and both sides grow together, which is what the window does when it
+   is opening a range without being asked which way. */
+function growPlan(kind, dir){
   const f = focusSpan();
   if(!f) return null;
   const vs = f.p.verses;
   const chOf = i => String(f.label(vs[i][0])).split(":")[0];
+  const ext = (dir === "up" || dir === "down") ? rangeExtent() : null;
+  const base = ext ? { first:Math.min(ext.first, f.first), last:Math.max(ext.last, f.last) }
+                   : { first:f.first, last:f.last };
+  const back = dir !== "down", fwd = dir !== "up";
+  const words = (a, b)=>{ let n = 0; for(let i = a; i <= b; i++) n += vs[i][1].length; return n; };
 
   if(kind === "chapter"){
-    const a = chOf(f.first), b = chOf(f.last);
-    let from = f.first, to = f.last;
-    while(from > 0 && chOf(from - 1) === a) from--;
-    while(to < vs.length - 1 && chOf(to + 1) === b) to++;
+    let from = base.first, to = base.last;
+    if(back){ const a = chOf(from); while(from > 0 && chOf(from - 1) === a) from--; }
+    if(fwd) { const b = chOf(to);   while(to < vs.length - 1 && chOf(to + 1) === b) to++; }
     return { from, to };
   }
 
-  let from = 0, to = vs.length - 1, n = 0;
-  for(let i = from; i <= to; i++) n += vs[i][1].length;
-  if(n <= MAX_LAYOUT_WORDS) return { from, to };
+  let from = back ? 0 : base.first, to = fwd ? vs.length - 1 : base.last;
+  if(words(from, to) <= MAX_LAYOUT_WORDS) return { from, to };
 
-  /* Too big whole: grow outwards from the passage until the page is full. */
-  from = f.first; to = f.last; n = 0;
-  for(let i = from; i <= to; i++) n += vs[i][1].length;
-  let grew = true;
+  /* Too big whole: grow from what is already there until the page is full,
+     and only in the direction asked for. */
+  from = base.first; to = base.last;
+  let n = words(from, to), grew = true;
   while(grew){
     grew = false;
-    if(from > 0 && n + vs[from - 1][1].length <= MAX_LAYOUT_WORDS){
+    if(back && from > 0 && n + vs[from - 1][1].length <= MAX_LAYOUT_WORDS){
       from--; n += vs[from][1].length; grew = true;
     }
-    if(to < vs.length - 1 && n + vs[to + 1][1].length <= MAX_LAYOUT_WORDS){
+    if(fwd && to < vs.length - 1 && n + vs[to + 1][1].length <= MAX_LAYOUT_WORDS){
       to++; n += vs[to][1].length; grew = true;
     }
   }
@@ -3474,7 +3587,7 @@ function growPlan(kind){
 
 /* Show more of the book around the passage — or go back to the passage alone.
    S.focus is deliberately untouched: this changes the page, not the sermon. */
-function growTo(kind){
+function growTo(kind, dir){
   const f = focusSpan();
   if(!f) return;
 
@@ -3482,7 +3595,7 @@ function growTo(kind){
   if(kind === "back"){
     range = focusRange();
   } else {
-    const plan = growPlan(kind);
+    const plan = growPlan(kind, dir);
     if(!plan) return;
     range = fullRef(f.label(f.p.verses[plan.from][0]), f.p) + "-" +
             fullRef(f.label(f.p.verses[plan.to][0]), f.p);
@@ -3536,12 +3649,12 @@ function paintGrow(){
   const ext = rangeExtent(), f = focusSpan();
   if(!ext || !f){ upEl.classList.remove("on"); dnEl.classList.remove("on"); return; }
 
-  const chapterPlan = growPlan("chapter"), bookPlan = growPlan("book");
-  const moreChapter = chapterPlan &&
-    (chapterPlan.from < ext.first || chapterPlan.to > ext.last);
-  const moreBook = bookPlan && (bookPlan.from < ext.first || bookPlan.to > ext.last);
-
-  const fill = (el, arrow)=>{
+  /* Each line offers only what lies on its own side. An arrow pointing up that
+     also brought in the verses below it was a small lie about what tapping it
+     would do, and it took the page you were reading away from you. */
+  const more = (plan, dir)=> !!plan && (dir === "up" ? plan.from < ext.first
+                                                     : plan.to   > ext.last);
+  const fill = (el, arrow, dir)=>{
     el.innerHTML = "";
     const add = (label, fn)=>{
       const b = document.createElement("button");
@@ -3550,14 +3663,21 @@ function paintGrow(){
       b.onclick = e =>{ e.stopPropagation(); fn(); };
       el.appendChild(b);
     };
-    if(moreChapter) add(arrow + " the rest of the chapter", ()=> growTo("chapter"));
-    if(moreBook)    add(arrow + " the whole book",          ()=> growTo("book"));
+    const ch = growPlan("chapter", dir), bk = growPlan("book", dir);
+    if(more(ch, dir))
+      add(arrow + " the rest of the chapter", ()=> growTo("chapter", dir));
+    /* Only when it would actually take you further. Reading up from the first
+       chapter of a book, "the whole book" and "the rest of the chapter" land in
+       exactly the same place, and two options that do the same thing are worse
+       than one. */
+    if(more(bk, dir) && !(ch && bk.from === ch.from && bk.to === ch.to))
+      add(arrow + " the whole book", ()=> growTo("book", dir));
     if(wider())     add("↩ back to " + rangeLabel(focusRange()).replace("chapter ", ""),
                         ()=> growTo("back"));
     el.classList.toggle("on", !!el.children.length);
   };
-  fill(upEl, "↑");
-  fill(dnEl, "↓");
+  fill(upEl, "↑", "up");
+  fill(dnEl, "↓", "down");
 
   /* Set from the same constants the lines are laid out with, so the rule runs
      exactly the width of the text — and mirrored for Hebrew, which has its
@@ -3576,7 +3696,7 @@ function paintGrow(){
 function growRoom(){
   const ext = rangeExtent(), f = focusSpan();
   if(!ext || !f) return 0;
-  const ch = growPlan("chapter"), bk = growPlan("book");
+  const ch = growPlan("chapter", "up"), bk = growPlan("book", "up");
   const more = (ch && ch.from < ext.first) || (bk && bk.from < ext.first);
   return (more || wider()) ? GROWROOM : 0;
 }
@@ -6298,8 +6418,17 @@ function tagAt(x, y){
     } else if(st.mode === "note"){
       if(x >= bx.x && x <= bx.x + bx.w && y >= bx.y && y <= bx.y + bx.h) return st;
     } else {
-      const chipW = 9 + st.ref.length * 6.2, chipH = 17;
-      if(x >= bx.x && x <= bx.x + chipW && y >= bx.y - chipH && y <= bx.y + 3) return st;
+      /* The chips as they were actually laid out, so the whole of a long
+         reference can be tapped rather than the first few characters of an
+         estimate of it. */
+      const lb = (S._tagBoxes || []).find(b => b.sid === st.sid);
+      if(lb){
+        if(x >= lb.x - 3 && x <= lb.x + lb.w + 3 &&
+           y >= lb.y - 3 && y <= lb.y + lb.h + 3) return st;
+      } else {
+        const chipW = 9 + st.ref.length * 6.2, chipH = 17;
+        if(x >= bx.x && x <= bx.x + chipW && y >= bx.y - chipH && y <= bx.y + 3) return st;
+      }
     }
   }
   return null;
@@ -10182,7 +10311,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-10-01c";
+const BUILD = "2026-10-01d";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file

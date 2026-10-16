@@ -82,10 +82,107 @@
     background-repeat:no-repeat;background-position:right 9px center;}
   select:hover{border-color:#d5cec0;}
   .refwrap{display:flex;align-items:center;gap:4px;flex-shrink:1;min-width:0;}
-  #refBox{font:inherit;font-size:13px;padding:7px 10px;border:1px solid var(--rule);
-    border-radius:8px;background:var(--paper);color:var(--ink);width:210px;max-width:38vw;
-    min-width:110px;transition:border-color .15s;}
-  #refBox:focus{outline:none;border-color:var(--accent);}
+  #refBox{font:inherit;font-size:13px;padding:7px 12px;border:1px solid var(--rule);
+    border-radius:8px;background:var(--paper);color:var(--ink);max-width:38vw;
+    min-width:150px;cursor:pointer;text-align:left;overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap;transition:border-color .15s;}
+  #refBox:hover{border-color:var(--accent);}
+  /* The passage picker: four columns you scroll, the same three the reference
+     sheet uses with an end-verse added. */
+  .sheet .ws.go{width:min(820px,96vw);}
+  .sheet .ws.hand{width:min(820px,96vw);height:min(76vh,760px);
+    display:flex;flex-direction:column;}
+  .handbox{flex:1;min-height:0;width:100%;font-family:ui-monospace,Menlo,Consolas,monospace;
+    font-size:12px;line-height:1.5;padding:12px 14px;border-radius:10px;
+    border:1px solid var(--rule);background:var(--paper);color:var(--ink);
+    resize:none;outline:none;}
+  .handbox:focus{border-color:var(--accent);}
+  #goPick{display:flex;gap:10px;margin:2px 0 8px;}
+  #goPick .pklist{height:min(44vh,300px);}
+  /* ---------- the Sermon Builder ----------
+     A board you put things on. Cards lie loose until they are dragged onto a
+     heading, and then they belong to it. The spine down the left is the sermon
+     in the order it runs; everything to the right of it is still being played
+     with. Nothing here is a form: no card is required and the board exports
+     half-empty without complaint. */
+  #builder{display:none;flex:1;min-height:0;overflow:hidden;}
+  #builder.on{display:flex;}
+  #bSpine{flex:0 0 272px;display:flex;flex-direction:column;overflow-y:auto;
+    background:var(--chip);border-right:1px solid var(--rule);padding:12px 12px 40px;
+    -webkit-overflow-scrolling:touch;}
+  .bshead{font-size:9.5px;letter-spacing:.11em;text-transform:uppercase;color:var(--muted);
+    font-weight:700;padding:2px 2px 9px;}
+  #bWrap{flex:1;min-width:0;display:flex;flex-direction:column;}
+  #bTools{display:flex;gap:6px;padding:9px 12px;border-bottom:1px solid var(--rule2);
+    flex-wrap:wrap;align-items:center;}
+  .bt{font:inherit;font-size:12.5px;padding:7px 12px;border:1px solid var(--rule);
+    border-radius:9px;background:var(--paper);color:var(--ink);cursor:pointer;}
+  .bt:hover{border-color:var(--accent);}
+  .bt.act{background:var(--accent);color:#fff;border-color:var(--accent);margin-left:auto;}
+  .bt.act:hover{background:#774c24;}
+  #bBoard{flex:1;position:relative;overflow:auto;-webkit-overflow-scrolling:touch;
+    background:var(--paper);min-height:0;}
+  .bempty{position:absolute;left:18px;top:14px;font-size:11.5px;color:var(--dim);
+    letter-spacing:.06em;text-transform:uppercase;font-weight:600;pointer-events:none;}
+  #bTray{flex:0 0 auto;border-top:1px solid var(--rule2);padding:8px 12px 10px;
+    background:var(--chip);max-height:132px;overflow-y:auto;}
+  .btlbl{font-size:9.5px;letter-spacing:.11em;text-transform:uppercase;color:var(--muted);
+    font-weight:700;padding-bottom:6px;}
+  #bTrayRow{display:flex;gap:6px;flex-wrap:wrap;}
+  .btray{font:inherit;font-size:11.5px;padding:6px 10px;border:1px dashed var(--rule);
+    border-radius:8px;background:var(--paper);color:var(--ink);cursor:pointer;
+    max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .btray:hover{border-style:solid;border-color:var(--accent);}
+  .btnone{font-size:11.5px;color:var(--dim);}
+
+  /* A slot on the spine: a heading, or one of the four that are always there. */
+  .bslot{border:1px solid var(--rule);border-radius:10px;background:var(--paper);
+    margin-bottom:8px;padding:9px 11px 10px;}
+  .bslot.sub{margin-left:16px;}
+  .bslot.fixed{background:var(--paper);}
+  .bslot.big{border-color:var(--accent);box-shadow:0 0 0 2px rgba(138,90,43,.14);}
+  .bslot.over{border-color:var(--accent);background:#fff8ef;}
+  .bslotname{font-size:12.5px;font-weight:600;color:var(--ink);line-height:1.35;}
+  .bslotsub{font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;
+    color:var(--muted);font-weight:700;margin-bottom:3px;}
+  .bslotnone{font-size:11px;color:var(--dim);font-style:italic;margin-top:5px;}
+  .bfield{width:100%;font:inherit;font-family:Cardo,Georgia,serif;font-size:16px;
+    line-height:1.45;border:0;background:transparent;color:var(--ink);resize:none;
+    outline:none;padding:4px 0 0;overflow:hidden;}
+  .bfield::placeholder{color:var(--dim);font-style:italic;}
+
+  /* A card. Loose ones are placed on the board; attached ones stack in their
+     slot. Either way it is the same element and the same writing area, which
+     grows with what is on it — an expanding post-it, not a fixed box. */
+  .bcard{border:1px solid var(--rule);border-radius:9px;background:var(--paper);
+    box-shadow:0 1px 3px rgba(0,0,0,.07);width:232px;}
+  #bBoard .bcard{position:absolute;}
+  .bslot .bcard{position:relative;width:auto;margin-top:6px;box-shadow:none;}
+  .bcard.drag{box-shadow:0 10px 26px rgba(0,0,0,.22);opacity:.92;z-index:40;}
+  .bchead{display:flex;align-items:center;gap:6px;padding:5px 7px 4px;cursor:grab;
+    border-bottom:1px solid var(--rule2);touch-action:none;}
+  .bkind{font-size:9px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;
+    padding:2px 6px;border-radius:999px;}
+  .blens{font-size:9px;color:var(--muted);letter-spacing:.06em;overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap;}
+  .bx{margin-left:auto;border:0;background:none;color:var(--dim);cursor:pointer;
+    font-size:15px;line-height:1;padding:0 2px;}
+  .bx:hover{color:var(--sel);}
+  .bbody{width:100%;font:inherit;font-size:13px;line-height:1.45;border:0;
+    background:transparent;color:var(--ink);resize:none;outline:none;
+    padding:7px 9px 9px;overflow:hidden;min-height:34px;}
+  .bbody::placeholder{color:var(--dim);font-style:italic;}
+  .bsrc{font-size:10.5px;color:var(--muted);padding:0 9px 8px;}
+  /* The six kinds. Colour is the only thing that distinguishes them — a kind
+     is a hint about what a card is, never a slot you have to fill. */
+  .k-idea  .bkind{background:#fff1c9;color:#7a5a00;}
+  .k-quote .bkind{background:#e2e8f8;color:#2f4486;}
+  .k-person.bcard, .k-person .bkind{}
+  .k-person .bkind{background:#ffe0e6;color:#8a2447;}
+  .k-illus .bkind{background:#dff2e2;color:#1f5c30;}
+  .k-ques  .bkind{background:#eee2f8;color:#5b2c85;}
+  .k-text  .bkind{background:#e9e4d9;color:#5f584c;}
+
   /* The big idea sits on the paper above the Greek, where it can be seen while
      working, rather than in the chrome at the top of the window. */
   #pagesum{position:absolute;left:24px;top:16px;width:1051px;max-width:calc(100% - 48px);
@@ -99,7 +196,6 @@
   #sumBox::placeholder{font-style:italic;color:var(--dim);opacity:.62;font-size:16px;}
   #pagesum.off{display:none;}
   #refBox.bad{border-color:var(--sel);background:#fff5f2;}
-  #refGo{padding:7px 8px;border:1px solid var(--rule);border-radius:8px;}
   #passage{font-weight:500;min-width:110px;max-width:26vw;flex-shrink:1;}
   #chapter{max-width:26vw;}
 
@@ -368,11 +464,17 @@
   #writeSheet.show{display:flex;}
   #writeSheet .ws{width:min(720px,94vw);margin:0 0 max(24px,env(safe-area-inset-bottom));
     background:var(--paper);border-radius:18px;box-shadow:0 18px 50px rgba(0,0,0,.3);
-    padding:18px 20px 16px;}
+    padding:18px 20px 16px;height:min(52vh,560px);display:flex;flex-direction:column;}
   #writeSheet .wslbl{font-size:11.5px;color:var(--muted);margin-bottom:10px;}
-  #writeIn{width:100%;font:inherit;font-size:30px;padding:34px 20px;border-radius:14px;
+  /* ---- how big a writing box has to be ----
+     These are written in with a Pencil, on glass, and iPadOS turns the
+     handwriting into text as you go. Handwriting needs ROOM: a field sized for
+     a keyboard is a field you cannot write a section title in without your
+     letters running off the end. So every box you write in fills the bottom
+     half of the screen, which is where your hand is anyway. */
+  #writeIn{width:100%;font:inherit;font-size:30px;padding:26px 20px;border-radius:14px;
     border:2px dashed var(--rule);background:#fffdf6;color:var(--ink);outline:none;
-    min-height:110px;}
+    flex:1;min-height:0;resize:none;line-height:1.35;}
   #writeIn:focus{border-color:var(--accent);border-style:solid;}
   #writeSheet .wsbtns{display:flex;justify-content:flex-end;gap:8px;margin-top:12px;}
   #writeSheet .wsbtns button{font-size:13px;padding:10px 16px;border-radius:9px;
@@ -403,18 +505,30 @@
     background:var(--paper);border-radius:18px;box-shadow:0 18px 50px rgba(0,0,0,.3);
     padding:18px 20px 16px;}
   .sheet .wslbl{font-size:11.5px;color:var(--muted);margin-bottom:10px;}
-  .sheet .wsbtns{display:flex;justify-content:flex-end;gap:8px;margin-top:12px;}
+  /* A note is written with a Pencil too, so it gets the same half-screen. */
+  #noteSheet .ws{height:min(52vh,560px);display:flex;flex-direction:column;}
+  #noteIn{flex:1;min-height:0;font-size:22px;line-height:1.45;padding:14px 16px;
+    border-radius:12px;border:1px solid var(--rule);background:#fffdf6;
+    color:var(--ink);font-family:inherit;resize:none;outline:none;width:100%;}
+  #noteIn:focus{border-color:var(--accent);}
+  .sheet .wsbtns{display:flex;justify-content:flex-end;gap:8px;margin-top:12px;
+    flex:0 0 auto;}
   .sheet .wsbtns button{font-size:13px;padding:10px 16px;border-radius:9px;
     border:1px solid var(--rule);}
   /* ---- the reference sheet ----
      A reference is short, but it is typed with a Pencil on glass, so the field
      is as big as a note's. Beside it, a picker: three columns you scroll, so a
      reference can be chosen rather than spelled. */
-  .sheet .ws.ref{width:min(760px,96vw);}
-  .refrow{display:flex;gap:10px;align-items:stretch;margin-bottom:8px;}
-  .refbox{font:inherit;flex:1;min-width:0;font-size:20px;line-height:1.4;
-    padding:12px 14px;border-radius:10px;border:1px solid var(--rule);
-    background:var(--paper);color:var(--ink);resize:none;min-height:56px;}
+  /* As tall as a note, for the same reason: it is written with a Pencil. The
+     sheet is a column, the boxes take the room that is going, and the picker
+     keeps its own fixed height underneath. */
+  .sheet .ws.ref{width:min(760px,96vw);height:min(62vh,660px);
+    display:flex;flex-direction:column;}
+  .refrow{display:flex;gap:10px;align-items:stretch;margin-bottom:8px;flex:1;min-height:0;}
+  #refSheet .ws.ref.picking .refrow{flex:0 0 auto;}
+  .refbox{font:inherit;flex:1;min-width:0;font-size:22px;line-height:1.4;
+    padding:14px 16px;border-radius:10px;border:1px solid var(--rule);
+    background:var(--paper);color:var(--ink);resize:none;min-height:64px;}
   .refbox:focus{outline:none;border-color:var(--accent);}
   .refpick{flex:0 0 auto;font:inherit;font-size:13px;padding:0 16px;
     border:1px solid var(--rule);border-radius:10px;background:var(--paper);
@@ -719,13 +833,19 @@
   <header>
     <div class="tier">
       <div class="brand"><svg class="mark" viewBox="0 0 100 100" aria-hidden="true"><path d="M29.2 22.8C41.5 19.4 58.5 19.4 70.8 22.8C74.2 47.8 62.8 78.6 50.0 91.8C37.2 78.6 25.8 47.8 29.2 22.8Z" fill="currentColor"/><circle cx="50" cy="45.2" r="5.5" fill="var(--paper)"/><path d="M47.3 45.2L52.7 45.2L50.5 90.5L49.5 90.5Z" fill="var(--paper)"/><path d="M35.2 29.4C32.0 47.4 37.2 65.6 44.8 77.4" fill="none" stroke="var(--paper)" stroke-width="1.7" stroke-linecap="round"/><path d="M64.8 29.4C68.0 47.4 62.8 65.6 55.2 77.4" fill="none" stroke="var(--paper)" stroke-width="1.7" stroke-linecap="round"/><path d="M44.4 37.6C47.0 34.2 53.0 34.2 55.6 37.6" fill="none" stroke="var(--paper)" stroke-width="1.6" stroke-linecap="round"/><path d="M38.6 26.8C44.0 25.0 56.0 25.0 61.4 26.8" fill="none" stroke="var(--paper)" stroke-width="1.6" stroke-linecap="round"/></svg> Nous <em id="buildTag"></em></div>
+      <!-- Not a field you type into. A reference typed on glass with a Pencil
+           is a reference mis-spelled: "2 Cor 4.7-12", "II Corinthians", a hand
+           that wandered. Every one of those had to be guessed at, and a guess
+           that misses leaves you looking at the wrong passage. You choose from
+           what is actually installed instead, and there is nothing to spell. -->
       <div class="refwrap">
-        <input type="text" id="refBox" spellcheck="false" autocapitalize="words"
-               enterkeyhint="go" placeholder="2 Corinthians 1:12–2:4">
-        <button id="refGo" title="Go to this passage">
-          <svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.7"
-               stroke-linecap="round" stroke-linejoin="round"><path d="M4 11h13"/>
-          <path d="M12 6l5 5-5 5"/></svg></button>
+        <button id="refBox" title="Choose a passage">Choose a passage</button>
+      </div>
+      <!-- One passage, two ways of working on it. The exegesis is the working;
+           the Builder is the sermon. -->
+      <div class="grp tabs">
+        <button id="tabEx" class="on" data-view="exegesis">Exegesis</button>
+        <button id="tabSb" data-view="builder">Sermon Builder</button>
       </div>
       <select id="passage"><option value="">No book loaded</option></select>
       <select id="chapter" title="Which part of the loaded book to lay out"
@@ -770,14 +890,35 @@
 
   <div id="body">
   <aside id="palette" aria-label="Colours"></aside>
+  <div id="builder">
+    <div id="bSpine">
+      <div class="bshead">The sermon</div>
+      <div id="bFixed"></div>
+      <div id="bSlots"></div>
+    </div>
+    <div id="bWrap">
+      <div id="bTools">
+        <button id="bNew" class="bt">＋ a card</button>
+        <button id="bAsk" class="bt">Ask me something</button>
+        <button id="bGaps" class="bt">What haven’t I touched?</button>
+        <button id="bHand" class="bt">Hand this to Claude…</button>
+        <button id="bOut" class="bt act">Sermon outline…</button>
+      </div>
+      <div id="bBoard"><div class="bempty" id="bEmpty">Loose — still being played with</div></div>
+      <div id="bTray"><div class="btlbl">From the exegesis</div><div id="bTrayRow"></div></div>
+    </div>
+  </div>
+
   <div id="scroll">
    <div id="page">
     <div id="board">
       <div id="growUp" class="grow"></div>
       <div id="growDn" class="grow"></div>
-      <div id="pagesum"><span class="sumlbl">Big idea</span><input type="text" id="sumBox"
-           spellcheck="true" autocapitalize="sentences" enterkeyhint="done"
-           placeholder="in ten words or less, the idea that unifies the passage"></div>
+      <!-- The big idea has moved to the head of the Sermon Builder's spine,
+           where it sits beside the aim: they are the two questions that govern
+           everything under them, and neither is exegesis. The STORE is
+           unchanged (S.summaries, keyed by passage), so every export and every
+           sync that already knew about it still does. -->
       <svg id="svg"></svg>
       <canvas id="ink"></canvas>
       <div id="hit"></div>
@@ -843,8 +984,10 @@
       <label><input type="checkbox" id="outEng" checked> Your own English, under each heading</label>
       <label><input type="checkbox" id="outPic" checked> The diagram itself, exactly as it looks here</label>
       <label><input type="checkbox" id="outNotes" checked> Your notes, as bullet points</label>
+      <label><input type="checkbox" id="outCards" checked> Everything attached to a heading in the Sermon Builder</label>
     </div>
     <div class="askstate" id="outState"></div>
+    <div class="askstate" id="outGlance" style="display:none"></div>
     <div class="wsbtns">
       <button id="outCancel">Cancel</button>
       <button id="outGo" class="act">✓ Create the document</button>
@@ -880,8 +1023,11 @@
   <div class="ws">
     <div class="wslbl">Write the section title with your Pencil — iPadOS turns the
       handwriting into text. Then tap ✓.</div>
-    <input type="text" id="writeIn" spellcheck="false" enterkeyhint="done"
-           placeholder="Write here" autocapitalize="sentences">
+    <!-- A textarea, not a one-line field: handwriting wanders onto a second
+         line and a field that scrolls sideways under your hand is unusable.
+         Enter still means done, so nothing about finishing has changed. -->
+    <textarea id="writeIn" spellcheck="false" enterkeyhint="done"
+              placeholder="Write here" autocapitalize="sentences"></textarea>
     <div class="wsbtns">
       <button id="writeCancel">Cancel</button>
       <button id="writeOk" class="act">✓ Use this</button>
@@ -909,6 +1055,46 @@
       <button id="noteDel">Remove</button>
       <button id="noteCancel">Cancel</button>
       <button id="noteOk" class="act">✓ Use this</button>
+    </div>
+  </div>
+</div>
+
+<div id="handSheet" class="sheet">
+  <div class="ws hand">
+    <div class="wslbl">Nous has no AI in it, and that is why it works on a plane and
+      costs nothing to run. So the thinking happens where your congregation record
+      already lives. Copy this, paste it into a conversation with Claude, and paste
+      what comes back into the lower box.</div>
+    <textarea id="handOut" class="handbox" spellcheck="false" readonly></textarea>
+    <div class="wsbtns" style="margin-top:8px">
+      <button id="handCopy">Copy it</button>
+    </div>
+    <div class="wslbl" style="margin-top:10px">Cards to bring back — one a line,
+      the kind in brackets: <b>[Idea] power that looks like weakness</b></div>
+    <textarea id="handIn" class="handbox" spellcheck="false"
+              placeholder="paste what Claude gives you here"></textarea>
+    <div class="askstate" id="handState"></div>
+    <div class="wsbtns">
+      <button id="handCancel">Close</button>
+      <button id="handGo" class="act">✓ Put them on the board</button>
+    </div>
+  </div>
+</div>
+
+<div id="goSheet" class="sheet">
+  <div class="ws go">
+    <div class="wslbl">Tap a book, then a chapter, then the verse it starts at.
+      Tap a second verse to end it there — or leave it, for the whole chapter.</div>
+    <div id="goPick">
+      <div class="pkcol"><div class="pkhd">Book</div><div class="pklist" id="goBook"></div></div>
+      <div class="pkcol"><div class="pkhd">Chapter</div><div class="pklist" id="goCh"></div></div>
+      <div class="pkcol"><div class="pkhd">From</div><div class="pklist" id="goFrom"></div></div>
+      <div class="pkcol"><div class="pkhd">To</div><div class="pklist" id="goTo"></div></div>
+    </div>
+    <div class="askstate" id="goState"></div>
+    <div class="wsbtns">
+      <button id="goCancel">Cancel</button>
+      <button id="goOk" class="act">✓ Go here</button>
     </div>
   </div>
 </div>
@@ -1245,6 +1431,18 @@
   <div class="foot">Left to itself, Nous watches for an Apple Pencil. Once it has seen one, the
     Pencil draws and your finger scrolls, selects and reaches for the grips beside the lines.
     Before then, your finger does the drawing.</div>
+  <div class="fld"><label for="tidyInk">Tidy up</label>
+    <select id="tidyInk">
+      <option value="off" selected>Off — leave my hand exactly as it is</option>
+      <option value="on">On — square up highlights, smooth my lines</option>
+    </select></div>
+  <div class="foot">With this on, a highlight scribbled over some words becomes a clean
+    highlight OF those words — the same thing you would get by selecting them and tapping a
+    colour, so it travels when the lines are re-flowed and shows up in an export. Freehand
+    pen lines are smoothed as you lift the Pencil.<br><br>
+    This is smoothing, not handwriting recognition: your writing stays your writing, just
+    steadier. Turning words into type is iPadOS's Scribble, which already works in every box
+    Nous asks you to write in.</div>
   <hr>
   <h4>Accordance links</h4>
   <div class="fld"><label for="mText">Greek text</label>
@@ -1340,7 +1538,10 @@
     will tell you here and your work carries on being saved locally in the meantime.</div>
   <hr>
   <h4>Export</h4>
-  <button class="rowbtn" id="exportOutline">Sermon outline as a Word document…</button>
+  <div class="foot" style="padding-top:0">The sermon outline is exported from the
+    <b>Sermon Builder</b> tab now, not from here: it is built out of the spine — the big
+    idea, the aim, your introduction, each heading with whatever you attached to it, and
+    your conclusion — with the diagrams from this tab underneath each heading.</div>
   <button class="rowbtn" id="exportPng">Save this page as an image…</button>
   <button class="rowbtn" id="exportPrint">Print / Save as PDF…</button>
   <div class="foot">The outline turns each section title into a numbered heading, with the
@@ -1375,6 +1576,11 @@ const PASSAGES = {};
    STATE
    ============================================================ */
 const INDENT = 36, ROW = 44, MARGIN = 78, TOP = 76, GAPW = 9, WRAP = 1075;
+/* The MEASURE: how wide a line of text is allowed to be. Every line gets the
+   same one wherever it starts, so an indent shifts a line right rather than
+   squeezing it. WRAP is now only where an UNindented line ends — the width
+   of the sheet when nothing has been moved. */
+const MEASURE = WRAP - MARGIN;
 /* Right-to-left needs its gutter on the other side, and the vowel points and
    accents need more room above and below than Greek does. */
 const RWRAP = 1040, ROW_HE = 58, GAPW_HE = 11;
@@ -1382,9 +1588,16 @@ function rowH(){ return isRTL() ? ROW_HE : ROW; }
 /* How far a line may be indented: as far as leaves room for a word or two.
    There used to be a limit of ten levels, which is not enough for a long
    subordinate chain. */
+/* How far right a line may be dragged. This used to be set by how much of the
+   measure the indent could eat before the words had nowhere left to go, which
+   is no longer how indenting works: the measure travels with the line and the
+   sheet grows. What is left is a limit on how far you can push a line before
+   the page is wider than anything you would want to scroll across, and for
+   Hebrew, which indents LEFTWARD into a margin that cannot grow, the old
+   arithmetic still applies. */
 function maxIndent(){
-  const room = isRTL() ? (RWRAP - MARGIN) : (WRAP - MARGIN);
-  return Math.max(1, Math.floor((room - 90) / INDENT));
+  if(isRTL()) return Math.max(1, Math.floor((RWRAP - MARGIN - 90) / INDENT));
+  return 24;
 }
 const MAX_LAYOUT_WORDS = 2600;   // about a long chapter
 const SECGAP = 46;          // vertical space a section break opens up
@@ -1402,11 +1615,16 @@ const S = {
   key:"", chapter:"all", docs:{}, undo:[], redo:[],
   lineStarts:{}, byUid:{},
   hits:{}, marks:{}, notes:{}, summaries:{}, trans:{}, bin:[],
+  /* The Sermon Builder. Cards carry the range they belong to, so one book
+     holds a board per passage. The four fixed fields are keyed by range the
+     same way the big idea already was. */
+  cards:[], aims:{}, intros:{}, concls:{}, view:"exegesis",
   markMode:"emphasis", findQ:"", glyphs:[],
   glyphUse:{}, glyphHidden:{}, glyphGone:{}, glyphPin:[], arrangePins:false,
   words:[], lines:[], strokes:[], conns:[], sections:[],
   tool:"move", lastInk:"pen", ci:12, lineStyle:"regular", nib:"fineliner",
-  fingerMode:"auto", sawPen:false, zoom:1, paintMode:"fill", swatches:[], colourHidden:{},
+  fingerMode:"auto", sawPen:false, tidy:false, zoom:1, paintMode:"fill",
+  swatches:[], colourHidden:{},
   eraseMode:"object",
   sel:null, selSet:[], selLemma:null, selStroke:null,
   lemHi:{}, connFrom:null, curLine:null, dpr:1
@@ -2055,6 +2273,7 @@ function layout(){
      passage to bring in. Pushing every line down by a band that says nothing
      would be a tax on the ordinary case. */
   let y = TOP + growRoom(), lastVerse = null, lastCh = null;
+  let far = 0;                       // how far right any word actually reached
   const rtl = isRTL();
   const R = rtl ? ROW_HE : ROW, GAP = rtl ? GAPW_HE : GAPW;
 
@@ -2065,6 +2284,17 @@ function layout(){
 
     // x0 is where the line starts: the left margin, or the right one mirrored
     const x0 = rtl ? (RWRAP - line.indent*INDENT) : (MARGIN + line.indent*INDENT);
+    /* Where this line wraps. It used to be WRAP, a fixed column down the page,
+       which meant that dragging a line further and further right made it
+       NARROWER and narrower until it broke onto a second row under itself —
+       the indent eating the text. The measure is the same for every line now;
+       indenting one moves its wrap point right along with it, and the sheet of
+       paper grows to hold whatever the furthest one reaches. */
+    /* Hebrew runs the other way, into a left margin that cannot move: the sheet
+       can grow to the right but its origin cannot slide left. So an indented
+       Hebrew line keeps the full measure while there is room for it and is
+       held at the margin after that, which is what every line used to do. */
+    const wrapX = rtl ? Math.max(MARGIN, x0 - MEASURE) : (x0 + MEASURE);
     let x = x0, rows = 1;
     line.y = y; line.x = x0;
 
@@ -2085,16 +2315,17 @@ function layout(){
       const gap = inline ? lw + 7 : 0;
 
       if(rtl){
-        if(x < x0 && x - (w.w + gap) < MARGIN){ x = x0 - 22; y += R; rows++; }
+        if(x < x0 && x - (w.w + gap) < wrapX){ x = x0 - 22; y += R; rows++; }
         if(inline){ x -= gap; line.vns.push({ text:label, x, y:y + 2, w:lw, rtl, inline:true }); }
         x -= w.w;
         w.lx = x; w.ly = y;
         x -= GAP;
       } else {
-        if(x > x0 && x + gap + w.w > WRAP){ x = x0 + 22; y += R; rows++; }
+        if(x > x0 && x + gap + w.w > wrapX){ x = x0 + 22; y += R; rows++; }
         if(inline){ line.vns.push({ text:label, x, y:y + 2, w:lw, rtl, inline:true }); x += gap; }
         w.lx = x; w.ly = y;
         x += w.w + GAP;
+        if(x > far) far = x;
       }
 
       if(starts){
@@ -2140,6 +2371,9 @@ function layout(){
     y += R + 10;
   });
 
+  /* Set BEFORE paintTrans, which puts the English out beyond the text and so
+     needs to know where the text now ends. */
+  S._contentRight = far;
   paintTrans();
   render(); drawConns(); redraw(); renderSections(); saveSoon();
   S._contentBottom = Math.max(y, S._trBottom || 0);
@@ -2162,6 +2396,11 @@ function layout(){
      and the ink canvas, whose resolution is the pixel budget divided by the
      area of the sheet, stayed at the blurry setting that forced even when you
      had gone back to nine verses. */
+  /* The Builder reads the section breaks and the translations off this same
+     layout, so it is repainted whenever they move. Only when it is the tab you
+     are looking at: there is no sense rebuilding a board nobody can see. */
+  if(S.view === "builder" && typeof paintBuilder === "function") paintBuilder();
+
   const need = Math.max(y, S._trBottom || 0) + 120;
   if(parseFloat(board.style.height) !== need){
     board.style.height = need + "px";
@@ -2181,7 +2420,13 @@ function layout(){
 const TRGAP = 26;                // between the text and the column
 const TRWIDE = 300;              // how wide the column is
 
-function transCol(){ return WRAP + TRGAP; }
+/* Where the text ends: WRAP when nothing is indented, further out when a line
+   has been dragged past it. Everything that lives to the RIGHT of the text —
+   the English column, the sheet's own width, the rules in the margin — is
+   measured from here, so indenting a line carries them all with it. */
+function textRight(){ return Math.max(WRAP, Math.round(S._contentRight || 0)); }
+
+function transCol(){ return textRight() + TRGAP; }
 
 function paintTrans(){
   board.querySelectorAll(".tr").forEach(n => n.remove());
@@ -3682,7 +3927,7 @@ function paintGrow(){
   /* Set from the same constants the lines are laid out with, so the rule runs
      exactly the width of the text — and mirrored for Hebrew, which has its
      margin on the other side. */
-  const x0 = MARGIN, x1 = isRTL() ? RWRAP : WRAP;
+  const x0 = MARGIN, x1 = isRTL() ? RWRAP : textRight();
   [upEl, dnEl].forEach(el=>{
     el.style.left  = x0 + "px";
     el.style.width = (x1 - x0) + "px";
@@ -4149,6 +4394,114 @@ function wordsInBox(d){
   });
 }
 
+/* ============================================================
+   TIDYING UP AFTER THE PENCIL
+
+   Two things, under one setting, because they are the same wish: that a rough
+   hand should come out looking considered.
+
+   A highlight drawn freehand over four words is MEANT to be a highlight of
+   those four words. Left as ink it is a wobbling band that starts half a
+   letter early and stops half a letter short, and the words underneath are not
+   marked in any way the app knows about — so it will not travel when the line
+   is re-flowed, will not show in an export's word colours, and cannot be
+   searched. Read as what it meant, it becomes exactly what tapping the words
+   and tapping a colour would have given you.
+
+   And a line drawn by hand is never the line you meant to draw. Smoothing is
+   not recognition — it does not turn writing into type, and does not pretend
+   to. It averages each point with its neighbours, which takes the tremor out
+   and leaves the shape.
+
+   Off by default: a person who wants their own hand on the page should not
+   have to find a setting to keep it.
+   ============================================================ */
+
+function tidyOn(){ return !!S.tidy; }
+
+/* Every word the stroke actually passes over. A highlighter is a broad nib, so
+   the band has width: a word counts if the stroke crosses its box, not merely
+   if a point lands inside it. */
+function wordsUnder(pts, pad){
+  const r = pad === undefined ? 11 : pad;
+  const seen = new Set(), out = [];
+  for(let i = 0; i < pts.length; i++){
+    const a = pts[i], b = pts[i + 1] || a;
+    const x0 = Math.min(a.x, b.x) - r, x1 = Math.max(a.x, b.x) + r;
+    const y0 = Math.min(a.y, b.y) - r, y1 = Math.max(a.y, b.y) + r;
+    S.words.forEach(w=>{
+      if(seen.has(w.uid)) return;
+      const wx = px(w), wy = py(w);
+      if(wx < x1 && wx + w.w > x0 && wy < y1 && wy + w.h > y0){
+        seen.add(w.uid); out.push(w);
+      }
+    });
+  }
+  return out;
+}
+
+/* The soft version of a colour: the tint it was drawn with if it is one of
+   ours, and otherwise the colour itself mixed most of the way to the paper. */
+function softened(hex){
+  const known = COLORS.find(c => String(c.hue).toLowerCase() === String(hex).toLowerCase());
+  if(known) return known.tint;
+  const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || ""));
+  if(!m) return "#fff170";
+  const n = parseInt(m[1], 16);
+  const mix = v => Math.round(v + (255 - v) * 0.62);
+  return "#" + [(n >> 16) & 255, (n >> 8) & 255, n & 255]
+    .map(v => mix(v).toString(16).padStart(2, "0")).join("");
+}
+
+/* A moving average, run twice. Endpoints are held still so a line still
+   begins and ends where you put it. Pressure is carried through untouched —
+   it is what gives a stroke its weight, and averaging it would flatten every
+   nib into the same one. */
+function smoothPts(pts){
+  if(!pts || pts.length < 4) return pts;
+  let cur = pts;
+  for(let pass = 0; pass < 2; pass++){
+    const out = [cur[0]];
+    for(let i = 1; i < cur.length - 1; i++){
+      const a = cur[i - 1], b = cur[i], c = cur[i + 1];
+      out.push({ x:(a.x + 2 * b.x + c.x) / 4, y:(a.y + 2 * b.y + c.y) / 4, p:b.p });
+    }
+    out.push(cur[cur.length - 1]);
+    cur = out;
+  }
+  return cur;
+}
+
+/* Called when the pen lifts. Returns true if the stroke was turned into
+   something else, which is only ever the highlight case. */
+function tidyStroke(st){
+  if(!st || !tidyOn()) return false;
+
+  if(st.mode === "highlight"){
+    const got = wordsUnder(strokePoints(st));
+    /* One word under a long drag is a stroke that happened to pass a word on
+       its way somewhere else, not a highlight of it. Nothing under it at all
+       is a note in the margin. Either way, leave the ink alone. */
+    if(!got.length) return false;
+    pushUndo();
+    const tint = softened(st.color);
+    got.forEach(w =>{ S.hits[w.uid] = tint; });
+    const i = S.strokes.indexOf(st);
+    if(i >= 0) S.strokes.splice(i, 1);
+    render(); redraw(); saveSoon();
+    note("Highlighted " + got.length + (got.length === 1 ? " word" : " words"),
+         "drawn by hand, squared up \u2014 turn this off under Drawing");
+    return true;
+  }
+
+  if(st.mode === "pen"){
+    pushUndo();
+    st.pts = smoothPts(st.pts);
+    redraw(); saveSoon();
+  }
+  return false;
+}
+
 function endPointer(e){
   lastPointerAt = Date.now();
   active.delete(e.pointerId);
@@ -4268,6 +4621,8 @@ hit.addEventListener("pointerup", e=>{
     S.strokes.splice(S.strokes.indexOf(drag.s), 1); redraw();
     tapWasSelection(e);
   }
+  /* The pen has been lifted: this is the moment to tidy, if tidying is on. */
+  if(drag && drag.kind === "ink" && drag.s.pts.length >= 2) tidyStroke(drag.s);
   // Discard a shape that was only tapped, not dragged out. Judged on how far
   // the pen actually travelled: area would call a horizontal rule nothing at
   // all, and a box drawn round a single line of text nearly nothing.
@@ -5174,12 +5529,20 @@ function paintPalette(){
   clearTimeout(SWHOLD.timer);
   const cur = COLORS[S.ci];
   const hidden = S.colourHidden || {};
-  // data-i stays the true position in the list, so hiding one moves nothing
-  const row = (kind)=> COLORS.map((c, i)=>
+  /* ONE row of colours. There used to be two — the colours, and the same
+     colours again as pale tints — and reaching for the lower row was how you
+     got the highlighter. Two rows of the same eighteen colours is a palette
+     twice as long to read for no information, and it put the choice of TOOL in
+     the colour palette, where it does not belong. The nib decides whether a
+     colour goes down at its own strength or softened; the swatch just shows
+     which it will be.
+
+     data-i stays the true position in the list, so hiding one moves nothing. */
+  const row = ()=> COLORS.map((c, i)=>
     hidden[c.n] ? "" :
-    '<div class="sw' + (i === S.ci && (kind === "tint") === tintMode() ? " on" : "") +
-    '" data-i="' + i + '" data-kind="' + kind + '" title="' + c.n + '"' +
-    ' style="background:' + (kind === "tint" ? c.tint : c.hue) + '"></div>').join("");
+    '<div class="sw' + (i === S.ci ? " on" : "") +
+    '" data-i="' + i + '" title="' + c.n + '"' +
+    ' style="background:' + swatchColor(c) + '"></div>').join("");
 
   /* What a colour does to the words you have selected: fill the paper behind
      them, or colour the letters themselves. */
@@ -5192,10 +5555,9 @@ function paintPalette(){
       tog("fill", "\u25a0", "Tapping a colour highlights the word") +
       tog("text", "A",       "Tapping a colour colours the letters") +
     '</div>' +
-    '<div class="plbl">Ink</div><div class="grid">' + row("hue") +
+    '<div class="plbl">' + (tintMode() ? "Colour, softened" : "Colour") + '</div>' +
+    '<div class="grid">' + row() +
       '<div class="sw mix" data-mix="1" title="Mix a colour of your own">+</div></div>' +
-    '<div class="plbl" style="margin-top:8px">Highlight</div>' +
-    '<div class="grid">' + row("tint") + '</div>' +
     '<hr><div class="now" style="background:' + swatchColor(cur) + '"></div>' +
     '<div class="nowname">' + cur.n + '</div>' +
     (Object.keys(hidden).length
@@ -5457,24 +5819,13 @@ paletteEl.addEventListener("pointerdown", e=>{
   if(d.i === undefined || d.i === null || d.i === "") return;
   if(e.target._held){ e.target._held = false; return; }   // that was a hold, not a tap
   e.preventDefault();
-  /* The two rows are the same eighteen colours; which row you reach for says
-     what you want to do with them. A tint means the highlighter; a full colour
-     means the pen at its own strength. */
+  /* A colour is only ever a colour now. Whether it goes down at full strength
+     or softened is the nib's business — pick the Highlighter from the Pen menu
+     — so choosing a colour no longer reaches over and changes your tool. The
+     pen still has to be in your hand for a colour to be for drawing with,
+     which is the one part of the old behaviour worth keeping. */
   const hasSel = selectedWords().length > 0;
-  if(!hasSel && (S.tool === "pen" || S.tool === "move")){
-    /* Nothing is selected, so a colour is for drawing with. Reaching for a tint
-       means the highlighter; reaching for a full colour means writing again —
-       and either way the pen has to be in your hand, or the next stroke would
-       come out of whatever tool happened to be selected. */
-    if(d.kind === "tint" && S.nib !== "highlighter"){
-      S._lastNib = S.nib; S.nib = "highlighter";
-    } else if(d.kind === "hue" && S.nib === "highlighter"){
-      S.nib = NIBS[S._lastNib] && S._lastNib !== "highlighter" ? S._lastNib : "fineliner";
-    }
-    if(S.tool !== "pen") pickTool("pen");
-    if(penPop.classList.contains("show")) paintPenPop();
-    syncPenBtn();
-  }
+  if(!hasSel && S.tool === "move") pickTool("pen");
   pickColor(+d.i);
 });
 
@@ -6124,10 +6475,169 @@ function goToRef(input){
   return true;
 }
 
-document.getElementById("refGo").onclick = ()=> goToRef(document.getElementById("refBox").value);
-document.getElementById("refBox").addEventListener("keydown", e=>{
-  if(e.key === "Enter"){ e.preventDefault(); goToRef(e.target.value); }
+/* ---- choosing a passage ----
+
+   The reference box is a button now, not a field. Everything in the app that
+   used to write the current passage into it still writes to `.value`, so the
+   property is redefined to put the text on the face of the button: one place
+   changed rather than every caller.
+*/
+const refBoxEl = document.getElementById("refBox");
+if(refBoxEl) Object.defineProperty(refBoxEl, "value", {
+  configurable:true,
+  get(){ return refBoxEl.textContent; },
+  set(v){ refBoxEl.textContent = v || "Choose a passage"; }
 });
+
+/* What has been tapped so far. `to` is only set if you want part of a chapter;
+   left alone, the whole chapter from `from` onward is what you get. */
+const GO = { book:null, key:null, ch:null, from:null, to:null };
+
+function goBooks(){ return pickBooks(); }
+
+function goPaint(){
+  const col = (id, items, chosen, onPick, empty)=>{
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.innerHTML = "";
+    if(!items.length){
+      const d = document.createElement("div");
+      d.className = "pknone";
+      d.textContent = empty || "";
+      el.appendChild(d);
+      return;
+    }
+    items.forEach(it=>{
+      const b = document.createElement("button");
+      b.textContent = it.label;
+      if(it.value === chosen) b.className = "on";
+      if(it.off) b.disabled = true;
+      else b.onclick = ()=> onPick(it.value);
+      el.appendChild(b);
+    });
+  };
+
+  /* The whole canon is listed, but a book you have not installed cannot be
+     laid out, so it is shown and not offered rather than quietly missing —
+     which would read as "Nous has not heard of Habakkuk". */
+  const books = goBooks();
+  col("goBook", books.map(b => ({ label:b.name, value:b.name, off:!b.key })),
+      GO.book, name =>{
+        const hit = books.find(x => x.name === name);
+        GO.book = name; GO.key = hit ? hit.key : null;
+        GO.ch = null; GO.from = null; GO.to = null;
+        const chs = GO.key ? pickChapters(GO.key) : [];
+        if(chs.length === 1) GO.ch = chs[0];     // a one-chapter book: no choice to make
+        goPaint();
+      });
+
+  const chs = GO.key ? pickChapters(GO.key) : [];
+  col("goCh", chs.map(c => ({ label:c, value:c })), GO.ch, c =>{
+        GO.ch = c; GO.from = null; GO.to = null; goPaint();
+      }, GO.book ? "" : "Choose a book.");
+
+  const vs = (GO.key && GO.ch) ? pickVerses(GO.key, GO.ch) : [];
+  col("goFrom", vs.map(v => ({ label:v, value:v })), GO.from, v =>{
+        GO.from = v;
+        if(GO.to !== null && +GO.to < +v) GO.to = null;
+        goPaint();
+      }, GO.ch ? "" : "Choose a chapter.");
+
+  /* Only the verses at or after the one you started at: an end before a
+     beginning is not a passage, so it is never offered. */
+  const ends = GO.from ? vs.filter(v => +v >= +GO.from) : [];
+  col("goTo", ends.map(v => ({ label:v, value:v })), GO.to, v =>{
+        GO.to = (GO.to === v) ? null : v;        // tap it again to let it run on
+        goPaint();
+      }, GO.from ? "" : "Choose where it starts.");
+
+  const st = document.getElementById("goState");
+  if(st) st.textContent = goLabel() || "";
+  const ok = document.getElementById("goOk");
+  if(ok) ok.disabled = !GO.key || !GO.ch;
+}
+
+/* What has been chosen, written out as a person would say it. */
+function goLabel(){
+  if(!GO.key || !GO.ch) return "";
+  const title = (PASSAGES[GO.key] || {}).title || GO.book;
+  if(!GO.from) return title + " " + GO.ch;
+  if(!GO.to || GO.to === GO.from) return title + " " + GO.ch + ":" + GO.from;
+  return title + " " + GO.ch + ":" + GO.from + "\u2013" + GO.to;
+}
+
+/* And as a range the layout understands. */
+function goRange(){
+  if(!GO.ch) return null;
+  if(!GO.from) return String(GO.ch);
+  const to = GO.to || GO.from;
+  return GO.ch + ":" + GO.from + "-" + GO.ch + ":" + to;
+}
+
+function openGoSheet(){
+  /* Opens on where you already are, so "the next few verses" is two taps and
+     not a hunt back through the canon for the book you are in. */
+  const p = PASSAGES[S.key];
+  const books = goBooks();
+  const mine = p ? books.find(b => b.key === S.key) : null;
+  GO.book = mine ? mine.name : null;
+  GO.key  = mine ? S.key : null;
+  const chs = GO.key ? pickChapters(GO.key) : [];
+  const here = String(focusRange()).split("-")[0].split(":");
+  GO.ch   = chs.includes(here[0]) ? here[0] : (chs.length === 1 ? chs[0] : null);
+  GO.from = null; GO.to = null;
+  goPaint();
+  document.getElementById("goSheet").classList.add("show");
+}
+
+function closeGoSheet(commit){
+  const sheet = document.getElementById("goSheet");
+  if(commit && GO.key && GO.ch){
+    saveNow();
+    S.key = GO.key;
+    setFocus(goRange());
+    document.getElementById("passage").value = S.key;
+    refreshChapterMenu();
+    build(S.key); syncJoin(); saveNow();
+    snapToPassage();
+  }
+  sheet.classList.remove("show");
+}
+
+document.getElementById("bHand").onclick = ()=>{
+  document.getElementById("handOut").value = boardAsText();
+  document.getElementById("handIn").value = "";
+  document.getElementById("handState").textContent = "";
+  document.getElementById("handSheet").classList.add("show");
+};
+document.getElementById("handCopy").onclick = ()=>{
+  const el = document.getElementById("handOut");
+  if(el.select) el.select();
+  if(navigator.clipboard && navigator.clipboard.writeText)
+    navigator.clipboard.writeText(el.value).catch(()=>{});
+  document.getElementById("handState").textContent = "Copied. Paste it to Claude.";
+};
+document.getElementById("handCancel").onclick = ()=>
+  document.getElementById("handSheet").classList.remove("show");
+document.getElementById("handGo").onclick = ()=>{
+  const got = cardsFromText(document.getElementById("handIn").value);
+  if(!got.length){
+    document.getElementById("handState").textContent =
+      "Nothing readable there — one card a line, the kind in brackets at the front.";
+    return;
+  }
+  pushUndo();
+  /* They arrive LOOSE, every one of them. What Claude hands back is a
+     suggestion; where it belongs in the sermon is yours to decide. */
+  got.forEach(c => makeCard(c.k, c.t));
+  document.getElementById("handSheet").classList.remove("show");
+  note(got.length + (got.length === 1 ? " card" : " cards") + " on the board",
+       "loose, until you put them somewhere");
+};
+
+document.getElementById("refBox").onclick   = ()=> openGoSheet();
+document.getElementById("goOk").onclick     = ()=> closeGoSheet(true);
+document.getElementById("goCancel").onclick = ()=> closeGoSheet(false);
 
 
 
@@ -6248,6 +6758,11 @@ function openPicker(fieldId){
   PICK.book = c ? c.name : null;
   PICK.ch = c ? (c.nums.split(":")[0] || null) : null;
   document.getElementById("refPick").classList.add("show");
+  /* The sheet is a fixed height, so the boxes and the picker share it: while
+     the three columns are open the boxes give up their stretch, and take it
+     back when the columns close. */
+  const ws = document.querySelector("#refSheet .ws.ref");
+  if(ws) ws.classList.add("picking");
   document.querySelectorAll(".refpick").forEach(b =>
     b.classList.toggle("on", b.dataset.for === fieldId));
   paintPicker();
@@ -6256,6 +6771,8 @@ function openPicker(fieldId){
 function closePicker(){
   const el = document.getElementById("refPick");
   if(el) el.classList.remove("show");
+  const ws = document.querySelector("#refSheet .ws.ref");
+  if(ws) ws.classList.remove("picking");
   document.querySelectorAll(".refpick").forEach(b => b.classList.remove("on"));
   PICK.field = null;
 }
@@ -7893,7 +8410,7 @@ function paintBoard(g, opts){
    and never shrink again once a translation had been deleted. */
 function boardWidth(){
   const col = (S._trBoxes || []).length ? transCol() + TRWIDE + 20 : 0;
-  return Math.max(WRAP + 60, col);
+  return Math.max(WRAP + 60, textRight() + 60, col);
 }
 
 /* Everything that belongs to a run of lines, in page coordinates: the words,
@@ -8013,7 +8530,7 @@ function exportPNG(){
 }
 
 document.getElementById("exportPng").onclick = exportPNG;
-document.getElementById("exportOutline").onclick = ()=>{ closePops(); openOutline(); };
+
 document.getElementById("exportPrint").onclick = ()=>{ closePops(); setTimeout(()=>window.print(), 60); };
 
 
@@ -8103,6 +8620,10 @@ function buildOutline(){
                          .map(w => ({ ref:w.verse, surface:w.surface, text:S.notes[w.uid] }));
     return {
       title: b.title,
+      /* The key the Sermon Builder attaches cards to, so the export can ask
+         what belongs to this part. Same key on both sides, worked out the same
+         way, or a card would quietly export under the wrong heading. */
+      slot: b.sec ? "s:" + b.sec.beforeWord + "|" + (b.sec.lvl || 1) : null,
       /* Your own English for this part: the verses it covers, in order, each
          one as you said it. */
       english: [...new Set(b.words.map(w => w.verse))]
@@ -8230,6 +8751,7 @@ function pngBytes(canvas){
 function exportOutline(){
   const inc = id => { const el = document.getElementById(id); return el ? el.checked : false; };
   const withPic = inc("outPic"), withNotes = inc("outNotes"), withRefs = inc("outRefs");
+  const withCards = inc("outCards");
   const withEng = inc("outEng");
   const p = PASSAGES[S.key];
   const heading = (p ? p.title : "Passage") +
@@ -8243,6 +8765,18 @@ function exportOutline(){
 
   const media = [];                        // the pictures, and their relationships
   let body = docxTitleBlock(summary, heading);
+
+  /* The introduction, from the Sermon Builder: it comes before the first
+     heading because that is where it is preached. */
+  if(withCards){
+    const intro = bGet("intro").trim(), ic = cardsIn("intro");
+    if(intro || ic.length){
+      body += docxHeading("Introduction", "");
+      if(intro) body += docxParagraph(intro);
+      ic.forEach(c=>{ const t = String(c.t || "").trim();
+        if(t) body += docxParagraph(t, null, {bullet:true}); });
+    }
+  }
 
   /* A heading whose subheadings carry all the text has no verses of its own.
      It takes the span of everything it governs, which is what it is a heading
@@ -8291,7 +8825,27 @@ function exportOutline(){
     if(withNotes) b.notes.forEach(nt=>{
       body += docxParagraph(nt.surface + " (" + nt.ref + ") — " + nt.text, null, {bullet:true});
     });
+
+    /* What you attached to this heading in the Sermon Builder. Loose cards do
+       not come: that is what loose means — it has not made the cut yet. */
+    if(withCards && b.slot) cardsIn(b.slot).forEach(c=>{
+      const t = String(c.t || "").trim();
+      if(!t && !c.src) return;
+      body += docxParagraph((CARDKINDS[c.k] || {}).n + " — " + (t || c.src) +
+                            (t && c.src ? " (" + c.src + ")" : ""), null, {bullet:true});
+    });
   });
+
+  /* The conclusion, after everything the passage had to say. */
+  if(withCards){
+    const concl = bGet("concl").trim(), cc = cardsIn("concl");
+    if(concl || cc.length){
+      body += docxHeading("Conclusion", "");
+      if(concl) body += docxParagraph(concl);
+      cc.forEach(c=>{ const t = String(c.t || "").trim();
+        if(t) body += docxParagraph(t, null, {bullet:true}); });
+    }
+  }
 
   // A4 with half-inch margins, exactly as the template has it
   const sectPr = '<w:sectPr>' +
@@ -8441,7 +8995,17 @@ function openOutline(){
       (subs ? " and " + subs + " subsection" + (subs === 1 ? "" : "s") : "") +
       " will become numbered headings."
     : "No section breaks yet — add them with the Line tool set to Extra thick, and title each one.")
-    + (summaryNow().trim() ? "" : " No summary typed yet, so the first page will have none.");
+    + (summaryNow().trim() ? "" : " No big idea written yet, so the first page will have none.");
+  /* The glance. One line of what it notices, and then the button. It never
+     blocks and never nags — a sermon with nothing under heading 3 may be
+     exactly right — but the moment you reach for the button is the last
+     moment it is worth saying. */
+  const gl = document.getElementById("outGlance");
+  const bits = (typeof gapReport === "function") ? gapReport() : [];
+  if(gl){
+    gl.textContent = bits.length ? "Before you do: " + bits.join(" · ") : "";
+    gl.style.display = bits.length ? "" : "none";
+  }
   document.getElementById("outlineSheet").classList.add("show");
 }
 document.getElementById("outCancel").onclick = ()=>
@@ -8856,6 +9420,11 @@ function workCount(d){
   add(n("conns"), "arrow", "arrows");
   add(n("notes"), "note", "notes");
   add(n("trans"), "verse translated", "verses translated");
+  add(n("cards"), "card on the board", "cards on the board");
+  /* The big idea counts here too: it is one of the four, and the bin's one
+     line is the only thing that tells you what you are about to get back. */
+  add(n("summaries") + n("aims") + n("intros") + n("concls"),
+      "part of the sermon written", "parts of the sermon written");
   return bits.join(", ") || "the line structure";
 }
 
@@ -8864,6 +9433,7 @@ function workCount(d){
 function blankDoc(){
   return { v:3, at:Date.now(), dev:deviceId(), lineStarts:{}, strokes:[], conns:[],
            sections:[], summaries:{}, trans:{}, lem:{}, notes:{}, hits:{}, marks:{},
+           cards:[], aims:{}, intros:{}, concls:{},
            findQ:"" };
 }
 
@@ -8890,12 +9460,19 @@ function docMinusRange(d, uids){
   out.conns    = (out.conns || []).filter(c => !(keep[c[0]] || keep[c[1]]));
   gone.sections= (out.sections || []).filter(x => keep[x.w]);
   out.sections = (out.sections || []).filter(x => !keep[x.w]);
-  out.summaries = Object.assign({}, out.summaries);
-  gone.summaries = {};
-  if(out.summaries[viewKey()] !== undefined){
-    gone.summaries[viewKey()] = out.summaries[viewKey()];
-    delete out.summaries[viewKey()];
-  }
+  /* The big idea, the aim, the introduction and the conclusion all belong to
+     this passage, and so does its board — so "remove my work on this passage"
+     takes them, and the bin can give them back. */
+  ["summaries", "aims", "intros", "concls"].forEach(k=>{
+    out[k] = Object.assign({}, out[k]);
+    gone[k] = {};
+    if(out[k][viewKey()] !== undefined){
+      gone[k][viewKey()] = out[k][viewKey()];
+      delete out[k][viewKey()];
+    }
+  });
+  gone.cards = (out.cards || []).filter(c => (c.r || "all") === viewKey());
+  out.cards  = (out.cards || []).filter(c => (c.r || "all") !== viewKey());
   out.at = Date.now();
   return { left:out, gone:partsToDoc(docParts(gone), Date.now()) };
 }
@@ -8941,6 +9518,7 @@ function wipe(scope){
 
   S.undo = []; S.redo = [];          // there is a bin now; an undo stack would lie
   rebuildLines(); layout(); syncJoin(); closePops(); saveNow();
+  if(typeof paintBuilder === "function" && S.view === "builder") paintBuilder();
   note("Removed", what + " — kept for " + BINDAYS + " days");
   paintBin();
 }
@@ -9097,6 +9675,15 @@ function docSnapshot(){
     conns:   S.conns.map(c => [c.a, c.b, c.color || CONNINK]),
     sections:S.sections.map(s => ({ w:s.beforeWord, t:s.title, ci:s.ci, l:s.lvl || 1 })),
     summaries: Object.assign({}, S.summaries),
+    /* The Builder travels with the book, so it syncs, merges, undoes and goes
+       in the bin exactly as the ink does — nothing here needed its own
+       machinery. */
+    cards: S.cards.map(c => ({ id:c.id, k:c.k, t:c.t || "", x:Math.round(c.x || 0),
+                               y:Math.round(c.y || 0), to:c.to || "", r:c.r || "all",
+                               ln:c.ln || undefined, src:c.src || undefined })),
+    aims: Object.assign({}, S.aims),
+    intros: Object.assign({}, S.intros),
+    concls: Object.assign({}, S.concls),
     /* Your own English, one line of it per line of the diagram, kept under the
        uid of the word that line begins at — so it survives a re-split, a
        widening of the passage, and the three-way merge, exactly as ink does. */
@@ -9152,6 +9739,13 @@ function applyDoc(d, p){
   });
   S.findQ = (d && d.findQ) || "";
   S.summaries = Object.assign({}, (d && d.summaries) || {});
+  S.cards = ((d && d.cards) || []).map(c => ({
+    id:c.id || newCardId(), k:CARDKINDS[c.k] ? c.k : "idea", t:c.t || "",
+    x:+c.x || 0, y:+c.y || 0, to:c.to || "", r:c.r || "all",
+    ln:c.ln || "", src:c.src || "" }));
+  S.aims   = Object.assign({}, (d && d.aims) || {});
+  S.intros = Object.assign({}, (d && d.intros) || {});
+  S.concls = Object.assign({}, (d && d.concls) || {});
   if(d && d.aim && !S.summaries.all) S.summaries.all = d.aim;   // the old book-wide field
   showSummary();
   const fq = document.getElementById("findQ"); if(fq) fq.value = S.findQ;
@@ -9217,7 +9811,7 @@ function prefsSnapshot(){
     key:S.key, chapter:S.focus || S.chapter, view:S.chapter,
     ci:S.ci, ls:S.lineStyle, nib:S.nib, mk:S.markMode,
     tool:S.tool,
-    finger:S.fingerMode, sawPen:S.sawPen,
+    finger:S.fingerMode, sawPen:S.sawPen, tidy:!!S.tidy, view:S.view,
     mods:[document.getElementById("mText").value, document.getElementById("mLex").value,
           document.getElementById("mEng").value,  document.getElementById("mHeb").value,
           document.getElementById("mHLex").value],
@@ -9255,8 +9849,12 @@ function applyPrefs(p){
   S.tool = (p.tool === "join") ? "split" : (p.tool || "move");
   S.fingerMode = ["auto","move","draw"].includes(p.finger) ? p.finger : "auto";
   S.sawPen = !!p.sawPen;
+  S.tidy = !!p.tidy;
+  if(typeof setView === "function") setView(p.view === "builder" ? "builder" : "exegesis");
   const fm = document.getElementById("fingerMode");
   if(fm) fm.value = S.fingerMode;
+  const ti = document.getElementById("tidyInk");
+  if(ti) ti.value = S.tidy ? "on" : "off";
   document.querySelectorAll("[data-tool]").forEach(x =>
     x.classList.toggle("on", x.dataset.tool === S.tool));
   if(PASSAGES[p.key]){ S.key = p.key; setFocus(p.chapter || "all");
@@ -9481,6 +10079,8 @@ function docParts(d){
     marks: d.marks || {}, hits: d.hits || {}, notes: d.notes || {},
     lem: d.lem || {}, lineStarts: d.lineStarts || {},
     summaries: d.summaries || {}, trans: d.trans || {},
+    aims: d.aims || {}, intros: d.intros || {}, concls: d.concls || {},
+    cards: byId(d.cards, c => c.id),
     strokes: byId(d.strokes, s => s.id),
     conns:   byId(d.conns, c => c[0] + ">" + c[1]),
     /* A break is known by the word it sits above AND how heavy it is: a
@@ -9497,6 +10097,8 @@ function partsToDoc(parts, at, dev){
     marks:parts.marks, hits:parts.hits, notes:parts.notes, lem:parts.lem,
     lineStarts:parts.lineStarts,
     summaries:parts.summaries, trans:parts.trans,
+    aims:parts.aims, intros:parts.intros, concls:parts.concls,
+    cards: Object.keys(parts.cards).map(k => parts.cards[k]),
     strokes: Object.keys(parts.strokes).map(k => parts.strokes[k]),
     conns:   Object.keys(parts.conns).map(k => parts.conns[k]),
     sections:Object.keys(parts.sections).map(k => parts.sections[k])
@@ -10283,6 +10885,611 @@ document.getElementById("fingerMode").onchange = e =>{
   S.fingerMode = e.target.value;
   saveSoon();
 };
+document.getElementById("tidyInk").onchange = e =>{
+  S.tidy = e.target.value === "on";
+  saveSoon();
+};
+
+/* ============================================================
+   THE SERMON BUILDER
+
+   A board, not a form. The exegesis tab is the working; this is the sermon.
+   Nothing on it is required, nothing is scored, there is no order you must
+   work in, and the board exports half empty without complaint.
+
+   There are exactly two states a card can be in: LOOSE, lying on the board
+   where you dropped it, or ATTACHED to a slot on the spine, which means it
+   belongs to that part of the sermon and travels with it. That is the whole of
+   the structure. Where you put a card is the only thing that decides what it
+   means — Dever's trunk, branch and twig become three PLACES rather than three
+   rows to fill in: the series (not yet built), the spine itself, and a heading.
+
+   Cards live in the book's document, so syncing, the three-way merge, undo,
+   and the ten-day bin all work on them without a line of their own machinery.
+   ============================================================ */
+
+const CARDKINDS = {
+  idea:   { n:"Idea",         ph:"a thought, a turn of phrase, a line that might preach" },
+  quote:  { n:"Quote",        ph:"what was said, and who said it" },
+  person: { n:"Person",       ph:"what does this passage ask of them on Monday?" },
+  illus:  { n:"Illustration", ph:"the story, the image, the thing to hold up" },
+  ques:   { n:"Question",     ph:"answer it here, or flick it away" },
+  text:   { n:"Text",         ph:"" }
+};
+const KINDORDER = ["idea", "quote", "person", "illus", "ques", "text"];
+
+let CARDSEQ = 0;
+function newCardId(){
+  CARDSEQ++;
+  return "c" + Date.now().toString(36) + CARDSEQ.toString(36) +
+         Math.random().toString(36).slice(2, 6);
+}
+
+/* Which board you are looking at. The passage, not what happens to be laid
+   out around it — reading the context must not give you a second board. */
+function boardKey(){ return focusRange(); }
+function myCards(){ return S.cards.filter(c => (c.r || "all") === boardKey()); }
+
+/* ---- the spine ----
+   The headings come from the section breaks you have already made in the
+   exegesis, in the order they stand in the text. They cannot be edited here:
+   the structure of the passage belongs to the passage. They can be hung
+   things off, which is the point. */
+function spineSlots(){
+  const secs = S.sections
+    .map(sec => ({ sec, w: S.byUid[sec.beforeWord] }))
+    .filter(x => x.w && inFocus(x.w.verse))
+    .sort((a, b) => a.w.id - b.w.id);
+  let n = 0;
+  return secs.map(({ sec })=>{
+    const lvl = sec.lvl || 1;
+    if(lvl === 1) n++;
+    return { key:"s:" + sec.beforeWord + "|" + lvl,
+             name:(sec.title || "").trim() || "(untitled)",
+             num:lvl === 1 ? n : null, lvl, sec };
+  });
+}
+
+/* Every place a card may be attached, the two fixed ones included. */
+function allSlotKeys(){
+  return ["intro"].concat(spineSlots().map(s => s.key)).concat(["concl"]);
+}
+
+function cardsIn(key){ return myCards().filter(c => c.to === key); }
+function looseCards(){
+  const live = new Set(allSlotKeys());
+  /* A card attached to a heading you have since deleted comes back to the
+     board rather than disappearing with it. Work is never thrown away on
+     account of a structural change. */
+  return myCards().filter(c => !c.to || !live.has(c.to));
+}
+
+/* ---- the four fields that are always there ----
+   The big idea was on the exegesis page. It belongs here, at the head of the
+   spine, with the aim beside it: they are the two questions that govern
+   everything underneath them. The store is unchanged, so every export and
+   every sync that already knew about the big idea still does. */
+const BFIELDS = [
+  { key:"idea",  lbl:"Big idea",    store:()=> S.summaries,
+    ph:"in ten words or less, the idea that unifies the passage" },
+  { key:"aim",   lbl:"Aim",         store:()=> S.aims,
+    ph:"what should be different on Monday?" },
+  { key:"intro", lbl:"Introduction", store:()=> S.intros,
+    ph:"how you get them to want the answer" },
+  { key:"concl", lbl:"Conclusion",  store:()=> S.concls,
+    ph:"where it lands" }
+];
+function bField(key){ return BFIELDS.find(f => f.key === key); }
+function bGet(key){ const f = bField(key); return f ? (f.store()[boardKey()] || "") : ""; }
+function bSet(key, v){
+  const f = bField(key);
+  if(!f) return;
+  const st = f.store();
+  if(String(v).trim()) st[boardKey()] = v; else delete st[boardKey()];
+  if(key === "idea") showSummary();        // the exegesis page reads the same store
+}
+
+/* ============================================================
+   THE QUESTION DECK
+
+   The lenses are good; the GRID is what makes them feel like homework. So they
+   come one card at a time: you answer it, or you flick it away and deal
+   another. No order, nothing to complete.
+
+   The lens is marked on the card for one reason only — so that afterwards you
+   can ask what you have not touched. That is the grid's real work, coverage,
+   without a single cell to fill.
+   ============================================================ */
+const LENSES = [
+  { id:"salv", n:"Salvation history", q:[
+    "Where does this passage sit in the story, and what changes because of where it sits?",
+    "What could not be said before this point in the story, and what can no longer be said after it?",
+    "What did the first hearers have that we do not, or we have that they did not?" ]},
+  { id:"christ", n:"Christ", q:[
+    "What does this show of Christ — not an illustration of him, but him?",
+    "If this passage were preached with Christ left out, what would still be true of it, and would that be a sermon?",
+    "Does the passage reach Christ by its own road, or only by one you have laid for it?" ]},
+  { id:"nonxn", n:"The non-Christian", q:[
+    "What does this passage say to someone here who does not believe it — about something it actually says?",
+    "Would a curious, slightly embarrassed visitor know by the end that something is at stake?",
+    "Have you addressed them only in a closing paragraph? What would it look like to address them in the middle?" ]},
+  { id:"xn", n:"The Christian", q:[
+    "What should a believer do differently this week because of this, concretely enough to be refused?",
+    "What character does this form, as distinct from what it commands?",
+    "What does this teach us to WANT? (Duty is the easy one; goals and affections are usually empty.)" ]},
+  { id:"church", n:"The local church", q:[
+    "What does this ask of us together, that none of us could do alone?",
+    "What would this congregation look like in a year if it took this seriously?",
+    "Is there something here that is addressed to a body and you are about to preach it to individuals?" ]},
+  { id:"public", n:"The public square", q:[
+    "What does this say about how a Christian lives at work, in the street, among people who do not share it?",
+    "Is there a public claim here that costs something to say out loud in Brisbane?",
+    "What does this passage assume about power, money or justice that our city does not?" ]},
+  { id:"world", n:"Worldview", q:[
+    "What does this text assume about reality that your hearers do not — and what changes if it is true?",
+    "Could someone obey this and have their world not shift at all? What would stop that?",
+    "Run the cutting edges: ethics, philosophy, apologetics, personal godliness. Which is empty, and why?",
+    "What is the secular story about a life going well that this passage contradicts?" ]}
+];
+
+/* The people who will actually be in the room. Kept short on purpose: a list
+   long enough to be exhaustive is a list nobody reads. The trap under each is
+   the useful half — it is what stops a person-card becoming a caricature. */
+const HEARERS = [
+  { n:"Student or young single", t:"not the default hearer; some are third-generation and quietly bored" },
+  { n:"Young family",            t:"more than tired; their discipleship comes in fifteen-minute fragments" },
+  { n:"Middle or older adult",   t:"not only a resource for the young; they still need the gospel preached to them" },
+  { n:"Fringe or seeker",        t:"usually curious plus embarrassed, not hostile" },
+  { n:"The suffering",           t:"in pain this week, not in theory" },
+  { n:"The doubter",             t:"attending, not sure they believe it" },
+  { n:"The hardened",            t:"long-term attender, hearing nothing" },
+  { n:"The scrupulous",          t:"over-hears every rebuke; needs the opposite of what the complacent need" },
+  { n:"The leader",              t:"what does this require of those who teach it?" },
+  { n:"The recently converted",  t:"six months in, still learning the furniture" }
+];
+
+/* One question, from the lens with the least on it — so the deck drifts
+   towards what has been neglected without ever saying so. */
+function dealQuestion(){
+  const done = lensCount();
+  const asked = new Set(myCards().filter(c => c.k === "ques").map(c => c.ln + "|" + c.t));
+  const fewest = Math.min(...LENSES.map(l => done[l.id] || 0));
+  const pool = LENSES.filter(l => (done[l.id] || 0) === fewest);
+  const lens = pool[Math.floor(Math.random() * pool.length)] || LENSES[0];
+  const fresh = lens.q.filter(q => !asked.has(lens.id + "|" + q));
+  const q = (fresh.length ? fresh : lens.q)[Math.floor(Math.random() * (fresh.length || lens.q.length))];
+  return { lens, q };
+}
+
+/* How many ANSWERED cards each lens has. An unanswered question card is not
+   coverage — it is a question you have not got to yet. */
+function lensCount(){
+  const out = {};
+  myCards().forEach(c=>{
+    if(!c.ln) return;
+    if(c.k === "ques" && !String(c.t).trim()) return;
+    out[c.ln] = (out[c.ln] || 0) + 1;
+  });
+  return out;
+}
+
+/* ============================================================
+   DRAWING THE BOARD
+   ============================================================ */
+const bSpineEl = document.getElementById("bSpine");
+const bFixedEl = document.getElementById("bFixed");
+const bSlotsEl = document.getElementById("bSlots");
+const bBoardEl = document.getElementById("bBoard");
+const bTrayEl  = document.getElementById("bTrayRow");
+
+/* A textarea that is exactly as tall as what is written in it. This is what
+   "as long as needed" means in practice: an expanding post-it. */
+function autoGrow(el){
+  if(!el || !el.style) return;
+  el.style.height = "auto";
+  el.style.height = Math.max(el.scrollHeight || 0, 22) + "px";
+}
+
+function cardEl(c){
+  const el = document.createElement("div");
+  el.className = "bcard k-" + c.k;
+  el.dataset.card = c.id;
+
+  const head = document.createElement("div");
+  head.className = "bchead";
+  const kind = document.createElement("span");
+  kind.className = "bkind";
+  kind.textContent = (CARDKINDS[c.k] || CARDKINDS.idea).n;
+  /* Tapping the kind cycles it. A kind is a hint, not a decision to agonise
+     over, so changing it costs one tap and no menu. */
+  kind.onclick = e =>{
+    e.stopPropagation();
+    pushUndo();
+    c.k = KINDORDER[(KINDORDER.indexOf(c.k) + 1) % KINDORDER.length];
+    paintBuilder(); saveSoon();
+  };
+  head.appendChild(kind);
+
+  if(c.ln){
+    const l = document.createElement("span");
+    l.className = "blens";
+    l.textContent = (LENSES.find(x => x.id === c.ln) || {}).n || "";
+    head.appendChild(l);
+  }
+
+  const x = document.createElement("button");
+  x.className = "bx"; x.textContent = "×"; x.title = "Remove this card";
+  x.onclick = e =>{
+    e.stopPropagation();
+    pushUndo();
+    const i = S.cards.indexOf(c);
+    if(i >= 0) S.cards.splice(i, 1);
+    paintBuilder(); saveSoon();
+  };
+  head.appendChild(x);
+  el.appendChild(head);
+
+  const body = document.createElement("textarea");
+  body.className = "bbody";
+  body.value = c.t || "";
+  body.placeholder = (CARDKINDS[c.k] || {}).ph || "";
+  body.spellcheck = true;
+  body.oninput = ()=>{ c.t = body.value; autoGrow(body); saveSoon(); };
+  el.appendChild(body);
+
+  if(c.src){
+    const sr = document.createElement("div");
+    sr.className = "bsrc";
+    sr.textContent = c.src;
+    el.appendChild(sr);
+  }
+
+  wireCardDrag(el, c, head);
+  return { el, body };
+}
+
+function paintSpine(){
+  bFixedEl.innerHTML = "";
+  bSlotsEl.innerHTML = "";
+
+  /* Big idea and aim: pinned at the head, because they govern everything
+     under them. Nothing attaches to them — they are statements, not parts. */
+  BFIELDS.filter(f => f.key === "idea" || f.key === "aim").forEach(f=>{
+    const slot = document.createElement("div");
+    slot.className = "bslot fixed big";
+    const lbl = document.createElement("div");
+    lbl.className = "bslotsub"; lbl.textContent = f.lbl;
+    const ta = document.createElement("textarea");
+    ta.className = "bfield"; ta.value = bGet(f.key); ta.placeholder = f.ph;
+    ta.dataset.field = f.key;
+    ta.oninput = ()=>{ bSet(f.key, ta.value); autoGrow(ta); saveSoon(); };
+    slot.appendChild(lbl); slot.appendChild(ta);
+    bFixedEl.appendChild(slot);
+    autoGrow(ta);
+  });
+
+  const put = (key, name, extra, field)=>{
+    const slot = document.createElement("div");
+    slot.className = "bslot" + (extra || "");
+    slot.dataset.slot = key;
+    const nm = document.createElement("div");
+    nm.className = "bslotname"; nm.textContent = name;
+    slot.appendChild(nm);
+    if(field){
+      const ta = document.createElement("textarea");
+      ta.className = "bfield"; ta.value = bGet(field);
+      ta.placeholder = (bField(field) || {}).ph || "";
+      ta.dataset.field = field;
+      ta.oninput = ()=>{ bSet(field, ta.value); autoGrow(ta); saveSoon(); };
+      slot.appendChild(ta);
+      autoGrow(ta);
+    }
+    const mine = cardsIn(key);
+    mine.forEach(c =>{ const { el, body } = cardEl(c); slot.appendChild(el); autoGrow(body); });
+    bSlotsEl.appendChild(slot);
+    return slot;
+  };
+
+  put("intro", "Introduction", " fixed", "intro");
+
+  const slots = spineSlots();
+  if(!slots.length){
+    const none = document.createElement("div");
+    none.className = "bslotnone";
+    none.textContent = "No section breaks yet. Make them in the exegesis and "
+                     + "they will arrive here in order.";
+    bSlotsEl.appendChild(none);
+  }
+  slots.forEach(sl=>{
+    put(sl.key, (sl.num ? sl.num + ". " : "— ") + sl.name,
+        sl.lvl > 1 ? " sub" : "");
+  });
+
+  put("concl", "Conclusion", " fixed", "concl");
+}
+
+/* NOT paintBoard: that name already belongs to the function that draws the
+   diagram into an exported picture, and taking it shadowed the export. */
+function paintLoose(){
+  [...bBoardEl.querySelectorAll(".bcard")].forEach(n => n.remove());
+  const loose = looseCards();
+  const empty = document.getElementById("bEmpty");
+  if(empty) empty.style.display = loose.length ? "none" : "";
+  loose.forEach(c=>{
+    const { el, body } = cardEl(c);
+    el.style.left = Math.max(0, c.x || 0) + "px";
+    el.style.top  = Math.max(28, c.y || 28) + "px";
+    bBoardEl.appendChild(el);
+    autoGrow(body);
+  });
+}
+
+/* ---- the tray ----
+   What the exegesis has to offer, dragged out one at a time. Most of a marked
+   passage is working rather than material, so nothing is poured in: a passage
+   with forty marks on it would bury the board. */
+function trayItems(){
+  const out = [];
+  Object.keys(S.trans || {}).filter(ref => inFocus(ref)).sort().forEach(ref=>{
+    const t = S.trans[ref];
+    if(t && t.trim()) out.push({ k:"text", t:t.trim(), src:"Your English · " + ref,
+                                 lbl:ref + " · " + t.trim() });
+  });
+  S.strokes.forEach(st=>{
+    if(!TAGMODES.has(st.mode)) return;
+    [st.ref, st.ref2].filter(Boolean).forEach(r=>{
+      const w = st.anchor == null ? null : S.byUid[st.anchor];
+      if(w && !inFocus(w.verse)) return;
+      out.push({ k:"quote", t:"", src:r, lbl:(st.mode === "chain" ? "Link · " : "Cross-reference · ") + r });
+    });
+  });
+  HEARERS.forEach(h => out.push({ k:"person", t:"", src:h.t, lbl:"Person · " + h.n,
+                                  name:h.n }));
+  return out;
+}
+
+function paintTray(){
+  bTrayEl.innerHTML = "";
+  const items = trayItems();
+  if(!items.length){
+    const d = document.createElement("div");
+    d.className = "btnone";
+    d.textContent = "Nothing yet. Translate a verse or draw a cross-reference and it will show up here.";
+    bTrayEl.appendChild(d);
+    return;
+  }
+  items.forEach(it=>{
+    const b = document.createElement("button");
+    b.className = "btray";
+    b.textContent = it.lbl;
+    b.title = "Put this on the board";
+    b.onclick = ()=>{
+      pushUndo();
+      makeCard(it.k, it.name ? it.name : it.t, { src:it.src });
+    };
+    bTrayEl.appendChild(b);
+  });
+}
+
+/* Somewhere to put a new card that is not on top of an old one. */
+function freeSpot(){
+  const taken = looseCards().map(c => ({ x:c.x || 0, y:c.y || 0 }));
+  const W = Math.max(400, bBoardEl.offsetWidth || 700);
+  for(let row = 0; row < 40; row++){
+    for(let col = 0; col < Math.max(1, Math.floor((W - 24) / 252)); col++){
+      const x = 18 + col * 252, y = 40 + row * 124;
+      if(!taken.some(p => Math.abs(p.x - x) < 40 && Math.abs(p.y - y) < 40))
+        return { x, y };
+    }
+  }
+  return { x:18, y:40 };
+}
+
+function makeCard(kind, text, opts){
+  const o = opts || {};
+  const at = o.at || freeSpot();
+  const c = { id:newCardId(), k:CARDKINDS[kind] ? kind : "idea", t:text || "",
+              x:at.x, y:at.y, to:o.to || "", r:boardKey(),
+              ln:o.ln || "", src:o.src || "" };
+  S.cards.push(c);
+  paintBuilder(); saveSoon();
+  /* Put the cursor in it: a card you have just made is a card you are about to
+     write on. */
+  const el = bBoardEl.querySelector('[data-card="' + c.id + '"] .bbody') ||
+             bSlotsEl.querySelector('[data-card="' + c.id + '"] .bbody');
+  if(el && el.focus) el.focus();
+  return c;
+}
+
+/* ---- dragging ----
+   Drop a card on a slot and it belongs to that part of the sermon. Drop it
+   back on the board and it is loose again. There is nothing else to learn. */
+let BDRAG = null;
+function wireCardDrag(el, c, handle){
+  handle.addEventListener("pointerdown", e=>{
+    if(e.target && e.target.className === "bx") return;
+    if(e.target && e.target.className === "bkind") return;
+    e.preventDefault();
+    const r = el.getBoundingClientRect ? el.getBoundingClientRect()
+            : { left:0, top:0, width:232, height:80 };
+    BDRAG = { c, el, dx:e.clientX - r.left, dy:e.clientY - r.top, moved:false,
+              w:r.width, h:r.height };
+    if(handle.setPointerCapture) try{ handle.setPointerCapture(e.pointerId); }catch(_){}
+  });
+  handle.addEventListener("pointermove", e=>{
+    if(!BDRAG || BDRAG.c !== c) return;
+    if(!BDRAG.moved){
+      BDRAG.moved = true;
+      pushUndo();
+      el.classList.add("drag");
+      /* Lifted off the spine and onto the board, so it can be carried
+         anywhere; where it lands decides whether it goes back. */
+      if(el.parentNode !== bBoardEl){
+        el.style.position = "absolute";
+        bBoardEl.appendChild(el);
+      }
+    }
+    const br = bBoardEl.getBoundingClientRect
+             ? bBoardEl.getBoundingClientRect() : { left:0, top:0 };
+    el.style.left = (e.clientX - br.left - BDRAG.dx + (bBoardEl.scrollLeft || 0)) + "px";
+    el.style.top  = (e.clientY - br.top  - BDRAG.dy + (bBoardEl.scrollTop  || 0)) + "px";
+    markSlotUnder(e.clientX, e.clientY);
+  });
+  const done = e =>{
+    if(!BDRAG || BDRAG.c !== c) return;
+    const moved = BDRAG.moved;
+    el.classList.remove("drag");
+    BDRAG = null;
+    [...bSlotsEl.querySelectorAll(".bslot")].forEach(n => n.classList.remove("over"));
+    if(!moved) return;
+    const slot = slotUnder(e.clientX, e.clientY);
+    c.to = slot || "";
+    if(!slot){
+      c.x = Math.max(0, parseFloat(el.style.left) || 0);
+      c.y = Math.max(28, parseFloat(el.style.top) || 28);
+    }
+    paintBuilder(); saveSoon();
+  };
+  handle.addEventListener("pointerup", done);
+  handle.addEventListener("pointercancel", done);
+}
+
+function slotUnder(x, y){
+  const hit = [...bSlotsEl.querySelectorAll(".bslot")].find(n=>{
+    const r = n.getBoundingClientRect ? n.getBoundingClientRect() : null;
+    return r && x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+  });
+  return hit ? hit.dataset.slot : null;
+}
+function markSlotUnder(x, y){
+  const key = slotUnder(x, y);
+  [...bSlotsEl.querySelectorAll(".bslot")].forEach(n =>
+    n.classList.toggle("over", n.dataset.slot === key));
+}
+
+function paintBuilder(){
+  if(!bSpineEl) return;
+  paintSpine();
+  paintLoose();
+  paintTray();
+}
+
+/* ---- the two tabs ---- */
+function setView(v){
+  S.view = (v === "builder") ? "builder" : "exegesis";
+  const b = document.getElementById("builder");
+  const sc = document.getElementById("scroll");
+  if(b) b.classList.toggle("on", S.view === "builder");
+  if(sc) sc.style.display = S.view === "builder" ? "none" : "";
+  const ex = document.getElementById("tabEx"), sb = document.getElementById("tabSb");
+  if(ex) ex.classList.toggle("on", S.view === "exegesis");
+  if(sb) sb.classList.toggle("on", S.view === "builder");
+  /* The big idea has moved to the spine, so the box that used to sit on the
+     paper is gone from the exegesis page entirely. */
+  if(S.view === "builder") paintBuilder();
+  saveSoon();
+}
+const tabExEl = document.getElementById("tabEx");
+const tabSbEl = document.getElementById("tabSb");
+if(tabExEl) tabExEl.onclick = ()=> setView("exegesis");
+if(tabSbEl) tabSbEl.onclick = ()=> setView("builder");
+
+document.getElementById("bNew").onclick = ()=>{ pushUndo(); makeCard("idea", ""); };
+document.getElementById("bAsk").onclick = ()=>{
+  const { lens, q } = dealQuestion();
+  pushUndo();
+  makeCard("ques", "", { ln:lens.id, src:q });
+  note(lens.n, q);
+};
+
+/* What you have not touched. A glance, not a grid: it names the lenses with
+   nothing answered against them and says nothing else. */
+function gapReport(){
+  const done = lensCount();
+  const cold = LENSES.filter(l => !(done[l.id] > 0));
+  const slots = spineSlots();
+  const bare = slots.filter(sl => !cardsIn(sl.key).length);
+  const bits = [];
+  if(cold.length) bits.push("Untouched: " + cold.map(l => l.n).join(", "));
+  if(bare.length) bits.push(bare.length + (bare.length === 1 ? " heading has" : " headings have")
+                            + " nothing attached");
+  if(!myCards().some(c => c.k === "illus" && String(c.t).trim()))
+    bits.push("no illustration yet");
+  if(!bGet("aim").trim()) bits.push("no aim");
+  return bits;
+}
+
+/* The export is the Builder's job now, not the exegesis tab's, because the
+   Builder IS the sermon and the exegesis is the working. */
+document.getElementById("bOut").onclick = ()=> openOutline();
+
+document.getElementById("bGaps").onclick = ()=>{
+  const bits = gapReport();
+  note(bits.length ? "Worth a look" : "Nothing obvious missing",
+       bits.length ? bits.join(" · ")
+                   : "every lens has something answered against it, and every heading has something attached");
+};
+
+/* ---- handing the board to Claude ----
+   Nous is one file with no server behind it, which is why it works on a plane
+   and costs nothing to run. So the thinking happens where the congregation
+   record already lives: this copies the board out as text to paste into a
+   conversation, and takes cards back the same way. */
+function boardAsText(){
+  const p = PASSAGES[S.key] || {};
+  const L = [];
+  L.push("PASSAGE: " + (p.title || S.key) + " " +
+         rangeLabel(boardKey()).replace("chapter ", ""));
+  L.push("BIG IDEA: " + (bGet("idea") || "—"));
+  L.push("AIM: " + (bGet("aim") || "—"));
+  L.push("");
+  const say = (name, key)=>{
+    L.push("## " + name);
+    const mine = cardsIn(key);
+    if(!mine.length) L.push("(nothing attached)");
+    mine.forEach(c => L.push("- [" + (CARDKINDS[c.k] || {}).n + "] " +
+                             (String(c.t).trim() || "(blank)") +
+                             (c.src ? "  — " + c.src : "")));
+    L.push("");
+  };
+  const intro = bGet("intro"), concl = bGet("concl");
+  L.push("## Introduction"); L.push(intro || "(nothing written)");
+  cardsIn("intro").forEach(c => L.push("- " + String(c.t).trim()));
+  L.push("");
+  spineSlots().forEach(sl => say((sl.num ? sl.num + ". " : "") + sl.name, sl.key));
+  L.push("## Conclusion"); L.push(concl || "(nothing written)");
+  cardsIn("concl").forEach(c => L.push("- " + String(c.t).trim()));
+  L.push("");
+  const loose = looseCards().filter(c => String(c.t).trim());
+  if(loose.length){
+    L.push("## Loose, not yet attached");
+    loose.forEach(c => L.push("- [" + (CARDKINDS[c.k] || {}).n + "] " + String(c.t).trim()));
+    L.push("");
+  }
+  const gaps = gapReport();
+  if(gaps.length) L.push("WHAT IS THIN: " + gaps.join(" · "));
+  return L.join("\n");
+}
+
+/* And back again. One card a line, the kind in brackets at the front; a line
+   that does not say a kind is an idea. Anything unreadable is left out rather
+   than guessed at, and it says how many it took. */
+function cardsFromText(txt){
+  const got = [];
+  String(txt || "").split(/\r?\n/).forEach(raw=>{
+    const line = raw.replace(/^[-*•]\s*/, "").trim();
+    if(!line) return;
+    const m = /^\[([A-Za-z]+)\]\s*(.+)$/.exec(line);
+    if(!m) { if(line.length > 3 && !/^#/.test(line) && !/^[A-Z ]+:$/.test(line))
+               got.push({ k:"idea", t:line }); return; }
+    const want = m[1].toLowerCase();
+    const k = KINDORDER.find(x => x === want ||
+                (CARDKINDS[x].n.toLowerCase().indexOf(want) === 0)) || "idea";
+    got.push({ k, t:m[2].trim() });
+  });
+  return got;
+}
+
 document.getElementById("logBtn").onclick = ()=>{
   const w = document.getElementById("logWrap");
   const showing = w.style.display === "none";
@@ -10311,7 +11518,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-10-01d";
+const BUILD = "2026-10-16b";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file
@@ -10591,10 +11798,11 @@ function tourSteps(){
 
   { sel:"#refBox",
     title:"Finding a passage",
-    body:"Type a reference here — <b>2 Corinthians 4:7-12</b>, <b>Rom 8</b>, "
-       + "<b>Gen 1:1-5</b>. A range may cross a chapter break.<br><br>"
-       + "Every range keeps its own diagram, so the work you do on 4:7-12 stays "
-       + "there when you go elsewhere and come back." },
+    body:"Tap here and choose: a book, a chapter, the verse it starts at, and "
+       + "the verse it ends at. There is nothing to type and nothing to spell "
+       + "— and only the books you actually have are offered.<br><br>"
+       + "Every passage keeps its own diagram, so the work you do on 4:7–12 "
+       + "stays there when you go elsewhere and come back." },
 
   { sel:'[data-tool="split"]',
     title:"Breaking it into propositions",
@@ -10681,11 +11889,12 @@ function tourSteps(){
        + "With an Apple Pencil the pencil draws and your finger moves the page, "
        + "without you having to tell it which." },
 
-  { sel:"#sumBox",
-    title:"The big idea",
-    body:"One sentence saying what the passage is doing. It belongs to this range "
-       + "rather than the whole book, and it goes on the front page of the Word "
-       + "document." },
+  { sel:"#tabSb",
+    title:"The Sermon Builder",
+    body:"The other half. This tab is the working; that one is the sermon — the "
+       + "big idea, the aim, and a board you put cards on and move around until "
+       + "they belong somewhere. Your section headings arrive there on their own, "
+       + "and the Word document comes out of it." },
 
   { sel:"#setBtn",
     title:"Getting it out again",
@@ -10955,12 +12164,13 @@ function demoSteps(){
        + "right-hand side down and you have the passage as you would say it "
        + "aloud." }),
 
-  Object.assign(at(9), { sel:"#sumBox",
+  Object.assign(at(9), { sel:"#tabSb",
     title:"Say it in one sentence",
-    body:"The big idea, in one sentence. It belongs to this passage rather than "
-       + "to the whole book, so a different range gets its own box.<br><br>"
-       + "When you export the diagram as a sermon outline, this is written at the "
-       + "top of page 1." }),
+    body:"The big idea lives in the Sermon Builder, at the head of the spine, with "
+       + "the aim beside it. It belongs to this passage rather than to the whole "
+       + "book, so a different passage gets its own.<br><br>"
+       + "When you export the sermon outline — which you do from that tab — this "
+       + "is written at the top of page 1." }),
 
   Object.assign(at(9), { sel:"#setBtn",
     title:"And out it goes",

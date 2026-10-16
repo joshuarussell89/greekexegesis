@@ -212,10 +212,108 @@ where it always did and only the page gets wider. It goes into the sermon
 outline under each heading, above the diagram — the English is the passage, the
 diagram is the working.
 
+## The Sermon Builder
+
+A second tab on every passage. The exegesis tab is the working; this one is the
+sermon.
+
+**The spine**, down the left, is the sermon in the order it runs. The **big
+idea** and the **aim** are pinned at its head — the big idea has moved off the
+exegesis page, because it is not exegesis — and under them the **introduction**,
+your **headings**, and the **conclusion**. The headings arrive on their own from
+the section breaks you have already made, in the order they stand in the text,
+and rename themselves when you rename them there. They cannot be edited from
+this tab: the structure of the passage belongs to the passage.
+
+**Everything else is a card.** Tap ＋ a card, or take one out of the tray at the
+foot. A card holds as much as you write on it and grows to fit. Tap its kind to
+cycle it — idea, quote, person, illustration, question, text — which is a hint,
+never a slot you must fill.
+
+A card is in exactly one of two states. **Loose**, lying where you dropped it,
+still being played with. Or **attached**, dragged onto a slot on the spine,
+which means it belongs to that part of the sermon. That is the whole of the
+structure: where you put a card is the only thing that decides what it means.
+Delete a heading in the exegesis and anything attached to it comes back to the
+board rather than going with it.
+
+**The tray** holds what the exegesis has to offer — any verse you have
+translated, any link or cross-reference you have drawn, and the people who will
+actually be in the room. Nothing is poured in; you drag out what you want,
+because most of a marked-up passage is working rather than material.
+
+**Ask me something** deals one question from one of the seven lenses: salvation
+history, Christ, the non-Christian, the Christian, the local church, the public
+square, worldview. Answer it on the card or flick it away and deal another. The
+lens is marked on the card for one reason only — so **What haven't I touched?**
+can tell you which lenses have nothing answered against them. That is the grid's
+real work, coverage, without a cell to fill. It drifts towards whatever you have
+neglected without ever saying so.
+
+**The outline comes out of this tab now**, not from the settings panel. Big
+idea, aim, introduction, each heading with your English, its diagram and
+whatever you attached to it, then the conclusion. Loose cards do not go in —
+that is what loose means. On the way out it says in one line what it notices:
+untouched lenses, headings with nothing attached, no illustration, no aim. It
+never blocks and never nags.
+
+**Hand this to Claude…** copies the board out as text. Nous has no AI in it,
+which is why it works on a plane and costs nothing to run, so the thinking
+happens where your congregation record already lives: paste it into a
+conversation, paste the cards that come back into the lower box, and they land
+on the board loose, for you to place.
+
+Everything here lives in the book's own document, so it syncs between your
+devices, merges card by card, undoes, and goes in the ten-day bin exactly as
+your ink does.
+
+## Choosing a passage
+
+The box at the top of the window is a button, not a field. Tap it and choose:
+book, chapter, the verse it starts at, and the verse it ends at. Leave the end
+alone and you get the whole chapter; tap one verse and nothing else and you get
+that verse. It opens on the book and chapter you are already in, so the next
+few verses are two taps away.
+
+Nothing is typed and nothing is spelled. The whole canon is listed, and the
+books you have not installed are shown greyed out rather than left out — so a
+missing book reads as a book to install, not as an app that has not heard of
+Habakkuk.
+
+## Indenting a line
+
+Drag the grip beside a line to step it right. The line keeps its full width
+wherever it starts: the sheet of paper grows to hold it rather than squeezing
+the words into a narrower and narrower column until they break onto a second
+row. Everything that lives to the right of the text — your English, the rules
+in the margin — moves out with it, and it all comes back when the indent does.
+
+## Tidying up after the Pencil
+
+**Settings → Drawing → Tidy up.** Off by default.
+
+With it on, a highlight scribbled over some words becomes a clean highlight
+*of* those words — the same thing you would get by selecting them and tapping a
+colour, which means it travels when the lines are re-flowed and shows up in an
+export. A stroke that crosses no words is left as ink.
+
+Freehand pen lines are smoothed as you lift the Pencil: the tremor is averaged
+out, the ends stay exactly where you put them, and the pressure is untouched.
+This is smoothing, **not handwriting recognition** — your writing stays your
+writing, just steadier. Turning handwriting into type is iPadOS's Scribble,
+which already works in every box Nous asks you to write in.
+
+## Colour
+
+One row of colours, not two. Whether a colour goes down at full strength or
+softened is the nib's business: pick the **Highlighter** from the Pen menu, or
+select some words and tap a colour. The swatches preview which you will get.
+
 ## Links and cross-references
 
 Both open a sheet with a field big enough to write in with a Pencil, and a
 **Choose…** button beside it: three scrollable columns — book, chapter, verse.
+The sheet fills the bottom half of the screen, which is where your hand is.
 What the picker offers comes out of the books actually installed on this
 device, so it can never offer you Philippians 5. A book you have not installed
 is still in the list; you just type the numbers yourself. Whatever you pick is
@@ -235,7 +333,7 @@ returns to the passage alone. A book too big for one page is opened as far as
 it will go, evenly on both sides, and says so.
 
 **This does not change what you are preaching on.** The passage is what you
-searched for, and only the reference box, the book and chapter menus, or
-following a link will change it. The big idea stays filed under it, the
+chose, and only the passage button, the book and chapter menus, or following a
+link will change it. The big idea stays filed under it, the
 reference box keeps saying it, "remove my work on this passage" still means it,
 and the sermon outline exports it and not the context.

@@ -173,6 +173,20 @@
     padding:7px 9px 9px;overflow:hidden;min-height:34px;}
   .bbody::placeholder{color:var(--dim);font-style:italic;}
   .bsrc{font-size:10.5px;color:var(--muted);padding:0 9px 8px;}
+  /* The corner you pull. Two short rules rather than a solid block: it says
+     "drag me" the way every resize corner does, and takes up almost nothing
+     on a card that is only a sentence long. */
+  .bcard{position:relative;}
+  .bgrip{position:absolute;right:0;bottom:0;width:18px;height:18px;cursor:nwse-resize;
+    touch-action:none;}
+  .bgrip::before,.bgrip::after{content:"";position:absolute;right:3px;
+    border-bottom:1.5px solid var(--rule);border-right:1.5px solid var(--rule);}
+  .bgrip::before{bottom:3px;width:7px;height:7px;}
+  .bgrip::after{bottom:3px;width:3px;height:3px;}
+  .bgrip:hover::before,.bgrip:hover::after{border-color:var(--accent);}
+  /* Attached, a card takes the width of the spine, so there is nothing for a
+     sideways drag to do. The height is still its own. */
+  .bslot .bgrip{cursor:ns-resize;}
   /* The six kinds. Colour is the only thing that distinguishes them — a kind
      is a hint about what a card is, never a slot you have to fill. */
   .k-idea  .bkind{background:#fff1c9;color:#7a5a00;}
@@ -314,6 +328,11 @@
      so it looks like what it is. */
   .vn.can{cursor:pointer;}
   .vn.has{opacity:1;text-decoration:underline;text-underline-offset:2px;}
+  /* A note about the verse, which is a different thing from your English for
+     it: a dot rather than an underline, so a verse carrying both says so. */
+  .vn.noted{opacity:1;}
+  .vn.noted::after{content:"";position:absolute;right:-1px;top:-1px;width:4px;height:4px;
+    border-radius:50%;background:var(--accent);}
   #page{position:relative;width:1120px;height:1750px;}
 
   /* ---- bringing in the verses on either side ----
@@ -797,6 +816,14 @@
     color:var(--ink);resize:none;}
   #noteDrawer textarea:focus{outline:none;border-color:var(--accent);}
   #noteDrawer .ndfoot{font-size:11px;color:var(--dim);}
+  #noteDrawer .ndtabs{display:flex;gap:4px;align-self:center;margin:0 auto;}
+  #noteDrawer .ndtabs button{font:inherit;font-size:12.5px;padding:7px 14px;
+    border:1px solid var(--rule);border-radius:9px;background:var(--paper);
+    color:var(--muted);cursor:pointer;}
+  #noteDrawer .ndtabs button.on{background:var(--chip);color:var(--ink);
+    border-color:var(--accent);font-weight:500;}
+  #noteDrawer .ndtabs button .dot{display:inline-block;width:5px;height:5px;
+    border-radius:50%;background:var(--accent);margin-left:6px;vertical-align:middle;}
   #insp{position:fixed;right:18px;bottom:18px;width:334px;max-width:calc(100vw - 36px);
     background:var(--paper);border:1px solid var(--rule);border-radius:15px;
     box-shadow:0 16px 46px rgba(0,0,0,.19);padding:16px 18px 15px;z-index:80;display:none;}
@@ -1038,6 +1065,13 @@
 <aside id="noteDrawer" aria-label="Note">
   <div class="ndhead">
     <div><div class="ndword" id="ndWord"></div><div class="ndref" id="ndRef"></div></div>
+    <!-- Two different things you might want to write about a verse, and no
+         reason to make you choose between them: your English for it, and
+         whatever you want to say about it. -->
+    <div class="ndtabs" id="ndTabs" style="display:none">
+      <button id="ndTabT" class="on">Your English</button>
+      <button id="ndTabN">Note</button>
+    </div>
     <button id="ndDone" class="act">✓ Done</button>
   </div>
   <textarea id="ndText" spellcheck="true" autocapitalize="sentences"
@@ -1581,6 +1615,14 @@ const INDENT = 36, ROW = 44, MARGIN = 78, TOP = 76, GAPW = 9, WRAP = 1075;
    squeezing it. WRAP is now only where an UNindented line ends — the width
    of the sheet when nothing has been moved. */
 const MEASURE = WRAP - MARGIN;
+/* The widest a line may be before it is made to wrap after all. A line is a
+   clause, and a clause broken onto a second row LOOKS like two lines when it
+   is one — which is the whole thing a flow diagram is drawing. So the sheet
+   grows to hold a long line rather than folding it, and this is only the point
+   past which it cannot: the ink canvas has a fixed pixel budget spread over
+   the area of the sheet, and a page six thousand wide costs resolution
+   everywhere, including on the short lines. */
+const MAXLINE = 2600;
 /* Right-to-left needs its gutter on the other side, and the vowel points and
    accents need more room above and below than Greek does. */
 const RWRAP = 1040, ROW_HE = 58, GAPW_HE = 11;
@@ -1619,6 +1661,10 @@ const S = {
      holds a board per passage. The four fixed fields are keyed by range the
      same way the big idea already was. */
   cards:[], aims:{}, intros:{}, concls:{}, view:"exegesis",
+  /* A note about a VERSE, as distinct from a note about a word. Kept by verse
+     label, exactly as your own English is, so it survives a re-split and the
+     three-way merge the same way. */
+  vnotes:{},
   markMode:"emphasis", findQ:"", glyphs:[],
   glyphUse:{}, glyphHidden:{}, glyphGone:{}, glyphPin:[], arrangePins:false,
   words:[], lines:[], strokes:[], conns:[], sections:[],
@@ -2265,6 +2311,31 @@ function measureWords(){
   if(t) board.style.transform = t;
 }
 
+/* How wide this line would be if nothing ever made it wrap: its words, the
+   gaps between them, and room for any verse number that starts mid-line. */
+function lineWidth(line, GAP){
+  let w = 0, seen = null;
+  line.ids.forEach((id, k)=>{
+    const wd = S.words[id];
+    if(!wd) return;
+    if(k) w += GAP;
+    if(wd.verse !== seen){ if(k) w += 34; seen = wd.verse; }
+    w += wd.w;
+  });
+  return w;
+}
+
+/* The room this line gets before it wraps. Its own width where that is more
+   than the ordinary measure, so a verse a word or two too long pushes the page
+   out instead of dropping its last word underneath; and never past MAXLINE. */
+function lineRoom(line, GAP, base){
+  /* Hebrew's ordinary measure is its own, narrower one: starting from the
+     Greek measure would push the right-hand edge out on every Hebrew page,
+     even one whose lines all fit comfortably. */
+  const floor = base || (isRTL() ? (RWRAP - MARGIN) : MEASURE);
+  return Math.max(floor, Math.min(MAXLINE, lineWidth(line, GAP) + 2));
+}
+
 function layout(){
   board.querySelectorAll(".vn,.lh,.tr").forEach(n=>n.remove());
   const secs = sectionsByLine();
@@ -2277,24 +2348,37 @@ function layout(){
   const rtl = isRTL();
   const R = rtl ? ROW_HE : ROW, GAP = rtl ? GAPW_HE : GAPW;
 
+  /* Hebrew runs right to left from a right-hand edge, into a left margin that
+     cannot move: the sheet can grow to the RIGHT but its origin cannot slide
+     left. So the long line is given its room by pushing that right-hand edge
+     further out, which moves every Hebrew line over and widens the sheet —
+     the mirror of what a long Greek line does. */
+  const deepest = S.lines.reduce((m, l) => Math.max(m, (l.indent || 0) * INDENT), 0);
+  const widest  = S.lines.reduce((m, l) => Math.max(m, lineRoom(l, GAP)), 0);
+  const rtlEdge = rtl ? Math.max(RWRAP, MARGIN + widest + deepest) : 0;
+  S._rtlEdge = rtlEdge;
+
   S.lines.forEach(line=>{
     // a section break pushes this line — and everything after it — down a notch
     const here = secs[line.id] || [];
     here.forEach(sec=>{ y += SECGAP; sec._y = y - SECGAP + 17; });
 
     // x0 is where the line starts: the left margin, or the right one mirrored
-    const x0 = rtl ? (RWRAP - line.indent*INDENT) : (MARGIN + line.indent*INDENT);
+    const x0 = rtl ? (rtlEdge - line.indent*INDENT) : (MARGIN + line.indent*INDENT);
     /* Where this line wraps. It used to be WRAP, a fixed column down the page,
        which meant that dragging a line further and further right made it
        NARROWER and narrower until it broke onto a second row under itself —
        the indent eating the text. The measure is the same for every line now;
        indenting one moves its wrap point right along with it, and the sheet of
        paper grows to hold whatever the furthest one reaches. */
-    /* Hebrew runs the other way, into a left margin that cannot move: the sheet
-       can grow to the right but its origin cannot slide left. So an indented
-       Hebrew line keeps the full measure while there is room for it and is
-       held at the margin after that, which is what every line used to do. */
-    const wrapX = rtl ? Math.max(MARGIN, x0 - MEASURE) : (x0 + MEASURE);
+    /* And a line that is longer than the measure is given its own width rather
+       than being folded: a clause dropped onto a second row reads as two
+       lines, and telling one clause from two is what the diagram is FOR. There
+       was no way to get that last word back up, either — dragging the line
+       right moved its wrap point right along with it, so the same words always
+       fitted and the same word always fell off the end. */
+    const room = lineRoom(line, GAP);
+    const wrapX = rtl ? Math.max(MARGIN, x0 - room) : (x0 + room);
     let x = x0, rows = 1;
     line.y = y; line.x = x0;
 
@@ -2324,8 +2408,13 @@ function layout(){
         if(x > x0 && x + gap + w.w > wrapX){ x = x0 + 22; y += R; rows++; }
         if(inline){ line.vns.push({ text:label, x, y:y + 2, w:lw, rtl, inline:true }); x += gap; }
         w.lx = x; w.ly = y;
+        /* Where the WORD ends, not where the next one would start: taking the
+           trailing gap too put the text's right-hand edge nine pixels past the
+           last letter, and everything measured from it — the English column,
+           the rules in the margin, the width of the sheet — inherited the
+           error. */
+        if(x + w.w > far) far = x + w.w;
         x += w.w + GAP;
-        if(x > far) far = x;
       }
 
       if(starts){
@@ -2347,11 +2436,13 @@ function layout(){
       const vn = document.createElement("div");
       const ref = m.text.indexOf(":") >= 0 ? m.text
                 : (line.verse || "").split(":")[0] + ":" + m.text;
+      const tr = (S.trans || {})[ref], vnote = (S.vnotes || {})[ref];
       vn.className = "vn can" + (m.inline ? " inl" : "") +
-                     ((S.trans || {})[ref] ? " has" : "") +
+                     (tr ? " has" : "") + (vnote ? " noted" : "") +
                      (inFocus(ref) ? "" : " ctx");
-      vn.title = ((S.trans || {})[ref] ? "Your English: " + (S.trans || {})[ref]
-                                       : "Write this verse in your own English");
+      vn.title = [tr ? "Your English: " + tr : "",
+                  vnote ? "Note: " + vnote : ""].filter(Boolean).join("\n") ||
+                 "Write this verse in your own English, or make a note about it";
       vn.textContent = m.text;
       vn.style.left = m.x + "px"; vn.style.top = m.y + "px";
       vn.style.width = m.w + "px";
@@ -2424,7 +2515,10 @@ const TRWIDE = 300;              // how wide the column is
    has been dragged past it. Everything that lives to the RIGHT of the text —
    the English column, the sheet's own width, the rules in the margin — is
    measured from here, so indenting a line carries them all with it. */
-function textRight(){ return Math.max(WRAP, Math.round(S._contentRight || 0)); }
+function textRight(){
+  if(isRTL()) return Math.max(RWRAP, Math.round(S._rtlEdge || 0));
+  return Math.max(WRAP, Math.round(S._contentRight || 0));
+}
 
 function transCol(){ return textRight() + TRGAP; }
 
@@ -3927,7 +4021,7 @@ function paintGrow(){
   /* Set from the same constants the lines are laid out with, so the rule runs
      exactly the width of the text — and mirrored for Hebrew, which has its
      margin on the other side. */
-  const x0 = MARGIN, x1 = isRTL() ? RWRAP : textRight();
+  const x0 = MARGIN, x1 = textRight();
   [upEl, dnEl].forEach(el=>{
     el.style.left  = x0 + "px";
     el.style.width = (x1 - x0) + "px";
@@ -5254,6 +5348,9 @@ function setSelection(words, lemma){
   if(noteWord && !(words.length === 1 && words[0].uid === noteWord.uid)) closeNoteDrawer();
   S.selSet = words.map(w => w.uid);
   S.selLemma = lemma || null;
+  /* Freshly made, so a colour is for it. Reaching for a different tool is what
+     takes that back; touching a word is what gives it again. */
+  S._selFresh = words.length > 0;
   S.sel = words.length === 1 ? words[0].id : null;
   S.curLine = words.length ? words[0].line : S.curLine;
   syncJoin();
@@ -5266,7 +5363,7 @@ function setSelection(words, lemma){
 
 function clearSelection(){
   closeNoteDrawer();
-  S.selSet = []; S.selLemma = null; S.sel = null;
+  S.selSet = []; S.selLemma = null; S.sel = null; S._selFresh = false;
   document.getElementById("insp").classList.remove("show");
   showSelCount(); render(); paintPalette();
 }
@@ -5352,6 +5449,11 @@ let noteWord = null;
 function openNoteDrawer(w){
   if(!w) return;
   noteWord = w;
+  /* A word has one thing to write about it, so there is nothing to choose
+     between: the tabs belong to a VERSE, where English and a note are two
+     different things. */
+  const tabs = document.getElementById("ndTabs");
+  if(tabs) tabs.style.display = "none";
   const p = PASSAGES[S.key] || {};
   const el = document.getElementById("noteDrawer");
   const ta = document.getElementById("ndText");
@@ -5405,9 +5507,25 @@ function verseWords(ref){
   return S.words.filter(w => w.verse === ref);
 }
 
-function openTransDrawer(ref){
+/* Which of the two you are writing. It is remembered between verses, because
+   a reader translating a passage translates several in a row, and so does one
+   making notes. */
+let transTab = "trans";
+
+/* Tapping a verse number is a way in to two different things: your English for
+   the verse, and whatever you want to SAY about it. Neither is more obviously
+   the one you meant, so both are here and you pick. */
+function openTransDrawer(ref, tab){
   if(!ref) return;
   transVerse = ref;
+  if(tab) transTab = tab;
+  /* Opened afresh on a verse that has one and not the other, start on the one
+     that has something: coming back to a verse you have written a note on and
+     being shown an empty translation box reads as having lost the note. */
+  else if(!(S.trans || {})[ref] && (S.vnotes || {})[ref]) transTab = "note";
+  else if(!(S.vnotes || {})[ref] && (S.trans || {})[ref]) transTab = "trans";
+  const note = transTab === "note";
+
   const p = PASSAGES[S.key] || {};
   const el = document.getElementById("noteDrawer");
   const ta = document.getElementById("ndText");
@@ -5417,29 +5535,48 @@ function openTransDrawer(ref){
   wd.dir = (p.lang === "he") ? "rtl" : "ltr";
   wd.style.whiteSpace = "normal";
   document.getElementById("ndRef").textContent =
-    ((p.title || "") + " " + ref + " · your own words").trim().toUpperCase();
-  ta.value = (S.trans || {})[ref] || "";
-  ta.placeholder = "Say the verse in your own English";
+    ((p.title || "") + " " + ref + " · " +
+     (note ? "your note" : "your own words")).trim().toUpperCase();
+
+  /* The tabs, with a dot on whichever already has something written on it, so
+     you can see what is there without opening both. */
+  const tabs = document.getElementById("ndTabs");
+  const tT = document.getElementById("ndTabT"), tN = document.getElementById("ndTabN");
+  tabs.style.display = "";
+  const dot = has => has ? "<span class=\"dot\"></span>" : "";
+  tT.innerHTML = "Your English" + dot(!!(S.trans || {})[ref]);
+  tN.innerHTML = "Note" + dot(!!(S.vnotes || {})[ref]);
+  tT.classList.toggle("on", !note);
+  tN.classList.toggle("on", note);
+  tT.onclick = ()=> openTransDrawer(ref, "trans");
+  tN.onclick = ()=> openTransDrawer(ref, "note");
+
+  const store = ()=> note ? (S.vnotes = S.vnotes || {}) : (S.trans = S.trans || {});
+  ta.value = store()[ref] || "";
+  ta.placeholder = note ? "Anything you want to say about this verse"
+                        : "Say the verse in your own English";
   ta.oninput = ()=>{
     const t = ta.value.trim();
-    S.trans = S.trans || {};
-    if(t) S.trans[ref] = t; else delete S.trans[ref];
+    const st = store();
+    if(t) st[ref] = ta.value; else delete st[ref];
     layout(); saveSoon();
   };
   ta.onkeydown = e =>{
     if(e.key === "Escape") closeNoteDrawer();
-    /* Enter moves on to the next verse rather than breaking this one into
-       paragraphs: the moment it takes paragraphs it has stopped being a
-       translation and started being a manuscript. */
-    if(e.key === "Enter" && !e.shiftKey){
+    /* In a translation, Enter moves on to the next verse rather than breaking
+       this one into paragraphs: the moment it takes paragraphs it has stopped
+       being a translation and started being a manuscript. A NOTE is allowed
+       paragraphs, so there Enter is just Enter. */
+    if(!note && e.key === "Enter" && !e.shiftKey){
       e.preventDefault();
       const all = versesHere().map(v => v.ref);
       const next = all[all.indexOf(ref) + 1];
       if(next) openTransDrawer(next); else closeNoteDrawer();
     }
   };
-  document.getElementById("ndFoot").textContent =
-    "It saves as you write. Enter for the next verse; Esc, or Done, to put it away.";
+  document.getElementById("ndFoot").textContent = note
+    ? "It saves as you write. Esc, or Done, to put it away."
+    : "It saves as you write. Enter for the next verse; Esc, or Done, to put it away.";
   el.classList.add("show");
   ta.focus();
 }
@@ -5516,8 +5653,13 @@ const paletteEl = document.getElementById("palette");
 
 /* Show tints when a tint is what a tap would produce — the highlighter, or a
    lemma that is currently lit — so a swatch previews the result. */
+/* Softened, or at full strength? Whichever a tap would actually lay down: the
+   highlighter nib, or a colour going onto the words you have selected. A
+   selection left live while you draw does not count — the colour is for the
+   pen then, and the swatch has to say so. */
 function tintMode(){
-  return inking() || (S.selSet && S.selSet.length > 0);
+  if(inking()) return true;
+  return !!(S._selFresh && S.selSet && S.selSet.length > 0);
 }
 function swatchColor(c){ return tintMode() ? c.tint : c.hue; }
 
@@ -5778,7 +5920,25 @@ function pickColor(i){
      how you take it off. It used to come off whenever the selection already had
      that colour, which meant a selection left over from earlier could lose its
      highlight to a tap meant for the pen. */
-  const sel = selectedWords();
+  /* Who the colour is FOR.
+
+     It used to be: anything selected, and the colour paints it. Which meant
+     highlighting a word, picking up the Line tool, and reaching for a second
+     colour to draw with repainted the word you had just finished with — the
+     selection was still live, so the colour went to it rather than to the line
+     you were about to draw, and there was no way to say otherwise.
+
+     What was wrong is not WHICH tool is in hand but that the selection had
+     gone stale: you made it, you used it, and then you moved on. Changing the
+     tool is that moving on. So a selection stops attracting colours the moment
+     you reach for a different instrument, and starts again the moment you
+     touch a word.
+
+     The selection itself is deliberately left where it is, because it is still
+     doing a job: tap a word inside it with the Line tool and the whole
+     selection is underlined at once. What colour that line should be is a
+     different question from which words it goes under. */
+  const sel = S._selFresh ? selectedWords() : [];
   if(sel.length){
     const tint = COLORS[i].tint;
     const on = !isRepeat("colour:" + i + ":" + (S.selLemma || S.selSet.join(",")));
@@ -5841,6 +6001,13 @@ function pickTool(name){
   // Mark lays down a symbol; underlines and boxes come from Line and Box now,
   // so make sure a symbol is actually armed before the tool is handed over.
   if(name === "mark" && !anyGlyphId(S.markMode)) S.markMode = "emphasis";
+
+  /* Reaching for a different instrument is the moment you are done with the
+     words you had selected. They stay selected — a tap inside the selection
+     still marks all of it — but a colour chosen from here on is for the
+     instrument, not for them. See pickColor. */
+  if(name !== S.tool) S._selFresh = false;
+
   S.tool = name;
   useColourFor(name === "line" && S.lineStyle === "thick" ? "thick" : name);
   if(INKTOOLS.has(name)) S.lastInk = name;
@@ -8413,6 +8580,9 @@ function boardWidth(){
   return Math.max(WRAP + 60, textRight() + 60, col);
 }
 
+/* Hebrew's English column sits on the LEFT of the text, so it is not what
+   decides the width of the sheet; the right-hand edge is. */
+
 /* Everything that belongs to a run of lines, in page coordinates: the words,
    the ink anchored to them, the arrows between them and the section rule
    above. This is what decides where to cut the page for one section. */
@@ -8822,7 +8992,11 @@ function exportOutline(){
       }
     }
 
-    if(withNotes) b.notes.forEach(nt=>{
+    /* A note is a card in the Sermon Builder now, so it is written out there
+       — under the heading you attached it to — and writing it here as well
+       would put the same sentence in the document twice. The checkbox still
+       carries them for anyone who exports without the Builder’s cards. */
+    if(withNotes && !withCards) b.notes.forEach(nt=>{
       body += docxParagraph(nt.surface + " (" + nt.ref + ") — " + nt.text, null, {bullet:true});
     });
 
@@ -9420,6 +9594,7 @@ function workCount(d){
   add(n("conns"), "arrow", "arrows");
   add(n("notes"), "note", "notes");
   add(n("trans"), "verse translated", "verses translated");
+  add(n("vnotes"), "note on a verse", "notes on verses");
   add(n("cards"), "card on the board", "cards on the board");
   /* The big idea counts here too: it is one of the four, and the bin's one
      line is the only thing that tells you what you are about to get back. */
@@ -9432,7 +9607,7 @@ function workCount(d){
    of it is gone. */
 function blankDoc(){
   return { v:3, at:Date.now(), dev:deviceId(), lineStarts:{}, strokes:[], conns:[],
-           sections:[], summaries:{}, trans:{}, lem:{}, notes:{}, hits:{}, marks:{},
+           sections:[], summaries:{}, trans:{}, vnotes:{}, lem:{}, notes:{}, hits:{}, marks:{},
            cards:[], aims:{}, intros:{}, concls:{},
            findQ:"" };
 }
@@ -9444,7 +9619,7 @@ function docMinusRange(d, uids){
   const out = JSON.parse(JSON.stringify(d || blankDoc()));
   uids.forEach(u => keep[u] = 1);
   const gone = {};
-  ["marks","hits","notes","lem","lineStarts","trans"].forEach(k=>{
+  ["marks","hits","notes","lem","lineStarts","trans","vnotes"].forEach(k=>{
     out[k] = out[k] || {};
     Object.keys(out[k]).forEach(id=>{
       /* trans is keyed by verse, everything else by word; a verse key matches
@@ -9680,6 +9855,9 @@ function docSnapshot(){
        machinery. */
     cards: S.cards.map(c => ({ id:c.id, k:c.k, t:c.t || "", x:Math.round(c.x || 0),
                                y:Math.round(c.y || 0), to:c.to || "", r:c.r || "all",
+                               w:Math.round(c.w || 0) || undefined,
+                               h:Math.round(c.h || 0) || undefined,
+                               nt:c.nt || undefined,
                                ln:c.ln || undefined, src:c.src || undefined })),
     aims: Object.assign({}, S.aims),
     intros: Object.assign({}, S.intros),
@@ -9688,6 +9866,7 @@ function docSnapshot(){
        uid of the word that line begins at — so it survives a re-split, a
        widening of the passage, and the three-way merge, exactly as ink does. */
     trans: Object.assign({}, S.trans),
+    vnotes: Object.assign({}, S.vnotes),
     lem: Object.assign({}, S.lemHi),
     notes: Object.assign({}, S.notes),
     hits: Object.assign({}, S.hits),
@@ -9710,6 +9889,7 @@ function applyDoc(d, p){
     if(!t) return;
     S.trans[ref] = S.trans[ref] ? S.trans[ref] + " " + t : t;
   });
+  S.vnotes = Object.assign({}, (d && d.vnotes) || {});
   S.lineStarts = Object.assign({}, (d && d.lineStarts) || {});
   if(!Object.keys(S.lineStarts).length && p) S.lineStarts = defaultLineStarts(p);
   S.strokes = ((d && d.strokes) || []).map(s => ({
@@ -9741,7 +9921,8 @@ function applyDoc(d, p){
   S.summaries = Object.assign({}, (d && d.summaries) || {});
   S.cards = ((d && d.cards) || []).map(c => ({
     id:c.id || newCardId(), k:CARDKINDS[c.k] ? c.k : "idea", t:c.t || "",
-    x:+c.x || 0, y:+c.y || 0, to:c.to || "", r:c.r || "all",
+    x:+c.x || 0, y:+c.y || 0, w:+c.w || 0, h:+c.h || 0,
+    nt:c.nt || "", to:c.to || "", r:c.r || "all",
     ln:c.ln || "", src:c.src || "" }));
   S.aims   = Object.assign({}, (d && d.aims) || {});
   S.intros = Object.assign({}, (d && d.intros) || {});
@@ -10078,7 +10259,7 @@ function docParts(d){
   return {
     marks: d.marks || {}, hits: d.hits || {}, notes: d.notes || {},
     lem: d.lem || {}, lineStarts: d.lineStarts || {},
-    summaries: d.summaries || {}, trans: d.trans || {},
+    summaries: d.summaries || {}, trans: d.trans || {}, vnotes: d.vnotes || {},
     aims: d.aims || {}, intros: d.intros || {}, concls: d.concls || {},
     cards: byId(d.cards, c => c.id),
     strokes: byId(d.strokes, s => s.id),
@@ -10096,7 +10277,7 @@ function partsToDoc(parts, at, dev){
     v:3, at: at || Date.now(), dev: dev || deviceId(),
     marks:parts.marks, hits:parts.hits, notes:parts.notes, lem:parts.lem,
     lineStarts:parts.lineStarts,
-    summaries:parts.summaries, trans:parts.trans,
+    summaries:parts.summaries, trans:parts.trans, vnotes:parts.vnotes,
     aims:parts.aims, intros:parts.intros, concls:parts.concls,
     cards: Object.keys(parts.cards).map(k => parts.cards[k]),
     strokes: Object.keys(parts.strokes).map(k => parts.strokes[k]),
@@ -11084,10 +11265,15 @@ const bTrayEl  = document.getElementById("bTrayRow");
 
 /* A textarea that is exactly as tall as what is written in it. This is what
    "as long as needed" means in practice: an expanding post-it. */
-function autoGrow(el){
+/* As tall as what is written in it, and never less than `floor` — which is
+   how a card you have dragged taller stays taller while it is still empty.
+   The floor is a MINIMUM, never a maximum: write more than fits and the card
+   grows past whatever you dragged it to, because a card that hides the end of
+   a sentence is worse than a card that is the wrong size. */
+function autoGrow(el, floor){
   if(!el || !el.style) return;
   el.style.height = "auto";
-  el.style.height = Math.max(el.scrollHeight || 0, 22) + "px";
+  el.style.height = Math.max(el.scrollHeight || 0, 22, floor || 0) + "px";
 }
 
 function cardEl(c){
@@ -11118,13 +11304,19 @@ function cardEl(c){
   }
 
   const x = document.createElement("button");
-  x.className = "bx"; x.textContent = "×"; x.title = "Remove this card";
+  x.className = "bx"; x.textContent = "×";
+  x.title = c.nt ? ("Remove this note — from the " +
+                    (noteKeyIsVerse(c.nt) ? "verse" : "word") + " as well as from here")
+                 : "Remove this card";
   x.onclick = e =>{
     e.stopPropagation();
     pushUndo();
     const i = S.cards.indexOf(c);
     if(i >= 0) S.cards.splice(i, 1);
-    paintBuilder(); saveSoon();
+    /* It is the note, so this takes the note too — which is also what stops
+       the sweep putting it straight back. Undo covers a change of mind. */
+    if(c.nt) noteDrop(c.nt);
+    paintBuilder(); render(); redraw(); saveSoon();
   };
   head.appendChild(x);
   el.appendChild(head);
@@ -11134,7 +11326,14 @@ function cardEl(c){
   body.value = c.t || "";
   body.placeholder = (CARDKINDS[c.k] || {}).ph || "";
   body.spellcheck = true;
-  body.oninput = ()=>{ c.t = body.value; autoGrow(body); saveSoon(); };
+  body.oninput = ()=>{
+    c.t = body.value;
+    /* The card is the note, so this is where the note is written — whether it
+       belongs to a word or to a verse. */
+    if(c.nt) noteWrite(c.nt, body.value);
+    autoGrow(body, bodyFloor(c, el));
+    saveSoon();
+  };
   el.appendChild(body);
 
   if(c.src){
@@ -11144,8 +11343,77 @@ function cardEl(c){
     el.appendChild(sr);
   }
 
+  /* The corner you pull. Only on the board: a card standing under a heading
+     takes the width of the spine, and a grip there would promise something it
+     could not do. */
+  const grip = document.createElement("div");
+  grip.className = "bgrip";
+  grip.title = "Drag to resize \u00b7 tap to fit the writing";
+  el.appendChild(grip);
+  wireCardResize(el, c, grip, body);
+
   wireCardDrag(el, c, head);
-  return { el, body };
+  return { el, body, grip };
+}
+
+/* ---- resizing ----
+   Width and a floor under the height. Tap it without moving and the card goes
+   back to fitting its writing, which is the only way back from a card dragged
+   far too big and is worth one tap rather than a menu. */
+/* CARDW must match the width in the .bcard rule above: it is what a resize
+   starts from when there is nothing laid out to measure. */
+const CARDW = 232, CARDMINW = 150, CARDMINH = 62;
+let BSIZE = null;
+function wireCardResize(el, c, grip, body){
+  grip.addEventListener("pointerdown", e=>{
+    e.preventDefault(); e.stopPropagation();
+    /* Start from the size this card has been GIVEN where it has one, and from
+       what is on the page only when it has not. Measuring first would mean a
+       card whose writing has grown past its floor silently adopts that bigger
+       height as its new minimum the moment you touch the corner. */
+    const r = (el.getBoundingClientRect && el.getBoundingClientRect()) || {};
+    BSIZE = { c, el, body, x:e.clientX, y:e.clientY, moved:false,
+              w:c.w || r.width || CARDW,
+              h:c.h || r.height || CARDMINH };
+    if(grip.setPointerCapture) try{ grip.setPointerCapture(e.pointerId); }catch(_){}
+  });
+  grip.addEventListener("pointermove", e=>{
+    if(!BSIZE || BSIZE.c !== c) return;
+    const dx = e.clientX - BSIZE.x, dy = e.clientY - BSIZE.y;
+    if(!BSIZE.moved){
+      if(Math.abs(dx) < 3 && Math.abs(dy) < 3) return;
+      BSIZE.moved = true;
+      pushUndo();
+    }
+    c.w = Math.max(CARDMINW, Math.round(BSIZE.w + dx));
+    c.h = Math.max(CARDMINH, Math.round(BSIZE.h + dy));
+    el.style.width = c.w + "px";
+    autoGrow(body, bodyFloor(c, el));
+  });
+  const done = e =>{
+    if(!BSIZE || BSIZE.c !== c) return;
+    const moved = BSIZE.moved;
+    BSIZE = null;
+    if(!moved){
+      pushUndo();
+      c.w = 0; c.h = 0;                 // back to fitting what is written on it
+      paintBuilder();
+    }
+    saveSoon();
+  };
+  grip.addEventListener("pointerup", done);
+  grip.addEventListener("pointercancel", done);
+}
+
+/* How tall the writing area has to be for the CARD to stand the height you
+   dragged it to: the card's height, less its head and the padding under it. */
+function bodyFloor(c, el){
+  if(!c.h) return 0;
+  const head = el.querySelector ? el.querySelector(".bchead") : null;
+  const hh = (head && head.offsetHeight) || 26;
+  const src = el.querySelector ? el.querySelector(".bsrc") : null;
+  const sh = (src && src.offsetHeight) || 0;
+  return Math.max(0, c.h - hh - sh - 18);
 }
 
 function paintSpine(){
@@ -11185,7 +11453,15 @@ function paintSpine(){
       autoGrow(ta);
     }
     const mine = cardsIn(key);
-    mine.forEach(c =>{ const { el, body } = cardEl(c); slot.appendChild(el); autoGrow(body); });
+    /* Attached, it takes the width of the spine and only its height is its
+       own: a column of cards at a dozen different widths reads as mess, and
+       the size you dragged it to is remembered for when you pull it off
+       again. */
+    mine.forEach(c =>{
+      const { el, body } = cardEl(c);
+      slot.appendChild(el);
+      autoGrow(body, bodyFloor(c, el));
+    });
     bSlotsEl.appendChild(slot);
     return slot;
   };
@@ -11219,8 +11495,9 @@ function paintLoose(){
     const { el, body } = cardEl(c);
     el.style.left = Math.max(0, c.x || 0) + "px";
     el.style.top  = Math.max(28, c.y || 28) + "px";
+    if(c.w) el.style.width = c.w + "px";
     bBoardEl.appendChild(el);
-    autoGrow(body);
+    autoGrow(body, bodyFloor(c, el));
   });
 }
 
@@ -11289,7 +11566,7 @@ function makeCard(kind, text, opts){
   const o = opts || {};
   const at = o.at || freeSpot();
   const c = { id:newCardId(), k:CARDKINDS[kind] ? kind : "idea", t:text || "",
-              x:at.x, y:at.y, to:o.to || "", r:boardKey(),
+              x:at.x, y:at.y, w:o.w || 0, h:o.h || 0, to:o.to || "", r:boardKey(),
               ln:o.ln || "", src:o.src || "" };
   S.cards.push(c);
   paintBuilder(); saveSoon();
@@ -11367,8 +11644,69 @@ function markSlotUnder(x, y){
     n.classList.toggle("over", n.dataset.slot === key));
 }
 
+/* ---- a note on a word is already a card ----
+
+   A note you wrote on a word in the exegesis is a sentence you wrote about
+   this passage. Copying it onto the board would leave you with two of them,
+   drifting apart the moment you edited either, so a note-card is not a copy:
+   it IS the note. Writing on the card writes the note; removing the card
+   removes the note. The card carries the position and the attachment, which
+   the note has no room for and no business holding.
+
+   Its id is made from the word’s, so the sweep below can never make a second
+   one — and because removing the card removes the note, a card you threw away
+   does not come back on the next repaint. */
+function noteCardId(key){ return "n:" + key; }
+
+/* A note belongs either to a WORD, by its uid, or to a VERSE, by its label
+   with a "v:" in front. One pair of functions reads and writes whichever it
+   is, so everything below knows only "a note" and its key. */
+function noteKeyIsVerse(key){ return String(key).indexOf("v:") === 0; }
+function noteStore(key){ return noteKeyIsVerse(key) ? (S.vnotes = S.vnotes || {})
+                                                    : (S.notes = S.notes || {}); }
+function noteTextOf(key){ return noteStore(key)[String(key).replace(/^v:/, "")] || ""; }
+function noteDrop(key){ delete noteStore(key)[String(key).replace(/^v:/, "")]; }
+function noteWrite(key, v){
+  const st = noteStore(key), k = String(key).replace(/^v:/, "");
+  if(String(v).trim()) st[k] = v; else delete st[k];
+}
+
+function syncNoteCards(){
+  const here = {};
+  Object.keys(S.notes || {}).forEach(uid=>{
+    const w = S.byUid[uid];
+    if(!w || !inFocus(w.verse)) return;    // a note out in the context is not this sermon’s
+    if(!String(S.notes[uid] || "").trim()) return;
+    here[uid] = { label:w.surface + " · " + w.verse };
+  });
+  Object.keys(S.vnotes || {}).forEach(ref=>{
+    if(!inFocus(ref)) return;
+    if(!String(S.vnotes[ref] || "").trim()) return;
+    here["v:" + ref] = { label:"on " + ref };
+  });
+
+  /* Gone from the exegesis, gone from the board. */
+  for(let i = S.cards.length - 1; i >= 0; i--){
+    const c = S.cards[i];
+    if(!c.nt || (c.r || "all") !== boardKey()) continue;
+    const live = noteKeyIsVerse(c.nt) || S.byUid[c.nt];   // the word is still on the page
+    if(!here[c.nt] && live) S.cards.splice(i, 1);
+  }
+
+  const have = {};
+  myCards().forEach(c =>{ if(c.nt) have[c.nt] = c; });
+  Object.keys(here).forEach(key=>{
+    if(have[key]){ have[key].t = noteTextOf(key); return; }   // kept in step, both ways
+    const at = freeSpot();
+    S.cards.push({ id:noteCardId(key), k:"idea", t:noteTextOf(key), nt:key,
+                   x:at.x, y:at.y, w:0, h:0, to:"", r:boardKey(),
+                   ln:"", src:here[key].label });
+  });
+}
+
 function paintBuilder(){
   if(!bSpineEl) return;
+  syncNoteCards();
   paintSpine();
   paintLoose();
   paintTray();
@@ -11518,7 +11856,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-10-16b";
+const BUILD = "2026-10-19d";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file

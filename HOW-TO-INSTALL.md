@@ -207,6 +207,17 @@ Read down the right-hand side and you have the passage in your own English —
 which is the point of writing one. A verse number you have translated is
 underlined; tapping your English opens it again to reword.
 
+**Tapping a verse number offers two things.** *Your English* for the verse, and
+a *Note* about it — two tabs, because neither is obviously the one you meant.
+Each keeps its own text, and a small dot on a tab says it already has something
+on it. On the page a verse number is underlined when it has English and carries
+a dot when it has a note, so one with both says so.
+
+In the translation, Enter moves on to the next verse: the moment a translation
+takes paragraphs it has stopped being a translation and started being a
+manuscript. A note is allowed paragraphs, so there Enter is just Enter. Reopen a
+verse that has only one of the two and it opens on that one.
+
 It disturbs nothing. Not a word of the Greek moves to make room: the text wraps
 where it always did and only the page gets wider. It goes into the sermon
 outline under each heading, above the diagram — the English is the passage, the
@@ -229,6 +240,19 @@ this tab: the structure of the passage belongs to the passage.
 foot. A card holds as much as you write on it and grows to fit. Tap its kind to
 cycle it — idea, quote, person, illustration, question, text — which is a hint,
 never a slot you must fill.
+
+Pull the corner to make a card whatever size suits what is on it. The size you
+drag it to is a **minimum**, never a maximum: write past it and the card grows
+anyway, because a card that hides the end of a sentence is worse than a card
+that is the wrong size. Tap the corner without dragging and it goes back to
+fitting its writing. Attached to a heading it takes the width of the spine, and
+remembers its own for when you pull it off again.
+
+**A note you wrote on a word or a verse is already a card.** It appears on the board on its
+own, saying which word it was written on. It is not a copy: writing on the card
+writes the note, writing the note writes the card, and removing the card removes
+the note from the word or verse as well. A note out in the context belongs to that
+passage, not this one, so it stays where it is.
 
 A card is in exactly one of two states. **Loose**, lying where you dropped it,
 still being played with. Or **attached**, dragged onto a slot on the spine,
@@ -280,13 +304,29 @@ books you have not installed are shown greyed out rather than left out — so a
 missing book reads as a book to install, not as an app that has not heard of
 Habakkuk.
 
-## Indenting a line
+## Lines, and indenting them
 
-Drag the grip beside a line to step it right. The line keeps its full width
-wherever it starts: the sheet of paper grows to hold it rather than squeezing
-the words into a narrower and narrower column until they break onto a second
-row. Everything that lives to the right of the text — your English, the rules
-in the margin — moves out with it, and it all comes back when the indent does.
+**A line is never folded.** A line is a clause, and a clause dropped onto a
+second row looks like two lines when it is one — which is the single thing a
+flow diagram exists to show. So a line too long for the page is given its own
+width and the sheet grows to hold it, rather than losing its last word
+underneath itself.
+
+Drag the grip beside a line to step it right. It keeps its full width wherever
+it starts. Everything that lives to the right of the text — your English, the
+rules in the margin — moves out with it, and it all comes back when the indent
+does.
+
+There is one limit. Past about two and a half times the ordinary width a line
+does wrap after all: the ink layer has a fixed number of pixels spread over the
+area of the sheet, and a page six thousand wide would cost resolution
+everywhere, including on the short lines. Split such a line with **Split/Join**
+and both halves fit comfortably.
+
+Hebrew does the same thing mirrored. It runs right to left from a right-hand
+edge into a left margin that cannot move, so a long Hebrew line is given its
+room by pushing that right-hand edge further out — every line shifts over and
+the sheet grows on the right.
 
 ## Tidying up after the Pencil
 
@@ -308,6 +348,17 @@ which already works in every box Nous asks you to write in.
 One row of colours, not two. Whether a colour goes down at full strength or
 softened is the nib's business: pick the **Highlighter** from the Pen menu, or
 select some words and tap a colour. The swatches preview which you will get.
+
+**Who the colour is for.** With words selected, a colour paints them. The
+moment you reach for a different instrument — Line, Box, Pen, a symbol — a
+colour is for that instrument instead, and the words you had selected are left
+exactly as you coloured them. Touch a word again and it is yours to colour
+again.
+
+The selection itself is not thrown away when you change tools, because it is
+still doing a job: tap a word inside it with the Line tool and the whole
+selection is underlined at once. What colour that line should be is a different
+question from which words it goes under.
 
 ## Links and cross-references
 

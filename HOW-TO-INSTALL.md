@@ -266,6 +266,40 @@ that is the wrong size. Tap the corner without dragging and it goes back to
 fitting its writing. Attached to a heading it takes the width of the spine, and
 remembers its own for when you pull it off again.
 
+**A picture and a link go on a card**, beside whatever it says — a quote with
+the page it came from, an illustration with the photograph. The two small
+buttons in a card's header do each, or **drag a JPEG straight onto the card**.
+Drop one on the bare board and it arrives as a card of its own, where you
+dropped it; drag an address out of a browser's address bar and it does the same.
+
+Pictures are re-drawn at a size that suits a card before they are stored,
+because the whole document goes to your repository on every sync and a
+four-megabyte photograph would be four megabytes of sync for something shown two
+hundred pixels wide. A PNG stays a PNG; anything else becomes a JPEG. Tap a
+picture to take it off.
+
+Nous cannot show a **PDF** — rendering one needs a PDF engine, and Nous is a
+single file that has to work on a plane. Export the page you want as a PNG or
+JPEG, or put a link to the file on the card.
+
+**Addresses you write are live.** A card shows what is written on it as ordinary
+text with every address in it tappable, and turns into a writing box the moment
+you tap it. A bare host counts as an address only when there is a path after it,
+so `ccel.org/calvin` is a link and `Rom. 8` is not. The first address on a card
+becomes the card's own link, unless you have set one yourself.
+
+**A link to a picture or a video shows one.** Nous has no server and cannot
+fetch a page to read its preview tags, so a preview is only offered where the
+picture can be worked out from the address itself: an address that *is* a
+picture, and YouTube or Vimeo, whose thumbnails have a predictable name.
+Anything else gets the link and no pretence of a preview. Previews come off the
+network, so they are blank offline.
+
+**A note card says what it is anchored to**: *Vocabulary* for a note on a word,
+*Phrase* for one on a run of words, *Verse* for one on a whole verse. That is a
+fact about the note rather than a label you pick, so tapping it does not change
+it.
+
 **A note you wrote on a word or a verse is already a card.** It appears on the board on its
 own, saying which word it was written on. It is not a copy: writing on the card
 writes the note, writing the note writes the card, and removing the card removes
@@ -363,6 +397,23 @@ out, the ends stay exactly where you put them, and the pressure is untouched.
 This is smoothing, **not handwriting recognition** — your writing stays your
 writing, just steadier. Turning handwriting into type is iPadOS's Scribble,
 which already works in every box Nous asks you to write in.
+
+## Drawing on the board
+
+The Sermon Builder's board takes the same instruments as the page: the pen and
+its nibs, straight lines and their weights, boxes, ovals, symbols, the
+highlighter, the eraser. Pick one up and the board becomes something to draw on;
+pick up **Move/Select** and it is a board of cards again.
+
+Ink is anchored the way it is on the page. There, a stroke belongs to a word and
+keeps its points relative to it, which is what lets you re-split the lines
+without the ink sliding off. Here, **a card is the word**: a stroke drawn near
+one belongs to it and moves when you move it. Ink drawn well away from
+everything is anchored to nothing and stays where you put it.
+
+It is the board's ink, not the page's — two different surfaces with two
+different sets of marks, drawn by the same code. It syncs, merges stroke by
+stroke, and goes in the ten-day bin like everything else.
 
 ## Zooming
 

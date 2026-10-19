@@ -207,6 +207,22 @@
   .blink{display:block;margin:0 9px 8px;font-size:11px;color:var(--accent);
     text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .blink:hover{text-decoration:underline;}
+  /* What a card says, read rather than written. Tapping it turns it into the
+     writing box; the addresses in it stay live either way. */
+  .bread{font-size:13px;line-height:1.45;padding:7px 9px 9px;min-height:20px;
+    white-space:pre-wrap;word-break:break-word;cursor:text;color:var(--ink);}
+  .bread a{color:var(--accent);}
+  .bph{color:var(--dim);font-style:italic;}
+  .bprev{display:block;}
+  .bprev img{display:block;width:100%;height:auto;}
+  .bcard.over{border-color:var(--accent);box-shadow:0 0 0 3px rgba(138,90,43,.18);}
+  #bBoard.over{background:#fdf7ee;}
+  /* The board’s own ink, over the cards. #bHit only takes the pointer while
+     something that draws is in hand (see bSync), so the rest of the time the
+     cards underneath are perfectly reachable. */
+  #bInk{position:absolute;left:0;top:0;z-index:30;pointer-events:none;}
+  #bHit{position:absolute;left:0;top:0;z-index:31;touch-action:none;
+    pointer-events:none;}
   /* The corner you pull. Two short rules rather than a solid block: it says
      "drag me" the way every resize corner does, and takes up almost nothing
      on a card that is only a sentence long. */
@@ -983,7 +999,8 @@
       </div>
       <input type="file" id="bFile" accept="image/*,.pdf" style="display:none">
       <div id="bGapline" style="display:none"></div>
-      <div id="bBoard"><div class="bempty" id="bEmpty">Loose — still being played with</div></div>
+      <div id="bBoard"><div class="bempty" id="bEmpty">Loose — still being played with</div>
+        <canvas id="bInk"></canvas><div id="bHit"></div></div>
       <div id="bTray"><div class="btlbl">From the exegesis</div><div id="bTrayRow"></div></div>
     </div>
   </div>
@@ -1714,7 +1731,7 @@ const S = {
   /* The Sermon Builder. Cards carry the range they belong to, so one book
      holds a board per passage. The four fixed fields are keyed by range the
      same way the big idea already was. */
-  cards:[], aims:{}, intros:{}, concls:{}, view:"exegesis",
+  cards:[], aims:{}, intros:{}, concls:{}, view:"exegesis", bink:[],
   /* A note about a VERSE, as distinct from a note about a word. Kept by verse
      label, exactly as your own English is, so it survives a re-split and the
      three-way merge the same way. */
@@ -3537,10 +3554,26 @@ function redraw(){
   ctx.setTransform(S.dpr,0,0,S.dpr,0,0);
   ctx.lineCap = "round"; ctx.lineJoin = "round";
 
+  paintInk(ctx, S.strokes, strokePoints, { handles:true });
+  S.strokes.filter(s => TAGMODES.has(s.mode)).forEach(s => paintTag(ctx, s, { labels:false }));
+  paintTagLabels();           // the references themselves, as type on the page
+  paintHandles(ctx);          // on the page only; never in an exported picture
+}
+
+/* ---- one way of drawing a stroke ----
+
+   The page and the Sermon Builder’s board are two different surfaces with two
+   different sets of ink on them, and the ink is drawn the same way on both.
+   What differs is only WHERE a stroke’s points are — on the page they are
+   relative to a word, on the board relative to a card — so that is the one
+   thing passed in. */
+function paintInk(g, list, ptsOf, opts){
+  const o = opts || {};
   // highlighter first so it sits underneath everything else
   for(const pass of ["highlight","pen","line","rect","oval","tri","xref","note","sym","poly"]){
-    S.strokes.filter(s=>s.mode===pass).forEach(s=>{
-      const pts = strokePoints(s);
+    list.filter(s=>s.mode===pass).forEach(s=>{
+      const ctx = g;
+      const pts = ptsOf(s);
       if(pts.length < 2) return;
       ctx.strokeStyle = s.color;
       ctx.globalAlpha = s.mode === "highlight" ? 0.34 : 1;   // strokes store the hue
@@ -3572,7 +3605,7 @@ function redraw(){
         if(pts.length > 2){
           drawBentLine(ctx, linePath(pts), st);
           ctx.setLineDash([]);
-          if(S.selStroke === s.sid) paintHandles(ctx);
+          if(o.handles && S.selStroke === s.sid) paintHandles(ctx);
           ctx.restore();
           return;
         }
@@ -3600,9 +3633,6 @@ function redraw(){
       ctx.globalAlpha = 1;
     });
   }
-  S.strokes.filter(s => TAGMODES.has(s.mode)).forEach(s => paintTag(ctx, s, { labels:false }));
-  paintTagLabels();           // the references themselves, as type on the page
-  paintHandles(ctx);          // on the page only; never in an exported picture
 }
 
 /* Points to test the eraser against. Freehand strokes are already dense;
@@ -6193,6 +6223,7 @@ function pickTool(name){
   else if(name === "erase"){ paintErasePop(); placeErasePop(); showPop(erasePop); }
   else closePops();
   paintPalette(); drawConns();  // the palette previews tints or hues per tool
+  if(typeof bSync === "function") bSync();
 }
 
 document.querySelectorAll("[data-tool]").forEach(b=>{
@@ -9771,6 +9802,7 @@ function workCount(d){
   add(n("trans"), "verse translated", "verses translated");
   add(n("vnotes"), "note on a verse", "notes on verses");
   add(n("cards"), "card on the board", "cards on the board");
+  add(n("bink"), "stroke on the board", "strokes on the board");
   /* The big idea counts here too: it is one of the four, and the bin's one
      line is the only thing that tells you what you are about to get back. */
   add(n("summaries") + n("aims") + n("intros") + n("concls"),
@@ -9783,7 +9815,7 @@ function workCount(d){
 function blankDoc(){
   return { v:3, at:Date.now(), dev:deviceId(), lineStarts:{}, strokes:[], conns:[],
            sections:[], summaries:{}, trans:{}, vnotes:{}, lem:{}, notes:{}, hits:{}, marks:{},
-           cards:[], aims:{}, intros:{}, concls:{},
+           cards:[], aims:{}, intros:{}, concls:{}, bink:[],
            findQ:"" };
 }
 
@@ -9825,6 +9857,8 @@ function docMinusRange(d, uids){
   });
   gone.cards = (out.cards || []).filter(c => (c.r || "all") === viewKey());
   out.cards  = (out.cards || []).filter(c => (c.r || "all") !== viewKey());
+  gone.bink  = (out.bink || []).filter(x => (x.r || "all") === viewKey());
+  out.bink   = (out.bink || []).filter(x => (x.r || "all") !== viewKey());
   out.at = Date.now();
   return { left:out, gone:partsToDoc(docParts(gone), Date.now()) };
 }
@@ -10037,6 +10071,12 @@ function docSnapshot(){
                                nt:c.nt || undefined,
                                im:c.im || undefined, url:c.url || undefined,
                                ln:c.ln || undefined, src:c.src || undefined })),
+    bink: (S.bink || []).map(s2 => ({
+      id:s2.sid || (s2.sid = newSid()),
+      m:s2.mode, a:s2.anchor, c:s2.color, st:s2.style, r:s2.r || "all",
+      nb:s2.nib || undefined, gl:s2.glyph || undefined,
+      p:s2.pts.map(q => [Math.round(q.x*10)/10, Math.round(q.y*10)/10,
+                         Math.round((q.p == null ? .5 : q.p) * 100) / 100]) })),
     aims: Object.assign({}, S.aims),
     intros: Object.assign({}, S.intros),
     concls: Object.assign({}, S.concls),
@@ -10103,6 +10143,12 @@ function applyDoc(d, p){
     nt:c.nt || "", im:c.im || "", url:c.url || "",
     to:c.to || "", r:c.r || "all",
     ln:c.ln || "", src:c.src || "" }));
+  S.bink = ((d && d.bink) || []).map(x => ({
+    sid:x.id || newSid(), mode:x.m, anchor:(x.a == null ? null : x.a),
+    color:x.c, style:x.st, r:x.r || "all",
+    nib:x.nb || undefined, glyph:x.gl || undefined,
+    pts:(x.p || []).map(q => ({ x:q[0], y:q[1], p:q[2] }))
+  })).filter(x => x.pts.length >= 2);
   S.aims   = Object.assign({}, (d && d.aims) || {});
   S.intros = Object.assign({}, (d && d.intros) || {});
   S.concls = Object.assign({}, (d && d.concls) || {});
@@ -10465,6 +10511,7 @@ function docParts(d){
     summaries: d.summaries || {}, trans: d.trans || {}, vnotes: d.vnotes || {},
     aims: d.aims || {}, intros: d.intros || {}, concls: d.concls || {},
     cards: byId(d.cards, c => c.id),
+    bink:  byId(d.bink, x => x.id),
     strokes: byId(d.strokes, s => s.id),
     conns:   byId(d.conns, c => c[0] + ">" + c[1]),
     /* A break is known by the word it sits above AND how heavy it is: a
@@ -10483,6 +10530,7 @@ function partsToDoc(parts, at, dev){
     summaries:parts.summaries, trans:parts.trans, vnotes:parts.vnotes,
     aims:parts.aims, intros:parts.intros, concls:parts.concls,
     cards: Object.keys(parts.cards).map(k => parts.cards[k]),
+    bink:  Object.keys(parts.bink).map(k => parts.bink[k]),
     strokes: Object.keys(parts.strokes).map(k => parts.strokes[k]),
     conns:   Object.keys(parts.conns).map(k => parts.conns[k]),
     sections:Object.keys(parts.sections).map(k => parts.sections[k])
@@ -11476,6 +11524,7 @@ const bFixedEl = document.getElementById("bFixed");
 const bSlotsEl = document.getElementById("bSlots");
 const bBoardEl = document.getElementById("bBoard");
 const bTrayEl  = document.getElementById("bTrayRow");
+if(bBoardEl) wireDrop(bBoardEl, null);
 
 /* A textarea that is exactly as tall as what is written in it. This is what
    "as long as needed" means in practice: an expanding post-it. */
@@ -11578,20 +11627,102 @@ function cardEl(c){
   head.appendChild(x);
   el.appendChild(head);
 
+  /* What a card says is READ far more often than it is written, and a web
+     address you have pasted in is no use as grey text you cannot tap. So the
+     card shows its writing as ordinary text with every address in it live, and
+     turns into a writing box the moment you tap it. A textarea cannot hold a
+     link; this is how you get both. */
+  const read = document.createElement("div");
+  read.className = "bread";
+  const fill = ()=>{
+    read.innerHTML = "";
+    const t = String(c.t || "");
+    if(!t.trim()){
+      const ph = document.createElement("span");
+      ph.className = "bph";
+      ph.textContent = (CARDKINDS[c.k] || {}).ph || "";
+      read.appendChild(ph);
+      return;
+    }
+    let i = 0;
+    t.replace(URLRE, (m, at)=>{
+      const clean = m.replace(/[.,;:!?)\]}’"']+$/, "");
+      const u = tidyUrl(clean);
+      if(at > i) read.appendChild(document.createTextNode(t.slice(i, at)));
+      if(u){
+        const a2 = document.createElement("a");
+        a2.href = u; a2.target = "_blank"; a2.rel = "noopener noreferrer";
+        a2.textContent = clean;
+        a2.onclick = e => e.stopPropagation();   // follow it, do not start writing
+        read.appendChild(a2);
+      } else {
+        read.appendChild(document.createTextNode(clean));
+      }
+      if(clean.length < m.length)
+        read.appendChild(document.createTextNode(m.slice(clean.length)));
+      i = at + m.length;
+      return m;
+    });
+    if(i < t.length) read.appendChild(document.createTextNode(t.slice(i)));
+  };
+  fill();
+
   const body = document.createElement("textarea");
   body.className = "bbody";
   body.value = c.t || "";
   body.placeholder = (CARDKINDS[c.k] || {}).ph || "";
   body.spellcheck = true;
+  body.style.display = "none";
+
+  read.onclick = ()=>{
+    read.style.display = "none";
+    body.style.display = "";
+    autoGrow(body, bodyFloor(c, el));
+    if(body.focus) body.focus();
+  };
+  body.onblur = ()=>{
+    fill();
+    body.style.display = "none";
+    read.style.display = "";
+    paintPreview();
+  };
   body.oninput = ()=>{
     c.t = body.value;
+    /* Paste an address into a card and the card has that address: the chip at
+       its foot, and a preview if one can be had. Only when the card has none
+       of its own, so a link you set by hand is never overwritten by one that
+       happened to be in the text. */
+    if(!c.url){
+      const found = urlsIn(body.value)[0];
+      if(found) c.url = found;
+    }
     /* The card is the note, so this is where the note is written — whether it
        belongs to a word or to a verse. */
     if(c.nt) noteWrite(c.nt, body.value);
     autoGrow(body, bodyFloor(c, el));
     saveSoon();
   };
+  el.appendChild(read);
   el.appendChild(body);
+
+  /* A picture of whatever the card points at, where one can be worked out. */
+  const prev = document.createElement("a");
+  prev.className = "bprev";
+  prev.target = "_blank"; prev.rel = "noopener noreferrer";
+  const paintPreview = ()=>{
+    const u = c.url || urlsIn(c.t)[0] || "";
+    const src = u ? linkPreview(u) : "";
+    prev.innerHTML = "";
+    prev.style.display = src ? "" : "none";
+    if(!src) return;
+    prev.href = u;
+    const im2 = document.createElement("img");
+    im2.src = src; im2.alt = "";
+    im2.onerror = ()=>{ prev.style.display = "none"; };
+    prev.appendChild(im2);
+  };
+  paintPreview();
+  el.appendChild(prev);
 
   if(c.im){
     const im = document.createElement("img");
@@ -11645,6 +11776,7 @@ function cardEl(c){
   wireCardResize(el, c, side, body, "w");
 
   wireCardDrag(el, c, head);
+  wireDrop(el, c);
   return { el, body, grip };
 }
 
@@ -11790,6 +11922,57 @@ function paintSpine(){
 
 /* NOT paintBoard: that name already belongs to the function that draws the
    diagram into an exported picture, and taking it shadowed the export. */
+/* ---- dropping a picture ----
+   Drag a JPEG onto a card and it goes on that card; drop one on the bare board
+   and it arrives as a card of its own, where you dropped it. Anything that is
+   not a picture says so, rather than being quietly ignored. */
+function wireDrop(el, c){
+  const over = e =>{
+    if(!e.dataTransfer) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+    el.classList.add("over");
+  };
+  el.addEventListener("dragover", over);
+  el.addEventListener("dragenter", over);
+  el.addEventListener("dragleave", ()=> el.classList.remove("over"));
+  el.addEventListener("drop", e=>{
+    el.classList.remove("over");
+    if(!e.dataTransfer) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    const f = (e.dataTransfer.files || [])[0];
+    if(f){
+      cardImage(f, (data, w, h)=>{
+        pushUndo();
+        const card = c || makeCard("illus", "", { at:dropSpot(e) });
+        card.im = data;
+        paintBuilder(); saveSoon();
+        note("Picture added", w + " \u00d7 " + h);
+      });
+      return;
+    }
+    /* An address dragged out of a browser’s address bar. */
+    const txt = (e.dataTransfer.getData && (e.dataTransfer.getData("text/uri-list") ||
+                 e.dataTransfer.getData("text/plain"))) || "";
+    const u = tidyUrl(txt);
+    if(!u) return;
+    pushUndo();
+    const card = c || makeCard("quote", "", { at:dropSpot(e) });
+    card.url = u;
+    paintBuilder(); saveSoon();
+  });
+}
+
+/* Where on the board a drop landed, in the board’s own coordinates. */
+function dropSpot(e){
+  const r = bBoardEl.getBoundingClientRect ? bBoardEl.getBoundingClientRect()
+          : { left:0, top:0 };
+  return { x:Math.max(0, (e.clientX || 0) - r.left + (bBoardEl.scrollLeft || 0) - 110),
+           y:Math.max(28, (e.clientY || 0) - r.top + (bBoardEl.scrollTop || 0) - 14) };
+}
+
 function paintLoose(){
   [...bBoardEl.querySelectorAll(".bcard")].forEach(n => n.remove());
   const loose = looseCards();
@@ -11885,6 +12068,42 @@ function prettyUrl(u){
   return t.length > 44 ? t.slice(0, 41) + "\u2026" : t;
 }
 
+/* Every web address in a piece of writing, in the order they appear. Trailing
+   punctuation is left out: a sentence that ends "...see ccel.org/calvin." means
+   the full stop is the sentence’s, not the address’s. */
+/* With a scheme, with a www, or a bare host WITH A PATH after it: "see
+   ccel.org/ccel/calvin" is an address, and "Rom. 8" and "e.g." are not, which
+   is what the path is there to tell apart. */
+const URLRE = /\b(?:https?:\/\/|www\.)[^\s<>"']+|\b[a-z0-9][a-z0-9-]*(?:\.[a-z0-9-]+)*\.[a-z]{2,}\/[^\s<>"']*/gi;
+function urlsIn(t){
+  const out = [];
+  String(t || "").replace(URLRE, m =>{
+    const clean = m.replace(/[.,;:!?)\]}’"']+$/, "");
+    const u = tidyUrl(clean);
+    if(u && out.indexOf(u) < 0) out.push(u);
+    return m;
+  });
+  return out;
+}
+
+/* ---- a picture OF a link ----
+
+   Nous has no server and cannot fetch a page to read its preview tags — a
+   browser will not let it, and there would be nothing to fetch on a plane. So
+   a preview is only offered where the picture can be worked out from the
+   address itself: an address that IS a picture, and the two video sites whose
+   thumbnails have a predictable name. Anything else gets the link and no
+   pretence of a preview. */
+function linkPreview(u){
+  const url = String(u || "");
+  if(/\.(png|jpe?g|gif|webp|avif|bmp|svg)(\?|#|$)/i.test(url)) return url;
+  let m = /(?:youtube\.com\/(?:watch\?[^#]*\bv=|embed\/|shorts\/)|youtu\.be\/)([A-Za-z0-9_-]{6,})/i.exec(url);
+  if(m) return "https://img.youtube.com/vi/" + m[1] + "/hqdefault.jpg";
+  m = /vimeo\.com\/(?:video\/)?(\d{6,})/i.exec(url);
+  if(m) return "https://vumbnail.com/" + m[1] + ".jpg";
+  return "";
+}
+
 function cardImage(file, then){
   if(!file) return;
   const name = (file.name || "").toLowerCase();
@@ -11977,8 +12196,16 @@ function makeCard(kind, text, opts){
 let BDRAG = null;
 function wireCardDrag(el, c, handle){
   handle.addEventListener("pointerdown", e=>{
-    if(e.target && e.target.className === "bx") return;
-    if(e.target && e.target.className === "bkind") return;
+    /* Anything in the header that is a BUTTON is not a handle to drag by.
+
+       This used to name two classes, "bx" and "bkind", and compare them
+       exactly — so a button carrying any second class slipped through, and
+       then preventDefault() on the pointerdown swallowed the click that would
+       have followed. That is why the picture and link buttons did nothing at
+       all: they were pressed, and the press was eaten by the drag. */
+    const t = e.target;
+    if(t && (t.tagName === "BUTTON" ||
+             (t.closest && t.closest("button")))) return;
     e.preventDefault();
     const r = el.getBoundingClientRect ? el.getBoundingClientRect()
             : { left:0, top:0, width:232, height:80 };
@@ -12146,6 +12373,8 @@ function paintBuilder(){
   paintSpine();
   paintLoose();
   paintTray();
+  bRedraw();
+  bSync();
 }
 
 /* ---- the two tabs ---- */
@@ -12195,6 +12424,181 @@ function gapReport(){
 
 /* The export is the Builder's job now, not the exegesis tab's, because the
    Builder IS the sermon and the exegesis is the working. */
+
+/* ============================================================
+   INK ON THE BOARD
+
+   The same instruments as the page — the pen and its nibs, straight lines and
+   their weights, boxes, ovals, symbols, the highlighter — over the cards
+   rather than over the Greek.
+
+   The hard part of ink is never the drawing; it is what the ink is ATTACHED
+   to. On the page a stroke is anchored to a word and its points are kept
+   relative to that word, which is what lets the lines be re-split under it
+   without the ink sliding off. A card is the board's word: a stroke is
+   anchored to the nearest card and moves when you move it. Ink drawn well away
+   from everything is anchored to nothing and stays where you put it.
+   ============================================================ */
+
+const bInk = document.getElementById("bInk");
+const bHit = document.getElementById("bHit");
+const bctx = bInk ? bInk.getContext("2d") : null;
+
+function boardInk(){ return (S.bink || []).filter(s => (s.r || "all") === boardKey()); }
+
+/* The card a stroke belongs to. Near enough to be about it, and not so far
+   that a mark in the margin is dragged across the board when a card moves. */
+const BANCHOR = 260;
+function nearestCard(x, y){
+  let best = null, bd = BANCHOR;
+  looseCards().forEach(c=>{
+    const w = c.w || CARDW, h = c.h || 120;
+    const cx = (c.x || 0) + w / 2, cy = (c.y || 0) + h / 2;
+    const dx = Math.max(0, Math.abs(x - cx) - w / 2);
+    const dy = Math.max(0, Math.abs(y - cy) - h / 2);
+    const d = Math.hypot(dx, dy);
+    if(d < bd){ bd = d; best = c; }
+  });
+  return best;
+}
+function cardById(id){ return S.cards.find(c => c.id === id) || null; }
+
+/* A stroke's points, in the board's own coordinates. */
+function binkPoints(s){
+  if(s.anchor == null) return s.pts;
+  const c = cardById(s.anchor);
+  if(!c || c.to) return [];          // its card has been attached to a heading
+  return s.pts.map(q => ({ x:q.x + (c.x || 0), y:q.y + (c.y || 0), p:q.p }));
+}
+
+function bSize(){
+  if(!bInk || !bBoardEl) return;
+  const w = Math.max(bBoardEl.clientWidth || 0, bBoardEl.scrollWidth || 0, 400);
+  const h = Math.max(bBoardEl.clientHeight || 0, bBoardEl.scrollHeight || 0, 400);
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  if(bInk.width !== Math.round(w * dpr) || bInk.height !== Math.round(h * dpr)){
+    bInk.width = Math.round(w * dpr); bInk.height = Math.round(h * dpr);
+  }
+  bInk.style.width = w + "px"; bInk.style.height = h + "px";
+  if(bHit){ bHit.style.width = w + "px"; bHit.style.height = h + "px"; }
+  S._bdpr = dpr;
+}
+
+function bRedraw(){
+  if(!bctx) return;
+  bSize();
+  const dpr = S._bdpr || 1;
+  bctx.setTransform(1,0,0,1,0,0);
+  bctx.clearRect(0,0,bInk.width,bInk.height);
+  bctx.setTransform(dpr,0,0,dpr,0,0);
+  bctx.lineCap = "round"; bctx.lineJoin = "round";
+  paintInk(bctx, boardInk(), binkPoints, { handles:false });
+  boardInk().filter(s => TAGMODES.has(s.mode))
+            .forEach(s => paintTag(bctx, s, { labels:true }));
+}
+
+/* ---- drawing on it ---- */
+let BPEN = null;
+function bpoint(e){
+  const r = bHit.getBoundingClientRect ? bHit.getBoundingClientRect() : { left:0, top:0 };
+  return { x:e.clientX - r.left + (bBoardEl.scrollLeft || 0),
+           y:e.clientY - r.top  + (bBoardEl.scrollTop  || 0) };
+}
+
+/* Which instruments draw on the board. Move/Select and Split/Join belong to
+   the text, so with either of those in hand the board is a board again: taps
+   go to the cards underneath and nothing is drawn. */
+const BDRAWS = new Set(["pen","line","rect","oval","tri","mark"]);
+function bDrawing(){ return BDRAWS.has(S.tool); }
+
+function bSync(){
+  if(!bHit) return;
+  /* The ink layer only takes the pointer when something that draws is in
+     hand; the rest of the time it is not there at all, and the cards are. */
+  /* The eraser counts too, or there would be no way to take a stroke off. */
+  const on = (bDrawing() || S.tool === "erase") && S.view === "builder";
+  bHit.style.pointerEvents = on ? "auto" : "none";
+  bHit.style.cursor = on ? "crosshair" : "";
+}
+
+if(bHit) bHit.addEventListener("pointerdown", e=>{
+  if(!bDrawing()) return;
+  if(e.pointerType === "touch" && !fingerDraws()) return;
+  e.preventDefault();
+  const p = bpoint(e);
+  const near = nearestCard(p.x, p.y);
+  const ox = near ? (near.x || 0) : 0, oy = near ? (near.y || 0) : 0;
+  pushUndo();
+
+  if(S.tool === "mark"){
+    /* A symbol is laid down whole, as it is on bare paper. */
+    const half = SYMDROP / 2;
+    S.bink.push({ sid:newSid(), mode:"sym", glyph:S.markMode,
+                  anchor:near ? near.id : null, r:boardKey(),
+                  color:COLORS[S.ci].hue, style:"regular",
+                  pts:[{ x:p.x - ox - half, y:p.y - oy - half, p:.5 },
+                       { x:p.x - ox + half, y:p.y - oy + half, p:.5 }] });
+    bRedraw(); saveSoon();
+    return;
+  }
+
+  const mode = S.tool === "pen"
+    ? (S.nib === "highlighter" ? "highlight" : "pen")
+    : S.tool;
+  const st = { sid:newSid(), mode, anchor:near ? near.id : null, r:boardKey(),
+               color:COLORS[S.ci].hue,
+               style:(mode === "line" ? S.lineStyle : "regular"),
+               nib:(mode === "pen" ? S.nib : undefined),
+               pts:[{ x:p.x - ox, y:p.y - oy, p:e.pressure || 0.5 }] };
+  S.bink.push(st);
+  BPEN = { st, ox, oy, shape:mode !== "pen" && mode !== "highlight" };
+  if(BPEN.shape) st.pts.push({ x:p.x - ox, y:p.y - oy, p:.5 });
+  if(bHit.setPointerCapture) try{ bHit.setPointerCapture(e.pointerId); }catch(_){}
+});
+
+if(bHit) bHit.addEventListener("pointermove", e=>{
+  if(!BPEN) return;
+  e.preventDefault();
+  const p = bpoint(e);
+  if(BPEN.shape) BPEN.st.pts[1] = { x:p.x - BPEN.ox, y:p.y - BPEN.oy, p:.5 };
+  else BPEN.st.pts.push({ x:p.x - BPEN.ox, y:p.y - BPEN.oy, p:e.pressure || 0.5 });
+  bRedraw();
+});
+
+const bEnd = ()=>{
+  if(!BPEN) return;
+  const st = BPEN.st;
+  BPEN = null;
+  /* A tap is not a stroke. A shape dragged out to nothing, or a line of one
+     point, is dropped rather than left on the board invisibly. */
+  const pts = st.pts;
+  const travelled = pts.length > 1
+    ? Math.hypot(pts[pts.length-1].x - pts[0].x, pts[pts.length-1].y - pts[0].y) : 0;
+  if(pts.length < 2 || travelled < 6){
+    const i = S.bink.indexOf(st);
+    if(i >= 0) S.bink.splice(i, 1);
+  } else if(st.mode === "pen" && S.tidy){
+    st.pts = smoothPts(st.pts);
+  }
+  bRedraw(); saveSoon();
+};
+if(bHit){ bHit.addEventListener("pointerup", bEnd); bHit.addEventListener("pointercancel", bEnd); }
+
+/* Rubbing it out: with the eraser in hand, a tap takes the stroke under it. */
+if(bHit) bHit.addEventListener("pointerdown", e=>{
+  if(S.tool !== "erase") return;
+  const p = bpoint(e);
+  const hit = boardInk().slice().reverse().find(s=>{
+    const pts = binkPoints(s);
+    return pts.some(q => Math.hypot(q.x - p.x, q.y - p.y) < 16);
+  });
+  if(!hit) return;
+  pushUndo();
+  const i = S.bink.indexOf(hit);
+  if(i >= 0) S.bink.splice(i, 1);
+  bRedraw(); saveSoon();
+});
+
 document.getElementById("bOut").onclick = ()=> openOutline();
 
 /* What the question deck has not reached, and what the sermon has not got.
@@ -12325,7 +12729,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-10-19g";
+const BUILD = "2026-10-19h";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file

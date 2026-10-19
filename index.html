@@ -178,7 +178,14 @@
      on a card that is only a sentence long. */
   .bcard{position:relative;}
   .bgrip{position:absolute;right:0;bottom:0;width:18px;height:18px;cursor:nwse-resize;
-    touch-action:none;}
+    touch-action:none;z-index:2;}
+  /* The whole right-hand edge, above the corner. Invisible until you are near
+     it, because a card is mostly read rather than resized. */
+  .bgripw{position:absolute;right:-3px;top:22px;bottom:18px;width:10px;
+    cursor:ew-resize;touch-action:none;}
+  .bgripw::before{content:"";position:absolute;right:4px;top:12%;bottom:12%;width:2px;
+    border-radius:1px;background:var(--rule);opacity:0;transition:opacity .12s;}
+  .bgripw:hover::before{opacity:1;background:var(--accent);}
   .bgrip::before,.bgrip::after{content:"";position:absolute;right:3px;
     border-bottom:1.5px solid var(--rule);border-right:1.5px solid var(--rule);}
   .bgrip::before{bottom:3px;width:7px;height:7px;}
@@ -3794,6 +3801,59 @@ function drawConns(){
    ============================================================ */
 let drag = null;
 const scroller = document.getElementById("scroll");
+
+/* ---- refusing the browser's own zoom ----
+
+   Nous zooms the PAGE: the sheet of paper gets bigger and the chrome around it
+   — the header, the colour rail, the symbols — stays exactly where it is and
+   exactly the size it was. The browser's pinch-zoom does something quite
+   different: it magnifies the whole window, rails and all, and then you are
+   looking at a quarter of an app through a magnifying glass.
+
+   Nothing stopped it. The viewport tag says user-scalable=no, which iOS Safari
+   has ignored since iOS 10 and honours only in an installed app — so whether
+   the browser zoomed depended on how Nous happened to be launched, and on
+   whether the fingers landed on the board (which claims the gesture) or in the
+   empty space beside it (which did not). That is not a thing to leave to
+   chance, so the gesture is now refused outright and the app's own pinch is
+   the only one there is. */
+["gesturestart", "gesturechange", "gestureend"].forEach(t =>
+  document.addEventListener(t, e => e.preventDefault(), { passive:false }));
+
+/* And on the way in, for browsers that have no gesture events: a second finger
+   anywhere over the page means the app is zooming, not the window. */
+scroller.addEventListener("touchmove", e=>{
+  if(e.touches && e.touches.length > 1) e.preventDefault();
+}, { passive:false });
+
+/* Double-tap-to-zoom is the same magnifying glass by another route. */
+scroller.addEventListener("dblclick", e => e.preventDefault());
+
+/* A pinch that begins in the margin BESIDE the paper is still a pinch. #hit
+   only covers the sheet, so those two fingers used to reach the browser
+   instead; the scroller takes them now and hands them to the app's own zoom. */
+/* For the tests: whether a pinch is live. */
+function pinchNow(){ return pinch; }
+
+const onPaper = e => e.target === scroller || e.target === pageEl;
+scroller.addEventListener("pointerdown", e=>{
+  if(!onPaper(e)) return;                       // the board has its own handler
+  active.set(e.pointerId, { x:e.clientX, y:e.clientY, t:Date.now(), type:e.pointerType });
+  if(twoFingers()) startPinch();
+}, true);
+scroller.addEventListener("pointermove", e=>{
+  if(!pinch || !active.has(e.pointerId)) return;
+  active.set(e.pointerId, { x:e.clientX, y:e.clientY, t:Date.now(), type:e.pointerType });
+  /* Once a pinch is under way it is stepped from wherever the fingers are —
+     one of them may well have wandered over the paper by now. */
+  stepPinch();
+}, true);
+["pointerup", "pointercancel"].forEach(t =>
+  scroller.addEventListener(t, e=>{
+    if(!onPaper(e)) return;
+    active.delete(e.pointerId);
+    if(!twoFingers()) pinch = null;
+  }, true));
 
 /* ============================================================
    CONTEXT — widening the passage
@@ -11352,6 +11412,15 @@ function cardEl(c){
   el.appendChild(grip);
   wireCardResize(el, c, grip, body);
 
+  /* And the side, for the commoner thing: making a card wider or narrower and
+     letting the writing find its own height. Pulling the corner says "this
+     tall"; pulling the side says "this wide, and as tall as it needs to be". */
+  const side = document.createElement("div");
+  side.className = "bgripw";
+  side.title = "Drag to set the width \u00b7 the height follows the writing";
+  el.appendChild(side);
+  wireCardResize(el, c, side, body, "w");
+
   wireCardDrag(el, c, head);
   return { el, body, grip };
 }
@@ -11364,7 +11433,8 @@ function cardEl(c){
    starts from when there is nothing laid out to measure. */
 const CARDW = 232, CARDMINW = 150, CARDMINH = 62;
 let BSIZE = null;
-function wireCardResize(el, c, grip, body){
+function wireCardResize(el, c, grip, body, axis){
+  const wide = axis === "w";
   grip.addEventListener("pointerdown", e=>{
     e.preventDefault(); e.stopPropagation();
     /* Start from the size this card has been GIVEN where it has one, and from
@@ -11380,21 +11450,32 @@ function wireCardResize(el, c, grip, body){
   grip.addEventListener("pointermove", e=>{
     if(!BSIZE || BSIZE.c !== c) return;
     const dx = e.clientX - BSIZE.x, dy = e.clientY - BSIZE.y;
+    /* Two different questions. Did the hand MOVE at all — if not, this was a
+       tap, and a tap puts the card back to fitting its writing. And is this
+       drag one the grip cares about — the side grip is about width, so a pull
+       straight down it leaves the card exactly as it was rather than quietly
+       doing something else with it. */
+    if(Math.abs(dx) >= 3 || Math.abs(dy) >= 3) BSIZE.any = true;
+    const engage = wide ? Math.abs(dx) >= 3 : BSIZE.any;
     if(!BSIZE.moved){
-      if(Math.abs(dx) < 3 && Math.abs(dy) < 3) return;
+      if(!engage) return;
       BSIZE.moved = true;
       pushUndo();
     }
     c.w = Math.max(CARDMINW, Math.round(BSIZE.w + dx));
-    c.h = Math.max(CARDMINH, Math.round(BSIZE.h + dy));
+    /* From the side, the height is given back to the writing: a card made
+       wider needs fewer lines, and holding it at the height it had would leave
+       a band of blank paper under the last word. */
+    if(wide) c.h = 0;
+    else c.h = Math.max(CARDMINH, Math.round(BSIZE.h + dy));
     el.style.width = c.w + "px";
     autoGrow(body, bodyFloor(c, el));
   });
   const done = e =>{
     if(!BSIZE || BSIZE.c !== c) return;
-    const moved = BSIZE.moved;
+    const stood = !BSIZE.any;            // the hand never moved: a tap
     BSIZE = null;
-    if(!moved){
+    if(stood){
       pushUndo();
       c.w = 0; c.h = 0;                 // back to fitting what is written on it
       paintBuilder();
@@ -11856,7 +11937,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-10-19d";
+const BUILD = "2026-10-19e";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file

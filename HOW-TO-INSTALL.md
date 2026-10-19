@@ -241,7 +241,10 @@ foot. A card holds as much as you write on it and grows to fit. Tap its kind to
 cycle it — idea, quote, person, illustration, question, text — which is a hint,
 never a slot you must fill.
 
-Pull the corner to make a card whatever size suits what is on it. The size you
+Pull the **side** to set how wide a card is and let the writing find its own
+height — a card made wider needs fewer lines, and holding its old height would
+leave a band of blank paper under the last word. Pull the **corner** to set
+both. The height you
 drag it to is a **minimum**, never a maximum: write past it and the card grows
 anyway, because a card that hides the end of a sentence is worse than a card
 that is the wrong size. Tap the corner without dragging and it goes back to
@@ -342,6 +345,19 @@ out, the ends stay exactly where you put them, and the pressure is untouched.
 This is smoothing, **not handwriting recognition** — your writing stays your
 writing, just steadier. Turning handwriting into type is iPadOS's Scribble,
 which already works in every box Nous asks you to write in.
+
+## Zooming
+
+Pinch to make the **page** bigger: the sheet of paper grows and the header, the
+colour rail and the symbols stay exactly where they are and exactly the size
+they were.
+
+The browser's own pinch — the one that magnifies the whole window, rails and
+all — is refused. It used to depend on how Nous happened to be launched: the
+`user-scalable=no` in the page is ignored by Safari and honoured only in an
+installed app, so in a browser tab a pinch could magnify the lot. It is now
+turned down outright, and a pinch that starts in the margin beside the paper
+zooms the page like any other.
 
 ## Colour
 

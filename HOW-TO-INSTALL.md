@@ -207,6 +207,21 @@ Read down the right-hand side and you have the passage in your own English —
 which is the point of writing one. A verse number you have translated is
 underlined; tapping your English opens it again to reword.
 
+**Select a phrase and write about it.** Drag across a run of words inside one
+verse and the inspector shows the phrase with somewhere to write a note about
+it. There is no parsing — a phrase has no lemma and no morphology — so that is
+put away. Every word under the note is marked, not just the first.
+
+This is only offered for a run that really is contiguous and inside one verse.
+A lemma lit up across the passage, or a box dragged over words from three
+different lines, has no phrase to be a note about, and filing one against a span
+you never chose would be worse than not offering it.
+
+The note is anchored to the two words at its ends, so re-splitting the lines
+under it leaves it exactly where it was. It syncs, merges, goes in the bin,
+turns up in the sermon outline and appears in the Sermon Builder as a card — the
+same as a note on a word or a verse.
+
 **Tapping a verse number offers two things.** *Your English* for the verse, and
 a *Note* about it — two tabs, because neither is obviously the one you meant.
 Each keeps its own text, and a small dot on a tab says it already has something
@@ -273,7 +288,10 @@ because most of a marked-up passage is working rather than material.
 history, Christ, the non-Christian, the Christian, the local church, the public
 square, worldview. Answer it on the card or flick it away and deal another. The
 lens is marked on the card for one reason only — so **What haven't I touched?**
-can tell you which lenses have nothing answered against them. That is the grid's
+can tell you which lenses have nothing answered against them. It says so in a
+line across the top of the board that stays until you put it away, because it is
+a list you work through rather than a notice you acknowledge: untouched lenses,
+headings with nothing attached, no illustration, no aim. That is the grid's
 real work, coverage, without a cell to fill. It drifts towards whatever you have
 neglected without ever saying so.
 

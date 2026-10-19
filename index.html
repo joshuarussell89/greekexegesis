@@ -99,6 +99,20 @@
   .handbox:focus{border-color:var(--accent);}
   #goPick{display:flex;gap:10px;margin:2px 0 8px;}
   #goPick .pklist{height:min(44vh,300px);}
+  /* What the app has to say, where it can be seen. Above everything except a
+     sheet you have deliberately opened, and never over the Done button of
+     one. */
+  #toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(14px);
+    z-index:190;max-width:min(560px,92vw);background:var(--ink);color:#fffefb;
+    border-radius:12px;padding:11px 16px;box-shadow:0 10px 32px rgba(0,0,0,.3);
+    font-size:13px;line-height:1.45;opacity:0;pointer-events:none;
+    transition:opacity .16s,transform .16s;display:none;}
+  #toast.show{display:block;opacity:1;transform:translateX(-50%) translateY(0);
+    pointer-events:auto;cursor:pointer;}
+  #toast b{font-weight:600;}
+  #toast span{opacity:.82;}
+  #toast span:not(:empty):before{content:" \2014 ";}
+
   /* ---------- the Sermon Builder ----------
      A board you put things on. Cards lie loose until they are dragged onto a
      heading, and then they belong to it. The spine down the left is the sermon
@@ -120,6 +134,16 @@
   .bt:hover{border-color:var(--accent);}
   .bt.act{background:var(--accent);color:#fff;border-color:var(--accent);margin-left:auto;}
   .bt.act:hover{background:#774c24;}
+  /* What is thin, said in a line you can keep in view while you work on it.
+     A notice that vanishes is no use for a list you are working through. */
+  #bGapline{flex:0 0 auto;display:flex;align-items:baseline;gap:10px;
+    padding:8px 12px;background:#fdf4e6;border-bottom:1px solid var(--rule2);
+    font-size:12px;color:#7a5a00;line-height:1.5;}
+  #bGapline b{font-weight:600;}
+  #bGapline .x{margin-left:auto;cursor:pointer;color:var(--muted);font-size:15px;
+    line-height:1;flex:0 0 auto;}
+  #bGapline .x:hover{color:var(--sel);}
+
   #bBoard{flex:1;position:relative;overflow:auto;-webkit-overflow-scrolling:touch;
     background:var(--paper);min-height:0;}
   .bempty{position:absolute;left:18px;top:14px;font-size:11.5px;color:var(--dim);
@@ -173,6 +197,16 @@
     padding:7px 9px 9px;overflow:hidden;min-height:34px;}
   .bbody::placeholder{color:var(--dim);font-style:italic;}
   .bsrc{font-size:10.5px;color:var(--muted);padding:0 9px 8px;}
+  .bicon{border:0;background:none;color:var(--dim);cursor:pointer;font-size:13px;
+    line-height:1;padding:1px 3px;border-radius:5px;}
+  .bicon:hover{color:var(--accent);background:var(--chip);}
+  .bicon.on{color:var(--accent);}
+  /* A picture is shown at the card’s width and whatever height it needs:
+     cropping it to a tidy rectangle would hide the half you wanted. */
+  .bimg{display:block;width:100%;height:auto;cursor:pointer;}
+  .blink{display:block;margin:0 9px 8px;font-size:11px;color:var(--accent);
+    text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .blink:hover{text-decoration:underline;}
   /* The corner you pull. Two short rules rather than a solid block: it says
      "drag me" the way every resize corner does, and takes up almost nothing
      on a card that is only a sentence long. */
@@ -203,6 +237,14 @@
   .k-illus .bkind{background:#dff2e2;color:#1f5c30;}
   .k-ques  .bkind{background:#eee2f8;color:#5b2c85;}
   .k-text  .bkind{background:#e9e4d9;color:#5f584c;}
+  /* The three a note can be: one family of colour, because they are one kind
+     of thing — something you wrote on the passage itself. */
+  .k-vocab .bkind{background:#fde7d2;color:#8a4a12;}
+  .k-phrase .bkind{background:#fde7d2;color:#8a4a12;}
+  .k-verse .bkind{background:#fde7d2;color:#8a4a12;}
+  /* Still draggable, of course: attaching a note to a heading is the point of
+     its being on the board at all. It is only the KIND chip that is fixed. */
+  .k-vocab .bkind, .k-phrase .bkind, .k-verse .bkind{cursor:default;}
 
   /* The big idea sits on the paper above the Greek, where it can be seen while
      working, rather than in the chrome at the top of the window. */
@@ -478,7 +520,8 @@
 
   /* ---------- printing ---------- */
   @media print{
-    header,#palette,#marks,.pop,#insp,#conc,.sheet,#noteDrawer,.grow{display:none !important;}
+    header,#palette,#marks,.pop,#insp,#conc,.sheet,#noteDrawer,.grow,
+    #toast,#builder{display:none !important;}
     #scroll{overflow:visible !important;padding:0 !important;}
     #board{box-shadow:none !important;border:none !important;}
     html,body,#app{height:auto !important;overflow:visible !important;background:#fff !important;}
@@ -938,6 +981,8 @@
         <button id="bHand" class="bt">Hand this to Claude…</button>
         <button id="bOut" class="bt act">Sermon outline…</button>
       </div>
+      <input type="file" id="bFile" accept="image/*,.pdf" style="display:none">
+      <div id="bGapline" style="display:none"></div>
       <div id="bBoard"><div class="bempty" id="bEmpty">Loose — still being played with</div></div>
       <div id="bTray"><div class="btlbl">From the exegesis</div><div id="bTrayRow"></div></div>
     </div>
@@ -988,6 +1033,8 @@
 </aside>
 
 
+
+<div id="toast" aria-live="polite"></div>
 
 <div id="glyphMenu"><div class="gmname" id="gmName"></div></div>
 
@@ -1180,7 +1227,7 @@
     <div class="x" id="i-close">×</div>
   </div>
   <div id="i-rows"></div>
-  <div class="acts">
+  <div class="acts" id="i-acts">
     <a id="i-bdag" href="#">BDAG in Accordance</a>
     <a id="i-text" href="#" class="alt">Open text</a>
     <button id="i-lem" class="alt">Highlight lemma</button>
@@ -2575,6 +2622,15 @@ function cy(w){ return py(w) + w.h/2; }
    pointermove; this keeps it to the handful that moved. */
 function render(){
   S._selNow = new Set(S.selSet || []);
+  /* Which words are covered by a note on a phrase. Worked out once per paint
+     rather than per word: a phrase note is keyed by its two ends, so without
+     this the words in the middle would show nothing and the note would look
+     like it belonged to the first word alone. */
+  S._phraseOn = {};
+  Object.keys(S.notes || {}).forEach(k=>{
+    if(!noteKeyIsPhrase(k) || !String(S.notes[k]).trim()) return;
+    phraseWords(k).forEach(w =>{ S._phraseOn[w.uid] = 1; });
+  });
   S.words.forEach(w=>{
     const x = px(w), y = py(w);
     if(w._wx !== x){ w.el.style.left = x + "px"; w._wx = x; }
@@ -2590,7 +2646,7 @@ function render(){
     const cls = "w"
       + (S._selNow && S._selNow.has(w.uid) ? " sel" : "")
       + (lc ? " lem" : "")
-      + (S.notes[w.uid] ? " hasnote" : "")
+      + ((S.notes[w.uid] || (S._phraseOn && S._phraseOn[w.uid])) ? " hasnote" : "")
       + (inFocus(w.verse) ? "" : " ctx")
 ;
     if(w._wcls !== cls){ w.el.className = cls; w._wcls = cls; }
@@ -5406,6 +5462,7 @@ function selectedWords(){
 
 function setSelection(words, lemma){
   if(noteWord && !(words.length === 1 && words[0].uid === noteWord.uid)) closeNoteDrawer();
+  if(notePhrase && phraseKey(words) !== notePhrase) closeNoteDrawer();
   S.selSet = words.map(w => w.uid);
   S.selLemma = lemma || null;
   /* Freshly made, so a colour is for it. Reaching for a different tool is what
@@ -5416,6 +5473,7 @@ function setSelection(words, lemma){
   syncJoin();
   const insp = document.getElementById("insp");
   if(words.length === 1) showInspector(words[0]);
+  else if(phraseKey(words)) showPhrase(words);
   else insp.classList.remove("show");
   showSelCount();
   render(); paintPalette();
@@ -5426,6 +5484,40 @@ function clearSelection(){
   S.selSet = []; S.selLemma = null; S.sel = null; S._selFresh = false;
   document.getElementById("insp").classList.remove("show");
   showSelCount(); render(); paintPalette();
+}
+
+/* The inspector, for a run of words rather than one. There is no parsing to
+   show — a phrase has no lemma and no morphology — so what is left is the
+   phrase itself and somewhere to write about it, which is the thing that was
+   missing: a note could be about a word or about a whole verse, and most of
+   what is worth saying is about neither. */
+function showPhrase(words){
+  const key = phraseKey(words);
+  if(!key) return;
+  const insp = document.getElementById("insp");
+  const p = PASSAGES[S.key] || {};
+  const surf = document.getElementById("i-surf");
+  surf.textContent = words.map(w => w.surface).join(" ");
+  surf.dir = (p.lang === "he") ? "rtl" : "ltr";
+  surf.classList.toggle("heb", p.lang === "he");
+  surf.style.whiteSpace = "normal";
+  document.getElementById("i-ref").textContent =
+    ((p.title || "") + " " + words[0].verse + " · " +
+     words.length + " words").toUpperCase();
+
+  /* Nothing here belongs to a phrase, so it is put away rather than left
+     showing something about whichever word happened to be first. */
+  document.getElementById("i-rows").innerHTML = "";
+  const acts = document.getElementById("i-acts");
+  if(acts) acts.style.display = "none";
+  const hint = document.getElementById("i-lemhint");
+  if(hint) hint.textContent = "";
+
+  const note = document.getElementById("i-note");
+  note.value = S.notes[key] || "";
+  note.placeholder = "Tap to write a note about this phrase";
+  note.onpointerdown = e =>{ e.preventDefault(); openNoteDrawer(key); };
+  insp.classList.add("show");
 }
 
 function showSelCount(){
@@ -5448,6 +5540,10 @@ function select(w){ setSelection([w], null); }
 
 function showInspector(w){
   S.sel = w.id; S.curLine = w.line; syncJoin(); render();
+  /* Put back whatever showPhrase took away. */
+  const acts0 = document.getElementById("i-acts");
+  if(acts0) acts0.style.display = "";
+  document.getElementById("i-surf").style.whiteSpace = "";
   const p = PASSAGES[S.key];
   const ref = `${p.title} ${w.verse}`;
   const surf = document.getElementById("i-surf");
@@ -5505,10 +5601,19 @@ function toggleLemma(w){
    is there; tapping it opens a pane across the foot of the screen, over the
    page so the passage stays in view, and closing it puts the note back. */
 let noteWord = null;
+/* The phrase whose note is open, when it is a phrase rather than a word. */
+let notePhrase = null;
 
+/* A word, or a phrase. `w` is a word object for the first, a "a|b" key for
+   the second; everything below works on the key and the words it covers. */
 function openNoteDrawer(w){
   if(!w) return;
-  noteWord = w;
+  const key = (typeof w === "string") ? w : w.uid;
+  const phrase = noteKeyIsPhrase(key);
+  const ws = phrase ? phraseWords(key) : [w];
+  if(!ws.length) return;
+  noteWord = phrase ? null : w;
+  notePhrase = phrase ? key : null;
   /* A word has one thing to write about it, so there is nothing to choose
      between: the tabs belong to a VERSE, where English and a note are two
      different things. */
@@ -5518,19 +5623,20 @@ function openNoteDrawer(w){
   const el = document.getElementById("noteDrawer");
   const ta = document.getElementById("ndText");
   const wd = document.getElementById("ndWord");
-  wd.textContent = w.surface;
+  wd.textContent = ws.map(x => x.surface).join(" ");
   wd.className = "ndword" + (p.lang === "he" ? " heb" : "");
   wd.dir = (p.lang === "he") ? "rtl" : "ltr";
-  wd.style.whiteSpace = "";
+  wd.style.whiteSpace = phrase ? "normal" : "";
   document.getElementById("ndText").placeholder =
     "Write with your Pencil — iPadOS turns it into text";
   transVerse = null;
   document.getElementById("ndRef").textContent =
-    ((p.title || "") + " " + w.verse).trim().toUpperCase();
-  ta.value = S.notes[w.uid] || "";
+    ((p.title || "") + " " + ws[0].verse +
+     (phrase ? " · " + ws.length + " words" : "")).trim().toUpperCase();
+  ta.value = S.notes[key] || "";
   ta.oninput = ()=>{
     const t = ta.value.trim();
-    if(t) S.notes[w.uid] = t; else delete S.notes[w.uid];
+    if(t) S.notes[key] = t; else delete S.notes[key];
     const small = document.getElementById("i-note");
     if(small) small.value = ta.value;
     render(); saveSoon();
@@ -5665,7 +5771,8 @@ function closeNoteDrawer(){
   if(el) el.classList.remove("show");
   const small = document.getElementById("i-note");
   if(small && noteWord) small.value = S.notes[noteWord.uid] || "";
-  noteWord = null;
+  if(small && notePhrase) small.value = S.notes[notePhrase] || "";
+  noteWord = null; notePhrase = null;
 }
 
 function noteDrawerOpen(){
@@ -8846,8 +8953,16 @@ function buildOutline(){
   if(!buckets[0].words.length) buckets.shift();     // no text before the first break
   return buckets.map(b=>{
     const refs = b.words.map(w => w.verse);
+    const mineUid = new Set(b.words.map(w => w.uid));
     const notes = b.words.filter(w => S.notes[w.uid])
                          .map(w => ({ ref:w.verse, surface:w.surface, text:S.notes[w.uid] }));
+    /* A note on a PHRASE belongs to the part its first word is in. */
+    Object.keys(S.notes || {}).forEach(k=>{
+      if(!noteKeyIsPhrase(k) || !String(S.notes[k]).trim()) return;
+      const ws = phraseWords(k);
+      if(!ws.length || !mineUid.has(ws[0].uid)) return;
+      notes.push({ ref:ws[0].verse, surface:phraseText(k), text:S.notes[k] });
+    });
     return {
       title: b.title,
       /* The key the Sermon Builder attaches cards to, so the export can ask
@@ -9682,9 +9797,11 @@ function docMinusRange(d, uids){
   ["marks","hits","notes","lem","lineStarts","trans","vnotes"].forEach(k=>{
     out[k] = out[k] || {};
     Object.keys(out[k]).forEach(id=>{
-      /* trans is keyed by verse, everything else by word; a verse key matches
-         when any of its words is on screen. */
-      const on = keep[id] || Object.keys(keep).some(u => u.split("#")[0] === id);
+      /* trans and vnotes are keyed by verse, a phrase note by the two words
+         at its ends, everything else by one word. A verse key matches when any
+         of its words is on screen; a phrase when its first word is. */
+      const head = String(id).indexOf("|") > 0 ? String(id).split("|")[0] : id;
+      const on = keep[head] || Object.keys(keep).some(u => u.split("#")[0] === head);
       if(on){ gone[k] = gone[k] || {}; gone[k][id] = out[k][id]; delete out[k][id]; }
     });
   });
@@ -9918,6 +10035,7 @@ function docSnapshot(){
                                w:Math.round(c.w || 0) || undefined,
                                h:Math.round(c.h || 0) || undefined,
                                nt:c.nt || undefined,
+                               im:c.im || undefined, url:c.url || undefined,
                                ln:c.ln || undefined, src:c.src || undefined })),
     aims: Object.assign({}, S.aims),
     intros: Object.assign({}, S.intros),
@@ -9982,7 +10100,8 @@ function applyDoc(d, p){
   S.cards = ((d && d.cards) || []).map(c => ({
     id:c.id || newCardId(), k:CARDKINDS[c.k] ? c.k : "idea", t:c.t || "",
     x:+c.x || 0, y:+c.y || 0, w:+c.w || 0, h:+c.h || 0,
-    nt:c.nt || "", to:c.to || "", r:c.r || "all",
+    nt:c.nt || "", im:c.im || "", url:c.url || "",
+    to:c.to || "", r:c.r || "all",
     ln:c.ln || "", src:c.src || "" }));
   S.aims   = Object.assign({}, (d && d.aims) || {});
   S.intros = Object.assign({}, (d && d.intros) || {});
@@ -10154,12 +10273,36 @@ function syncUndo(){
    mystery: the last hundred events are kept and shown under ⋯.
    ============================================================ */
 const LOGMAX = 100;
+/* Something worth telling you, said where you can see it.
+
+   This wrote to the log and nowhere else, and the log lives behind a button in
+   the settings panel — so "Shape discarded", "Sync removed 3 things", "As much
+   of the book as a page will hold" and everything else the app had to say
+   happened in silence. Thirty-two places in the app thought they were speaking
+   to you. The log is still the history; this is the saying. */
+let TOASTOFF = null;
 function note(what, detail){
   S.log = S.log || [];
   S.log.push({ t:Date.now(), w:what, d:detail || "" });
   if(S.log.length > LOGMAX) S.log.shift();
   const el = document.getElementById("logBody");
   if(el && el.parentNode && el.parentNode.style.display !== "none") paintLog();
+
+  const t = document.getElementById("toast");
+  if(!t) return;
+  t.innerHTML = "";
+  const h = document.createElement("b");
+  h.textContent = what;
+  const d = document.createElement("span");
+  d.textContent = detail || "";
+  t.appendChild(h); t.appendChild(d);
+  t.classList.add("show");
+  clearTimeout(TOASTOFF);
+  /* Long enough to read a sentence, and it goes on its own: a notice you have
+     to dismiss is a notice that interrupts you twice. */
+  TOASTOFF = setTimeout(()=> t.classList.remove("show"),
+                        Math.min(9000, 2600 + String(what + (detail || "")).length * 45));
+  t.onclick = ()=>{ clearTimeout(TOASTOFF); t.classList.remove("show"); };
 }
 
 function paintLog(){
@@ -11155,9 +11298,20 @@ const CARDKINDS = {
   person: { n:"Person",       ph:"what does this passage ask of them on Monday?" },
   illus:  { n:"Illustration", ph:"the story, the image, the thing to hold up" },
   ques:   { n:"Question",     ph:"answer it here, or flick it away" },
-  text:   { n:"Text",         ph:"" }
+  text:   { n:"Text",         ph:"" },
+  /* The three a note can be. They are not chosen: a note card says what it is
+     anchored to, which is a fact about the note rather than a label you pick,
+     so tapping one of these does not cycle it. */
+  vocab:  { n:"Vocabulary",   ph:"", fixed:true },
+  phrase: { n:"Phrase",       ph:"", fixed:true },
+  verse:  { n:"Verse",        ph:"", fixed:true }
 };
+/* What tapping the chip cycles through. The three anchored kinds are not in
+   it, because an Idea cannot be turned into a note on a word. */
 const KINDORDER = ["idea", "quote", "person", "illus", "ques", "text"];
+function noteKind(key){
+  return noteKeyIsVerse(key) ? "verse" : noteKeyIsPhrase(key) ? "phrase" : "vocab";
+}
 
 let CARDSEQ = 0;
 function newCardId(){
@@ -11350,6 +11504,11 @@ function cardEl(c){
      over, so changing it costs one tap and no menu. */
   kind.onclick = e =>{
     e.stopPropagation();
+    if((CARDKINDS[c.k] || {}).fixed){
+      note((CARDKINDS[c.k] || {}).n,
+           "this card is a note you wrote on the passage, so its kind is not yours to change");
+      return;
+    }
     pushUndo();
     c.k = KINDORDER[(KINDORDER.indexOf(c.k) + 1) % KINDORDER.length];
     paintBuilder(); saveSoon();
@@ -11363,10 +11522,48 @@ function cardEl(c){
     head.appendChild(l);
   }
 
+  /* A picture and a link belong ON a card, beside whatever it says: a quote
+     with the page it came from, an illustration with the photograph. Neither
+     is a kind of card in its own right. */
+  const pic = document.createElement("button");
+  pic.className = "bicon" + (c.im ? " on" : "");
+  pic.textContent = "\u25a3";
+  pic.title = c.im ? "Replace the picture" : "Put a picture on this card";
+  pic.onclick = e =>{
+    e.stopPropagation();
+    imgTarget = c;
+    const f = document.getElementById("bFile");
+    if(f && f.click) f.click();
+  };
+  head.appendChild(pic);
+
+  const lk = document.createElement("button");
+  lk.className = "bicon" + (c.url ? " on" : "");
+  lk.textContent = "\u29c9";
+  lk.title = c.url ? "Change or remove the link" : "Put a link on this card";
+  lk.onclick = e =>{
+    e.stopPropagation();
+    const v = prompt("A web address for this card (leave it empty to remove it)",
+                     c.url || "");
+    if(v === null) return;
+    const u = tidyUrl(v);
+    if(v.trim() && !u){
+      note("That is not an address Nous can open",
+           "it needs to start http:// or https://");
+      return;
+    }
+    pushUndo();
+    c.url = u;
+    paintBuilder(); saveSoon();
+  };
+  head.appendChild(lk);
+
   const x = document.createElement("button");
   x.className = "bx"; x.textContent = "×";
   x.title = c.nt ? ("Remove this note — from the " +
-                    (noteKeyIsVerse(c.nt) ? "verse" : "word") + " as well as from here")
+                    (noteKeyIsVerse(c.nt) ? "verse"
+                     : noteKeyIsPhrase(c.nt) ? "phrase" : "word") +
+                    " as well as from here")
                  : "Remove this card";
   x.onclick = e =>{
     e.stopPropagation();
@@ -11395,6 +11592,32 @@ function cardEl(c){
     saveSoon();
   };
   el.appendChild(body);
+
+  if(c.im){
+    const im = document.createElement("img");
+    im.className = "bimg";
+    im.src = c.im;
+    im.alt = "";
+    /* Tap it to take it off. The card stays: a picture is something ON a card,
+       not the card itself. */
+    im.onclick = e =>{
+      e.stopPropagation();
+      if(!confirm("Take the picture off this card?")) return;
+      pushUndo(); c.im = ""; paintBuilder(); saveSoon();
+    };
+    el.appendChild(im);
+  }
+
+  if(c.url){
+    const a2 = document.createElement("a");
+    a2.className = "blink";
+    a2.href = c.url;
+    a2.target = "_blank";
+    a2.rel = "noopener noreferrer";
+    a2.textContent = prettyUrl(c.url);
+    a2.title = c.url;
+    el.appendChild(a2);
+  }
 
   if(c.src){
     const sr = document.createElement("div");
@@ -11629,6 +11852,95 @@ function paintTray(){
   });
 }
 
+/* ---- a picture on a card ----
+
+   The whole document goes to your repository on every sync, so a photograph
+   straight off a phone — four megabytes, four thousand pixels across — would
+   be four megabytes of sync for something shown two hundred pixels wide. Every
+   picture is therefore re-drawn at a size that suits a card before it is
+   stored, which takes a typical photograph to a couple of hundred kilobytes
+   and loses nothing you could see.
+
+   A PDF is not a picture: rendering one needs a PDF engine, and Nous is a
+   single file that has to work on a plane. So a PDF is declined, out loud,
+   with the two things that do work — export the page as an image, or put a
+   link on the card instead. */
+const CARDIMGMAX = 1400;          // the longest side a stored picture may have
+
+/* An address Nous will actually open, or nothing. Only http and https: a
+   "javascript:" or "data:" address in a document that syncs between devices is
+   a way of running something you did not write, and no sermon needs one. */
+function tidyUrl(v){
+  let t = String(v || "").trim();
+  if(!t) return "";
+  if(!/^[a-z][a-z0-9+.-]*:/i.test(t)) t = "https://" + t;
+  if(!/^https?:\/\//i.test(t)) return "";
+  try{ return new URL(t).href; }catch(_){ return ""; }
+}
+
+/* The address as a person would read it: no scheme, no trailing slash, and
+   short enough to sit on a card. */
+function prettyUrl(u){
+  const t = String(u || "").replace(/^https?:\/\//i, "").replace(/\/$/, "");
+  return t.length > 44 ? t.slice(0, 41) + "\u2026" : t;
+}
+
+function cardImage(file, then){
+  if(!file) return;
+  const name = (file.name || "").toLowerCase();
+  if(/\.pdf$/.test(name) || file.type === "application/pdf"){
+    note("Nous cannot show a PDF",
+         "it has no PDF engine in it. Export the page you want as a PNG or JPEG, " +
+         "or put a link to the file on the card instead.");
+    return;
+  }
+  if(file.type && file.type.indexOf("image/") !== 0){
+    note("Not a picture", (file.type || name) + " is not an image Nous can show");
+    return;
+  }
+  const rd = new FileReader();
+  rd.onload = ()=>{
+    const img = new Image();
+    img.onload = ()=>{
+      const k = Math.min(1, CARDIMGMAX / Math.max(img.width || 1, img.height || 1));
+      const w = Math.max(1, Math.round((img.width || 1) * k));
+      const h = Math.max(1, Math.round((img.height || 1) * k));
+      const cn = document.createElement("canvas");
+      cn.width = w; cn.height = h;
+      cn.getContext("2d").drawImage(img, 0, 0, w, h);
+      /* JPEG for a photograph, PNG for anything that was a PNG — a
+         screenshot of a page of commentary saved as JPEG goes grey and fuzzy
+         round the letters. */
+      const keep = /\.png$/.test(name) || file.type === "image/png";
+      then(cn.toDataURL(keep ? "image/png" : "image/jpeg", 0.82), w, h);
+    };
+    img.onerror = ()=> note("That picture could not be read", file.name || "");
+    img.src = rd.result;
+  };
+  rd.onerror = ()=> note("That file could not be read", file.name || "");
+  rd.readAsDataURL(file);
+}
+
+/* The one hidden file field the whole board shares. */
+let imgTarget = null;
+(function wireCardFile(){
+  const f = document.getElementById("bFile");
+  if(!f) return;
+  f.onchange = e =>{
+    const file = e.target.files && e.target.files[0];
+    const c = imgTarget;
+    e.target.value = "";
+    if(!file || !c) return;
+    cardImage(file, (data, w, h)=>{
+      pushUndo();
+      c.im = data;
+      paintBuilder(); saveSoon();
+      note("Picture added", w + " \u00d7 " + h + " \u00b7 about " +
+           Math.round(data.length * 0.75 / 1024) + "KB once stored");
+    });
+  };
+})();
+
 /* Somewhere to put a new card that is not on top of an old one. */
 function freeSpot(){
   const taken = looseCards().map(c => ({ x:c.x || 0, y:c.y || 0 }));
@@ -11742,6 +12054,36 @@ function noteCardId(key){ return "n:" + key; }
 /* A note belongs either to a WORD, by its uid, or to a VERSE, by its label
    with a "v:" in front. One pair of functions reads and writes whichever it
    is, so everything below knows only "a note" and its key. */
+/* ---- what a note can be ABOUT ----
+
+   A word, by its uid. A verse, by its label with "v:" in front. Or a PHRASE:
+   a run of words inside one verse, written "firstUid|lastUid".
+
+   A phrase is only ever offered for a run that is actually contiguous and
+   inside a single verse. Every other kind of selection — a lemma lit up
+   across the passage, a marquee that caught words from three lines — has no
+   phrase to be a note about, and pretending otherwise would file your note
+   against a span of text you never chose. */
+function phraseKey(words){
+  const ws = (words || []).slice().sort((a, b) => a.id - b.id);
+  if(ws.length < 2) return null;
+  if(ws.some(w => w.verse !== ws[0].verse)) return null;
+  for(let i = 1; i < ws.length; i++) if(ws[i].id !== ws[i-1].id + 1) return null;
+  return ws[0].uid + "|" + ws[ws.length - 1].uid;
+}
+function noteKeyIsPhrase(key){ return String(key).indexOf("|") > 0; }
+/* The words a phrase note covers, as they stand on the page now. */
+function phraseWords(key){
+  if(!noteKeyIsPhrase(key)) return [];
+  const [a, b] = String(key).split("|");
+  const wa = S.byUid[a], wb = S.byUid[b];
+  if(!wa || !wb) return [];
+  return S.words.filter(w => w.id >= wa.id && w.id <= wb.id);
+}
+function phraseText(key){
+  return phraseWords(key).map(w => w.surface).join(" ");
+}
+
 function noteKeyIsVerse(key){ return String(key).indexOf("v:") === 0; }
 function noteStore(key){ return noteKeyIsVerse(key) ? (S.vnotes = S.vnotes || {})
                                                     : (S.notes = S.notes || {}); }
@@ -11754,11 +12096,19 @@ function noteWrite(key, v){
 
 function syncNoteCards(){
   const here = {};
-  Object.keys(S.notes || {}).forEach(uid=>{
-    const w = S.byUid[uid];
-    if(!w || !inFocus(w.verse)) return;    // a note out in the context is not this sermon’s
-    if(!String(S.notes[uid] || "").trim()) return;
-    here[uid] = { label:w.surface + " · " + w.verse };
+  Object.keys(S.notes || {}).forEach(key=>{
+    if(!String(S.notes[key] || "").trim()) return;
+    if(noteKeyIsPhrase(key)){
+      const ws = phraseWords(key);
+      /* keep the hoisted branch below in step */
+      /* a note out in the context is not this sermon’s */
+      if(!ws.length || !inFocus(ws[0].verse)) return;
+      here[key] = { label:phraseText(key) + " · " + ws[0].verse };
+      return;
+    }
+    const w = S.byUid[key];
+    if(!w || !inFocus(w.verse)) return;
+    here[key] = { label:w.surface + " · " + w.verse };
   });
   Object.keys(S.vnotes || {}).forEach(ref=>{
     if(!inFocus(ref)) return;
@@ -11770,16 +12120,21 @@ function syncNoteCards(){
   for(let i = S.cards.length - 1; i >= 0; i--){
     const c = S.cards[i];
     if(!c.nt || (c.r || "all") !== boardKey()) continue;
-    const live = noteKeyIsVerse(c.nt) || S.byUid[c.nt];   // the word is still on the page
+    const live = noteKeyIsVerse(c.nt) ||
+                 (noteKeyIsPhrase(c.nt) ? phraseWords(c.nt).length : S.byUid[c.nt]);
     if(!here[c.nt] && live) S.cards.splice(i, 1);
   }
 
   const have = {};
   myCards().forEach(c =>{ if(c.nt) have[c.nt] = c; });
   Object.keys(here).forEach(key=>{
-    if(have[key]){ have[key].t = noteTextOf(key); return; }   // kept in step, both ways
+    if(have[key]){
+      have[key].t = noteTextOf(key);                  // kept in step, both ways
+      have[key].k = noteKind(key);                    // including boards made before the kinds existed
+      return;
+    }
     const at = freeSpot();
-    S.cards.push({ id:noteCardId(key), k:"idea", t:noteTextOf(key), nt:key,
+    S.cards.push({ id:noteCardId(key), k:noteKind(key), t:noteTextOf(key), nt:key,
                    x:at.x, y:at.y, w:0, h:0, to:"", r:boardKey(),
                    ln:"", src:here[key].label });
   });
@@ -11842,11 +12197,37 @@ function gapReport(){
    Builder IS the sermon and the exegesis is the working. */
 document.getElementById("bOut").onclick = ()=> openOutline();
 
+/* What the question deck has not reached, and what the sermon has not got.
+
+   It is a GLANCE, not a grid: it names the lenses with nothing answered
+   against them, the headings with nothing attached, and the two or three other
+   things worth noticing. Nothing is scored and nothing is blocked — a sermon
+   with nothing under heading 3 may be exactly right.
+
+   It stays on the page until you put it away, because it is a list you work
+   through rather than a message you acknowledge. */
+function showGaps(bits){
+  const el = document.getElementById("bGapline");
+  if(!el) return;
+  if(!bits || !bits.length){ el.style.display = "none"; el.innerHTML = ""; return; }
+  el.innerHTML = "";
+  const b = document.createElement("b");
+  b.textContent = "Worth a look";
+  const sp = document.createElement("span");
+  sp.textContent = bits.join(" \u00b7 ");
+  const x = document.createElement("div");
+  x.className = "x"; x.textContent = "\u00d7"; x.title = "Put this away";
+  x.onclick = ()=>{ el.style.display = "none"; };
+  el.appendChild(b); el.appendChild(sp); el.appendChild(x);
+  el.style.display = "";
+}
+
 document.getElementById("bGaps").onclick = ()=>{
   const bits = gapReport();
-  note(bits.length ? "Worth a look" : "Nothing obvious missing",
-       bits.length ? bits.join(" · ")
-                   : "every lens has something answered against it, and every heading has something attached");
+  showGaps(bits);
+  if(!bits.length)
+    note("Nothing obvious missing",
+         "every lens has something answered against it, and every heading has something attached");
 };
 
 /* ---- handing the board to Claude ----
@@ -11868,7 +12249,9 @@ function boardAsText(){
     if(!mine.length) L.push("(nothing attached)");
     mine.forEach(c => L.push("- [" + (CARDKINDS[c.k] || {}).n + "] " +
                              (String(c.t).trim() || "(blank)") +
-                             (c.src ? "  — " + c.src : "")));
+                             (c.src ? "  — " + c.src : "") +
+                             (c.url ? "  <" + c.url + ">" : "") +
+                             (c.im ? "  [picture]" : "")));
     L.push("");
   };
   const intro = bGet("intro"), concl = bGet("concl");
@@ -11882,7 +12265,12 @@ function boardAsText(){
   const loose = looseCards().filter(c => String(c.t).trim());
   if(loose.length){
     L.push("## Loose, not yet attached");
-    loose.forEach(c => L.push("- [" + (CARDKINDS[c.k] || {}).n + "] " + String(c.t).trim()));
+    /* What a loose card points at goes too. It is still loose, but a link or
+       a picture is part of what the card IS, and leaving it out would hand
+       over a quotation with no source. */
+    loose.forEach(c => L.push("- [" + (CARDKINDS[c.k] || {}).n + "] " + String(c.t).trim() +
+                              (c.url ? "  <" + c.url + ">" : "") +
+                              (c.im ? "  [picture]" : "")));
     L.push("");
   }
   const gaps = gapReport();
@@ -11937,7 +12325,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-10-19e";
+const BUILD = "2026-10-19g";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file

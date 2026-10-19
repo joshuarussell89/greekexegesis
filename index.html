@@ -90,6 +90,21 @@
   /* The passage picker: four columns you scroll, the same three the reference
      sheet uses with an end-verse added. */
   .sheet .ws.go{width:min(820px,96vw);}
+  .sheet .ws.eng{width:min(820px,96vw);height:min(74vh,740px);
+    display:flex;flex-direction:column;}
+  .engrow{display:flex;gap:8px;margin-bottom:8px;}
+  .engrow input{flex:1;font:inherit;font-size:15px;padding:10px 12px;border-radius:9px;
+    border:1px solid var(--rule);background:var(--paper);color:var(--ink);}
+  .engrow input:last-child{flex:0 0 160px;}
+  .engrow input:focus{outline:none;border-color:var(--accent);}
+  .engbox{flex:1;min-height:0;width:100%;font:inherit;font-size:15px;line-height:1.6;
+    padding:12px 14px;border-radius:10px;border:1px solid var(--rule);
+    background:var(--paper);color:var(--ink);resize:none;outline:none;}
+  .engbox:focus{border-color:var(--accent);}
+  /* English is read in sentences, not word by word, so it is set a little
+     smaller and closer than the Greek. */
+  .w.eng{font-family:Cardo,Georgia,serif;font-size:22px;}
+
   .sheet .ws.hand{width:min(820px,96vw);height:min(76vh,760px);
     display:flex;flex-direction:column;}
   .handbox{flex:1;min-height:0;width:100%;font-family:ui-monospace,Menlo,Consolas,monospace;
@@ -1164,6 +1179,28 @@
   </div>
 </div>
 
+<div id="engSheet" class="sheet">
+  <div class="ws eng">
+    <div class="wslbl">Paste a passage in English and work on it exactly as you would
+      the Greek — lines, indents, marks, symbols, ink, arrows, section breaks, the
+      Sermon Builder and the Word document at the end of it. There is no parsing, so
+      the inspector has nothing to show; everything else is the same.</div>
+    <div class="engrow">
+      <input type="text" id="engName" spellcheck="false" autocapitalize="words"
+             placeholder="What to call it — Romans 8 (ESV)">
+      <input type="text" id="engRef" spellcheck="false"
+             placeholder="Starts at — 8:1">
+    </div>
+    <textarea id="engText" class="engbox" spellcheck="false"
+              placeholder="1 There is therefore now no condemnation for those who are in Christ Jesus. 2 For the law of the Spirit of life has set you free…"></textarea>
+    <div class="askstate" id="engState"></div>
+    <div class="wsbtns">
+      <button id="engCancel">Cancel</button>
+      <button id="engGo" class="act">✓ Add it</button>
+    </div>
+  </div>
+</div>
+
 <div id="handSheet" class="sheet">
   <div class="ws hand">
     <div class="wslbl">Nous has no AI in it, and that is why it works on a plane and
@@ -1524,6 +1561,7 @@
   <div class="foot" id="mgStatus">Nothing loaded — the built-in passage is hand-parsed.</div>
   <button class="rowbtn" id="installNT2">Install the New Testament from GitHub…</button>
   <button class="rowbtn" id="installOT2">Install the Old Testament from GitHub…</button>
+  <button class="rowbtn" id="engBtn">Paste a passage in English…</button>
   <div class="foot" id="installProg2"></div>
   <hr>
   <h4>Drawing</h4>
@@ -2120,6 +2158,156 @@ function registerImported(file){
   }catch(e){ return null; }
 }
 
+
+/* ============================================================
+   A PASSAGE IN ENGLISH
+
+   Nothing in Nous is about Greek. A book is a list of verses, a verse is a
+   list of words, and a word is a surface with some optional information
+   hanging off it — a lemma, a part of speech, a parse. Take those away and
+   everything else still works: the lines, the indents, the marks, the ink, the
+   symbols, the arrows, the section breaks, the Sermon Builder, the Word
+   document at the end of it.
+
+   So an English passage is not a different kind of document. It is the same
+   document with the morphology missing, and the parts of the app that show
+   morphology simply have nothing to show.
+
+   What a lemma becomes, for English, is the word itself in lower case with its
+   punctuation off — which is exactly what makes "highlight every occurrence of
+   this word" the useful thing it is in an English text.
+   ============================================================ */
+
+/* Where a verse number is a verse number, and where it is just a number.
+
+   An English passage pasted out of a Bible site has its verse numbers run into
+   the text: "1 There is therefore... 2 For the law...". But "the twelve tribes"
+   may well be written "the 12 tribes", and a number in the middle of a sentence
+   must not start a new verse. So a number only counts as a verse marker when it
+   is the one that comes NEXT — or when it carries its chapter with it, as 8:1
+   does, which is never ambiguous. */
+function parsePassageText(text, ch0, v0){
+  const t = String(text || "")
+    .replace(/\r/g, "")
+    .replace(/[   ]/g, " ")
+    .trim();
+  if(!t) return [];
+
+  const re = /(?:^|[\s[(])(\d{1,3})(?::(\d{1,3}))?[\])]?[.\s]*/g;
+  const marks = [];
+  let m;
+  let ch = String(ch0 || "1"), v = parseInt(v0 || 1, 10);
+  let want = v;
+  while((m = re.exec(t))){
+    const a = parseInt(m[1], 10), b = m[2] ? parseInt(m[2], 10) : null;
+    if(b !== null){                       // "8:1" — says which chapter, so never a guess
+      marks.push({ at:m.index, end:re.lastIndex, ch:String(a), v:b });
+      ch = String(a); want = b + 1;
+    } else if(a === want ||
+              /* The text may begin part-way through a verse, with no marker
+                 for the one it starts in: then the FIRST marker is the next
+                 verse along, not this one. */
+              (!marks.length && (a === v || a === v + 1))){
+      marks.push({ at:m.index, end:re.lastIndex, ch, v:a });
+      want = a + 1;
+    }
+    /* anything else is a number in the sentence, and is left in it */
+  }
+
+  const out = [];
+  const push = (ref, body)=>{
+    const toks = String(body).trim().split(/\s+/).filter(Boolean)
+      .map(wd => [wd, engLemma(wd), "", "", "", ""]);
+    if(toks.length) out.push([ref, toks]);
+  };
+
+  if(!marks.length){ push(String(ch0 || "1") + ":" + (v0 || 1), t); return out; }
+  if(marks[0].at > 0) push(String(ch0 || "1") + ":" + (v0 || 1), t.slice(0, marks[0].at));
+  marks.forEach((mk, i)=>{
+    const body = t.slice(mk.end, i + 1 < marks.length ? marks[i+1].at : t.length);
+    push(mk.ch + ":" + mk.v, body);
+  });
+  return out;
+}
+
+/* An English "lemma": the word itself, lower case, without the punctuation
+   stuck to it. Enough for "light up every occurrence of this word", which is
+   what the lemma is actually used for. */
+/* A key from a title. The dashes at the ends are trimmed, or "Romans 8 (ESV)"
+   and "Romans 8 ESV" would be two different books whose names read the same,
+   and the one you installed would not be the one you looked for. */
+function engSlug(name){
+  return String(name).toLowerCase().replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "passage";
+}
+
+function engLemma(w){
+  return String(w).toLowerCase()
+    .replace(/^[^\p{L}\p{N}]+/u, "")
+    .replace(/[^\p{L}\p{N}]+$/u, "")
+    .replace(/[‘’']s$/u, "");
+}
+
+/* Make a book of it. Kept as a corpus file like every other installed book, so
+   it survives a reload and travels with the rest of your work. */
+function addEnglishPassage(name, startRef, text){
+  const ref = String(startRef || "1:1").trim();
+  const bits = /^(\d{1,3})(?::(\d{1,3}))?$/.exec(ref.replace(/\s+/g, ""));
+  const ch0 = bits ? bits[1] : "1";
+  const v0  = bits && bits[2] ? bits[2] : "1";
+  const verses = parsePassageText(text, ch0, v0);
+  if(!verses.length) return null;
+
+  const title = String(name || "").trim() || "Pasted passage";
+  const words = verses.reduce((n, v) => n + v[1].length, 0);
+  const chapters = [...new Set(verses.map(v => v[0].split(":")[0]))]
+    .sort((a, b) => (+a) - (+b));
+  const key = "en:" + engSlug(title);
+
+  PASSAGES[key] = { title, abbr:title.slice(0, 3), module:"", lang:"en",
+                    verses, words, chapters, byChapter:true, bad:0, key,
+                    order:200 + Object.keys(PASSAGES).length,
+                    english:true, imported:true, _file:title + ".english" };
+
+  S.corpusFiles = S.corpusFiles.filter(f => f.name !== title + ".english");
+  S.corpusFiles.push({ name:title + ".english",
+                       raw:JSON.stringify({ v:1, name:title, ref, verses }) });
+  saveCorpus();
+  refreshBookMenu();
+  return PASSAGES[key];
+}
+
+/* Read back on the next launch. */
+function registerEnglish(file){
+  try{
+    const d = JSON.parse(file.raw);
+    if(!d || !Array.isArray(d.verses)) return null;
+    const words = d.verses.reduce((n, v) => n + v[1].length, 0);
+    const chapters = [...new Set(d.verses.map(v => v[0].split(":")[0]))]
+      .sort((a, b) => (+a) - (+b));
+    const key = "en:" + engSlug(d.name);
+    PASSAGES[key] = { title:d.name, abbr:String(d.name).slice(0, 3), module:"",
+                      lang:"en", verses:d.verses, words, chapters, byChapter:true,
+                      bad:0, key, order:200 + Object.keys(PASSAGES).length,
+                      english:true, imported:true, _file:file.name };
+    return PASSAGES[key];
+  }catch(e){ return null; }
+}
+
+function isEnglish(){ const p = PASSAGES[S.key]; return !!(p && p.english); }
+
+/* ---- the sheet ---- */
+function openEngSheet(){
+  document.getElementById("engName").value = "";
+  document.getElementById("engRef").value = "";
+  document.getElementById("engText").value = "";
+  document.getElementById("engState").textContent = "";
+  document.getElementById("engSheet").classList.add("show");
+}
+function closeEngSheet(){
+  document.getElementById("engSheet").classList.remove("show");
+}
+
 function registerBook(file){
   const b = bookFromFilename(file.name);
   const label = b ? b.name : labelFromFilename(file.name);
@@ -2154,7 +2342,8 @@ function refreshBookMenu(){
   };
   const ot = group("ot:", "Old Testament");
   const nt = group("nt:", "New Testament");
-  return ot.concat(nt);
+  const en = group("en:", "Pasted in English");
+  return ot.concat(nt).concat(en);
 }
 
 function refreshChapterMenu(){
@@ -2317,6 +2506,10 @@ function buildPassage(key){
 
   S.byUid = {};
   const heb = p.lang === "he";
+  /* The class every word starts from. render() rebuilds a word’s class from
+     scratch on every paint, so the language has to be part of what it builds
+     from — set it only here and the first repaint throws it away. */
+  S._wbase = heb ? "w heb" : (p.lang === "en" ? "w eng" : "w");
   verses.forEach(([vn, toks])=>{
     const label = (typeof vn === "number") ? p.ch + ":" + vn : String(vn);
     toks.forEach((t, i)=>{
@@ -2330,7 +2523,7 @@ function buildPassage(key){
         lx:0, ly:0, w:0, h:0, el:null
       };
       const el = document.createElement("div");
-      el.className = heb ? "w heb" : "w";
+      el.className = S._wbase;
       if(heb){ el.dir = "rtl"; }
       el.textContent = t[0]; el.dataset.id = w.id;
       board.appendChild(el); w.el = el;
@@ -2660,7 +2853,7 @@ function render(){
     const tc = (S.marks[w.uid] && S.marks[w.uid].tc) || "";
     if(w._wtc !== tc){ w.el.style.color = tc; w._wtc = tc; }
 
-    const cls = "w"
+    const cls = (S._wbase || "w")
       + (S._selNow && S._selNow.has(w.uid) ? " sel" : "")
       + (lc ? " lem" : "")
       + ((S.notes[w.uid] || (S._phraseOn && S._phraseOn[w.uid])) ? " hasnote" : "")
@@ -5570,7 +5763,9 @@ function select(w){ setSelection([w], null); }
 
 function showInspector(w){
   S.sel = w.id; S.curLine = w.line; syncJoin(); render();
-  /* Put back whatever showPhrase took away. */
+  /* Put back whatever showPhrase took away — except on an English passage,
+     where there IS no parsing and no lexicon to look a word up in, so the rows
+     and the Accordance buttons have nothing to say and are not shown. */
   const acts0 = document.getElementById("i-acts");
   if(acts0) acts0.style.display = "";
   document.getElementById("i-surf").style.whiteSpace = "";
@@ -5584,6 +5779,18 @@ function showInspector(w){
 
   // gloss and Strong's exist only for the hand-parsed passages; MorphGNT
   // supplies neither, so those rows are omitted rather than shown empty
+  /* An English passage has no morphology and no lexicon to look a word up in,
+     so the rows and the two Accordance links have nothing to say. Highlighting
+     every occurrence of a word and counting them still do — in English
+     those are the useful ones — so those buttons stay. */
+  const eng = !!p.english;
+  ["i-bdag", "i-text"].forEach(id=>{
+    const el2 = document.getElementById(id);
+    if(el2) el2.style.display = eng ? "none" : "";
+  });
+  if(eng){
+    document.getElementById("i-rows").innerHTML = "";
+  } else
   document.getElementById("i-rows").innerHTML = `
     <div class="row"><div class="k">Lemma</div><div class="v"><span class="gk${p.lang === "he" ? " heb" : ""}"${p.lang === "he" ? ' dir="rtl"' : ""}>${w.lemma}</span></div></div>
     <div class="row"><div class="k">Parsing</div><div class="v">${w.pos} · ${w.parse}</div></div>`
@@ -6858,7 +7065,13 @@ if(refBoxEl) Object.defineProperty(refBoxEl, "value", {
    left alone, the whole chapter from `from` onward is what you get. */
 const GO = { book:null, key:null, ch:null, from:null, to:null };
 
-function goBooks(){ return pickBooks(); }
+/* The canon, and anything pasted in. A passage you typed a name for is not in
+   the canon and never will be, so it is listed by the name you gave it. */
+function goBooks(){
+  const mine = Object.keys(PASSAGES).filter(k => k.indexOf("en:") === 0)
+    .map(k => ({ name:PASSAGES[k].title, key:k }));
+  return mine.concat(pickBooks());
+}
 
 function goPaint(){
   const col = (id, items, chosen, onPick, empty)=>{
@@ -6968,6 +7181,28 @@ function closeGoSheet(commit){
   }
   sheet.classList.remove("show");
 }
+
+document.getElementById("engBtn").onclick = ()=>{ closePops(); openEngSheet(); };
+document.getElementById("engCancel").onclick = ()=> closeEngSheet();
+document.getElementById("engGo").onclick = ()=>{
+  const name = document.getElementById("engName").value;
+  const ref  = document.getElementById("engRef").value || "1:1";
+  const text = document.getElementById("engText").value;
+  const st = document.getElementById("engState");
+  if(!String(text).trim()){ st.textContent = "There is nothing to add yet."; return; }
+  const p2 = addEnglishPassage(name, ref, text);
+  if(!p2){ st.textContent = "No words found in that."; return; }
+  closeEngSheet();
+  saveNow();
+  S.key = p2.key;
+  setFocus(p2.words > MAX_LAYOUT_WORDS && p2.chapters.length ? p2.chapters[0] : "all");
+  document.getElementById("passage").value = p2.key;
+  refreshChapterMenu();
+  build(p2.key); syncJoin(); saveNow(); snapToPassage();
+  note("Added " + p2.title,
+       p2.verses.length + (p2.verses.length === 1 ? " verse" : " verses") + ", " +
+       p2.words + " words");
+};
 
 document.getElementById("bHand").onclick = ()=>{
   document.getElementById("handOut").value = boardAsText();
@@ -11196,6 +11431,7 @@ async function loadSaved(){
       S.corpusFiles = corpus.files;
       corpus.files.forEach(f=>{
         if(/\.hb$/.test(f.name)){ registerHebrew(f); return; }
+        if(/\.english$/.test(f.name)){ registerEnglish(f); return; }
         if(/\.import$/.test(f.name)){ registerImported(f); return; }
         registerBook(f);
       });
@@ -12729,7 +12965,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-10-19h";
+const BUILD = "2026-10-19i";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file

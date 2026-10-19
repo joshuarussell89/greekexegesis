@@ -346,6 +346,30 @@ Everything here lives in the book's own document, so it syncs between your
 devices, merges card by card, undoes, and goes in the ten-day bin exactly as
 your ink does.
 
+## Working on an English passage
+
+**Settings → Paste a passage in English.** Give it a name, say which verse it
+starts at, paste the text, and it becomes a book like any other — it appears in
+the book menu under *Pasted in English*, in the passage picker, and it is kept
+with the rest of your corpus so it is still there next time.
+
+Then work on it exactly as you would the Greek: break and indent the lines,
+mark and highlight the words, draw, lay down symbols, run arrows between them,
+make section breaks, write notes on a word or a phrase or a verse, build the
+sermon in the Builder, and export the Word document at the end.
+
+**Verse numbers.** Paste the text with its numbers in it and they are read as
+verse markers — but only when the number is the one that comes *next*. "To the
+12 tribes" does not start verse 12. A number that carries its chapter, like
+`8:1`, is never a guess and always starts a verse. Text with no numbers at all
+is one verse, beginning where you said.
+
+**What it has not got, it does not pretend to have.** There is no morphology and
+no lexicon, so the inspector shows no parsing rows and no Accordance buttons.
+Highlighting every occurrence of a word, and counting them, still work — in
+English those are the useful ones — because a word's "lemma" there is simply the
+word itself in lower case with its punctuation off.
+
 ## Choosing a passage
 
 The box at the top of the window is a button, not a field. Tap it and choose:

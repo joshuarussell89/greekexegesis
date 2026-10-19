@@ -272,6 +272,17 @@ buttons in a card's header do each, or **drag a JPEG straight onto the card**.
 Drop one on the bare board and it arrives as a card of its own, where you
 dropped it; drag an address out of a browser's address bar and it does the same.
 
+**A card that is only a picture looks like a picture.** With nothing written on
+it, the border, the background and the kind chip go, and you are left with the
+image alone — rounded, with a soft shadow under it. The controls come back the
+moment you tap it, and the ✎ among them opens a writing box if you want one.
+It is the same card underneath: it drags, attaches to a heading, resizes and
+syncs like any other. A preview of a video carries a play mark, so a still from
+a video reads as one.
+
+Tapping a picture no longer removes it — that was a deletion sitting under your
+finger. The ⊘ button in the header does it.
+
 Pictures are re-drawn at a size that suits a card before they are stored,
 because the whole document goes to your repository on every sync and a
 four-megabyte photograph would be four megabytes of sync for something shown two
@@ -295,10 +306,11 @@ picture, and YouTube or Vimeo, whose thumbnails have a predictable name.
 Anything else gets the link and no pretence of a preview. Previews come off the
 network, so they are blank offline.
 
-**A note card says what it is anchored to**: *Vocabulary* for a note on a word,
-*Phrase* for one on a run of words, *Verse* for one on a whole verse. That is a
-fact about the note rather than a label you pick, so tapping it does not change
-it.
+**A note card arrives as what it is anchored to**: *Vocabulary* for a note on a
+word, *Phrase* for one on a run of words, *Verse* for one on a whole verse. That
+is where it starts, not what it is stuck as — tap the chip and it moves on like
+any other card, and what you call it stands. A vocabulary note that turns out to
+be the illustration should be able to say so.
 
 **A note you wrote on a word or a verse is already a card.** It appears on the board on its
 own, saying which word it was written on. It is not a copy: writing on the card

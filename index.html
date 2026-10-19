@@ -228,8 +228,38 @@
     white-space:pre-wrap;word-break:break-word;cursor:text;color:var(--ink);}
   .bread a{color:var(--accent);}
   .bph{color:var(--dim);font-style:italic;}
-  .bprev{display:block;}
+  .bprev{display:block;position:relative;}
   .bprev img{display:block;width:100%;height:auto;}
+  /* A still from a video is still a still, so it says which it is. */
+  .bplay{position:absolute;left:50%;top:50%;width:46px;height:46px;margin:-23px 0 0 -23px;
+    border-radius:50%;background:rgba(20,16,12,.56);pointer-events:none;}
+  .bplay:after{content:"";position:absolute;left:18px;top:14px;
+    border-left:15px solid #fffefb;border-top:9px solid transparent;
+    border-bottom:9px solid transparent;}
+
+  /* ---- a card that is only a picture ----
+     Chrome around a photograph is noise. The border, the background and the
+     header all say "this is a card", which the picture has already said more
+     plainly. So they go, and come back the moment you tap it. */
+  .bcard.bare{border:0;background:none;box-shadow:none;}
+  .bcard.bare .bimg,
+  .bcard.bare .bprev img{border-radius:10px;box-shadow:0 2px 10px rgba(0,0,0,.18);}
+  .bcard.bare .bchead{position:absolute;left:0;right:0;top:0;z-index:3;
+    border:0;border-radius:10px 10px 0 0;padding:5px 7px;
+    background:linear-gradient(to bottom,rgba(20,16,12,.62),rgba(20,16,12,0));
+    opacity:0;transition:opacity .14s;pointer-events:none;}
+  .bcard.bare.lit .bchead,
+  .bcard.bare:hover .bchead{opacity:1;pointer-events:auto;}
+  .bcard.bare .bchead .bicon,
+  .bcard.bare .bchead .bx{color:#fffefb;}
+  .bcard.bare .bchead .bicon:hover,
+  .bcard.bare .bchead .bx:hover{color:#fff;background:rgba(255,255,255,.18);}
+  .bcard.bare .bkind{display:none;}
+  .bcard.bare .bread,.bcard.bare .bbody{display:none;}
+  .bcard.bare .blink{margin-top:6px;}
+  .bcard.bare .bgrip,.bcard.bare .bgripw{opacity:0;transition:opacity .14s;}
+  .bcard.bare.lit .bgrip,.bcard.bare:hover .bgrip,
+  .bcard.bare.lit .bgripw,.bcard.bare:hover .bgripw{opacity:1;}
   .bcard.over{border-color:var(--accent);box-shadow:0 0 0 3px rgba(138,90,43,.18);}
   #bBoard.over{background:#fdf7ee;}
   /* The board’s own ink, over the cards. #bHit only takes the pointer while
@@ -273,9 +303,7 @@
   .k-vocab .bkind{background:#fde7d2;color:#8a4a12;}
   .k-phrase .bkind{background:#fde7d2;color:#8a4a12;}
   .k-verse .bkind{background:#fde7d2;color:#8a4a12;}
-  /* Still draggable, of course: attaching a note to a heading is the point of
-     its being on the board at all. It is only the KIND chip that is fixed. */
-  .k-vocab .bkind, .k-phrase .bkind, .k-verse .bkind{cursor:default;}
+  .k-vocab .bkind, .k-phrase .bkind, .k-verse .bkind{cursor:pointer;}
 
   /* The big idea sits on the paper above the Greek, where it can be seen while
      working, rather than in the chrome at the top of the window. */
@@ -11583,16 +11611,16 @@ const CARDKINDS = {
   illus:  { n:"Illustration", ph:"the story, the image, the thing to hold up" },
   ques:   { n:"Question",     ph:"answer it here, or flick it away" },
   text:   { n:"Text",         ph:"" },
-  /* The three a note can be. They are not chosen: a note card says what it is
-     anchored to, which is a fact about the note rather than a label you pick,
-     so tapping one of these does not cycle it. */
-  vocab:  { n:"Vocabulary",   ph:"", fixed:true },
-  phrase: { n:"Phrase",       ph:"", fixed:true },
-  verse:  { n:"Verse",        ph:"", fixed:true }
+  /* The three a note arrives as. Which one it STARTS as says what it is
+     anchored to — a word, a run of words, a verse — and is worked out rather
+     than chosen. After that it is yours like any other: a vocabulary note that
+     turns out to be the illustration should be able to say so. */
+  vocab:  { n:"Vocabulary",   ph:"" },
+  phrase: { n:"Phrase",       ph:"" },
+  verse:  { n:"Verse",        ph:"" }
 };
-/* What tapping the chip cycles through. The three anchored kinds are not in
-   it, because an Idea cannot be turned into a note on a word. */
-const KINDORDER = ["idea", "quote", "person", "illus", "ques", "text"];
+const KINDORDER = ["idea", "quote", "person", "illus", "ques", "text",
+                   "vocab", "phrase", "verse"];
 function noteKind(key){
   return noteKeyIsVerse(key) ? "verse" : noteKeyIsPhrase(key) ? "phrase" : "vocab";
 }
@@ -11777,7 +11805,7 @@ function autoGrow(el, floor){
 
 function cardEl(c){
   const el = document.createElement("div");
-  el.className = "bcard k-" + c.k;
+  el.className = "bcard k-" + c.k + (cardIsBare(c) ? " bare" : "");
   el.dataset.card = c.id;
 
   const head = document.createElement("div");
@@ -11789,11 +11817,6 @@ function cardEl(c){
      over, so changing it costs one tap and no menu. */
   kind.onclick = e =>{
     e.stopPropagation();
-    if((CARDKINDS[c.k] || {}).fixed){
-      note((CARDKINDS[c.k] || {}).n,
-           "this card is a note you wrote on the passage, so its kind is not yours to change");
-      return;
-    }
     pushUndo();
     c.k = KINDORDER[(KINDORDER.indexOf(c.k) + 1) % KINDORDER.length];
     paintBuilder(); saveSoon();
@@ -11822,6 +11845,18 @@ function cardEl(c){
   };
   head.appendChild(pic);
 
+  if(c.im){
+    const off = document.createElement("button");
+    off.className = "bicon";
+    off.textContent = "\u2298";
+    off.title = "Take the picture off this card";
+    off.onclick = e =>{
+      e.stopPropagation();
+      pushUndo(); c.im = ""; paintBuilder(); saveSoon();
+    };
+    head.appendChild(off);
+  }
+
   const lk = document.createElement("button");
   lk.className = "bicon" + (c.url ? " on" : "");
   lk.textContent = "\u29c9";
@@ -11842,6 +11877,25 @@ function cardEl(c){
     paintBuilder(); saveSoon();
   };
   head.appendChild(lk);
+
+  /* A bare card shows no writing area, so there has to be a way back to one.
+     It is only on a bare card, because every other kind has the writing in
+     front of you already. */
+  if(cardIsBare(c)){
+    const wr = document.createElement("button");
+    wr.className = "bicon";
+    wr.textContent = "\u270e";
+    wr.title = "Write something on this card";
+    wr.onclick = e =>{
+      e.stopPropagation();
+      el.classList.remove("bare");
+      litCard(null);
+      const b2 = el.querySelector(".bbody"), r2 = el.querySelector(".bread");
+      if(r2) r2.style.display = "none";
+      if(b2){ b2.style.display = ""; autoGrow(b2, bodyFloor(c, el)); if(b2.focus) b2.focus(); }
+    };
+    head.appendChild(wr);
+  }
 
   const x = document.createElement("button");
   x.className = "bx"; x.textContent = "×";
@@ -11956,6 +12010,12 @@ function cardEl(c){
     im2.src = src; im2.alt = "";
     im2.onerror = ()=>{ prev.style.display = "none"; };
     prev.appendChild(im2);
+    /* A still from a video is still a still: say which it is. */
+    if(linkIsVideo(u)){
+      const play = document.createElement("span");
+      play.className = "bplay";
+      prev.appendChild(play);
+    }
   };
   paintPreview();
   el.appendChild(prev);
@@ -11965,13 +12025,10 @@ function cardEl(c){
     im.className = "bimg";
     im.src = c.im;
     im.alt = "";
-    /* Tap it to take it off. The card stays: a picture is something ON a card,
-       not the card itself. */
-    im.onclick = e =>{
-      e.stopPropagation();
-      if(!confirm("Take the picture off this card?")) return;
-      pushUndo(); c.im = ""; paintBuilder(); saveSoon();
-    };
+    /* Tapping a picture used to delete it, which is a hazard sitting under
+       your finger. It brings the controls back now; taking the picture off is
+       the \u2298 button, where a deletion belongs. */
+    im.onclick = e =>{ e.stopPropagation(); litCard(el); };
     el.appendChild(im);
   }
 
@@ -12012,6 +12069,10 @@ function cardEl(c){
   wireCardResize(el, c, side, body, "w");
 
   wireCardDrag(el, c, head);
+  /* With the header hidden there is nothing to grab, so the whole of a bare
+     card is its own handle. A press that does not travel is a tap and brings
+     the controls back instead (see wireCardDrag). */
+  if(cardIsBare(c)) wireCardDrag(el, c, el);
   wireDrop(el, c);
   return { el, body, grip };
 }
@@ -12209,6 +12270,21 @@ function dropSpot(e){
            y:Math.max(28, (e.clientY || 0) - r.top + (bBoardEl.scrollTop || 0) - 14) };
 }
 
+/* Which bare card has its controls showing. One at a time: two sets of
+   floating buttons over two pictures is the clutter this was meant to avoid. */
+let LITCARD = null;
+function litCard(el){
+  if(LITCARD && LITCARD !== el) LITCARD.classList.remove("lit");
+  LITCARD = el || null;
+  if(el) el.classList.add("lit");
+}
+/* Tap anywhere that is not a bare card and they go away again. */
+if(bBoardEl) bBoardEl.addEventListener("pointerdown", e=>{
+  const t = e.target;
+  if(t && t.closest && t.closest(".bcard.bare")) return;
+  if(LITCARD){ LITCARD.classList.remove("lit"); LITCARD = null; }
+}, true);
+
 function paintLoose(){
   [...bBoardEl.querySelectorAll(".bcard")].forEach(n => n.remove());
   const loose = looseCards();
@@ -12338,6 +12414,26 @@ function linkPreview(u){
   m = /vimeo\.com\/(?:video\/)?(\d{6,})/i.exec(url);
   if(m) return "https://vumbnail.com/" + m[1] + ".jpg";
   return "";
+}
+
+/* Whether what a link points at is a video, so the preview can say so. */
+function linkIsVideo(u){
+  return /(?:youtube\.com|youtu\.be|vimeo\.com)/i.test(String(u || ""));
+}
+
+/* A card that is a PICTURE and nothing else should look like a picture.
+
+   Chrome around a photograph is noise: a border, a background, a kind chip and
+   a header strip, all to say "this is a card", when what is on it already says
+   what it is. So a card carrying an image or a preview and no writing is shown
+   bare — the picture, rounded, with a soft shadow under it — and the controls
+   come back the moment you tap it. It is the same card underneath: it drags,
+   attaches to a heading, resizes and syncs exactly as every other one does. */
+function cardIsBare(c){
+  if(String(c.t || "").trim()) return false;
+  if(c.im) return true;
+  const u = c.url || "";
+  return !!(u && linkPreview(u));
 }
 
 function cardImage(file, then){
@@ -12475,6 +12571,7 @@ function wireCardDrag(el, c, handle){
     BDRAG = null;
     [...bSlotsEl.querySelectorAll(".bslot")].forEach(n => n.classList.remove("over"));
     if(!moved) return;
+    if(!moved && el.classList.contains("bare")){ litCard(el); return; }
     const slot = slotUnder(e.clientX, e.clientY);
     c.to = slot || "";
     if(!slot){
@@ -12592,8 +12689,10 @@ function syncNoteCards(){
   myCards().forEach(c =>{ if(c.nt) have[c.nt] = c; });
   Object.keys(here).forEach(key=>{
     if(have[key]){
-      have[key].t = noteTextOf(key);                  // kept in step, both ways
-      have[key].k = noteKind(key);                    // including boards made before the kinds existed
+      have[key].t = noteTextOf(key);     // kept in step, both ways
+      /* Its KIND is not put back. The one it arrived as says what it is
+         anchored to; if you have since called it an Illustration, that is
+         your judgement about the sermon and not something to correct. */
       return;
     }
     const at = freeSpot();
@@ -12965,7 +13064,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-10-19i";
+const BUILD = "2026-10-19j";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file

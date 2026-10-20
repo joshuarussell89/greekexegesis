@@ -365,6 +365,21 @@ starts at, paste the text, and it becomes a book like any other — it appears i
 the book menu under *Pasted in English*, in the passage picker, and it is kept
 with the rest of your corpus so it is still there next time.
 
+**Tie it to the book it came from** and a button beside the tabs puts the two
+one tap apart at the same chapter and verse — *Greek* or *Hebrew* from the
+English, *English* from the other side. Which book it belongs to is **chosen**
+rather than guessed: the name suggests one and you can accept it, but a switch
+that silently took you to the wrong book would be worse than no switch at all.
+If the pasted side does not cover the verses you are on, it says so and shows
+you all of it.
+
+**Settings → Edit the pasted passage on screen** opens it again with the text as
+you pasted it. Fixing a typo moves nothing. Adding or removing a *word* shifts
+everything after it in that verse, and the marks and notes on those words with
+it, so you are told which verses are about to change and asked before anything
+is written. Renaming it keeps the same passage: the key everything is filed
+under does not move, so your work stays with it.
+
 Then work on it exactly as you would the Greek: break and indent the lines,
 mark and highlight the words, draw, lay down symbols, run arrows between them,
 make section breaks, write notes on a word or a phrase or a verse, build the

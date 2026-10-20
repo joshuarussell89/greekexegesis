@@ -96,6 +96,10 @@
   .engrow input{flex:1;font:inherit;font-size:15px;padding:10px 12px;border-radius:9px;
     border:1px solid var(--rule);background:var(--paper);color:var(--ink);}
   .engrow input:last-child{flex:0 0 160px;}
+  .engtwin{flex:0 0 auto;align-self:center;font-size:11.5px;color:var(--muted);
+    text-transform:uppercase;letter-spacing:.09em;font-weight:600;}
+  #engTwin{flex:1;font:inherit;font-size:14px;padding:9px 10px;border-radius:9px;
+    border:1px solid var(--rule);background:var(--paper);color:var(--ink);}
   .engrow input:focus{outline:none;border-color:var(--accent);}
   .engbox{flex:1;min-height:0;width:100%;font:inherit;font-size:15px;line-height:1.6;
     padding:12px 14px;border-radius:10px;border:1px solid var(--rule);
@@ -983,6 +987,8 @@
         <button id="tabEx" class="on" data-view="exegesis">Exegesis</button>
         <button id="tabSb" data-view="builder">Sermon Builder</button>
       </div>
+      <!-- Only there when this passage has another language to go to. -->
+      <button id="twinBtn" class="ghost" style="display:none">Greek</button>
       <select id="passage"><option value="">No book loaded</option></select>
       <select id="chapter" title="Which part of the loaded book to lay out"
               style="display:none"></select>
@@ -1218,6 +1224,10 @@
              placeholder="What to call it — Romans 8 (ESV)">
       <input type="text" id="engRef" spellcheck="false"
              placeholder="Starts at — 8:1">
+    </div>
+    <div class="engrow">
+      <label class="engtwin" for="engTwin">Same passage as</label>
+      <select id="engTwin"></select>
     </div>
     <textarea id="engText" class="engbox" spellcheck="false"
               placeholder="1 There is therefore now no condemnation for those who are in Christ Jesus. 2 For the law of the Spirit of life has set you free…"></textarea>
@@ -1590,6 +1600,11 @@
   <button class="rowbtn" id="installNT2">Install the New Testament from GitHub…</button>
   <button class="rowbtn" id="installOT2">Install the Old Testament from GitHub…</button>
   <button class="rowbtn" id="engBtn">Paste a passage in English…</button>
+  <button class="rowbtn" id="engEdit">Edit the pasted passage on screen…</button>
+  <div class="foot" style="padding-top:0">A pasted passage can be tied to the book it
+    came from, and then a button beside the tabs puts the two one tap apart at the same
+    chapter and verse. Which book it belongs to is chosen rather than guessed: a switch
+    that silently took you to the wrong book would be worse than no switch at all.</div>
   <div class="foot" id="installProg2"></div>
   <hr>
   <h4>Drawing</h4>
@@ -2278,7 +2293,7 @@ function engLemma(w){
 
 /* Make a book of it. Kept as a corpus file like every other installed book, so
    it survives a reload and travels with the rest of your work. */
-function addEnglishPassage(name, startRef, text){
+function addEnglishPassage(name, startRef, text, twin, keepKey){
   const ref = String(startRef || "1:1").trim();
   const bits = /^(\d{1,3})(?::(\d{1,3}))?$/.exec(ref.replace(/\s+/g, ""));
   const ch0 = bits ? bits[1] : "1";
@@ -2290,16 +2305,26 @@ function addEnglishPassage(name, startRef, text){
   const words = verses.reduce((n, v) => n + v[1].length, 0);
   const chapters = [...new Set(verses.map(v => v[0].split(":")[0]))]
     .sort((a, b) => (+a) - (+b));
-  const key = "en:" + engSlug(title);
+  /* Editing keeps the key it already had, even if the name has changed: the
+     key is what every mark, line and note on this passage is filed under, and
+     a rename that quietly made a SECOND book would leave all of that behind on
+     a book you could no longer see. */
+  const key = keepKey || ("en:" + engSlug(title));
+  const old = PASSAGES[key];
 
   PASSAGES[key] = { title, abbr:title.slice(0, 3), module:"", lang:"en",
                     verses, words, chapters, byChapter:true, bad:0, key,
-                    order:200 + Object.keys(PASSAGES).length,
-                    english:true, imported:true, _file:title + ".english" };
+                    order:(old && old.order) || 200 + Object.keys(PASSAGES).length,
+                    english:true, imported:true, _file:key + ".english",
+                    twin:(twin !== undefined ? (twin || "") : (old && old.twin) || ""),
+                    src:String(text || "") };
 
-  S.corpusFiles = S.corpusFiles.filter(f => f.name !== title + ".english");
-  S.corpusFiles.push({ name:title + ".english",
-                       raw:JSON.stringify({ v:1, name:title, ref, verses }) });
+  S.corpusFiles = S.corpusFiles.filter(f => f.name !== key + ".english" &&
+                                            f.name !== title + ".english");
+  S.corpusFiles.push({ name:key + ".english",
+                       raw:JSON.stringify({ v:2, key, name:title, ref, verses,
+                                            twin:PASSAGES[key].twin,
+                                            text:PASSAGES[key].src }) });
   saveCorpus();
   refreshBookMenu();
   return PASSAGES[key];
@@ -2313,23 +2338,152 @@ function registerEnglish(file){
     const words = d.verses.reduce((n, v) => n + v[1].length, 0);
     const chapters = [...new Set(d.verses.map(v => v[0].split(":")[0]))]
       .sort((a, b) => (+a) - (+b));
-    const key = "en:" + engSlug(d.name);
+    const key = d.key || ("en:" + engSlug(d.name));
     PASSAGES[key] = { title:d.name, abbr:String(d.name).slice(0, 3), module:"",
                       lang:"en", verses:d.verses, words, chapters, byChapter:true,
                       bad:0, key, order:200 + Object.keys(PASSAGES).length,
-                      english:true, imported:true, _file:file.name };
+                      english:true, imported:true, _file:file.name,
+                      twin:d.twin || "", src:d.text || "" };
     return PASSAGES[key];
   }catch(e){ return null; }
 }
 
 function isEnglish(){ const p = PASSAGES[S.key]; return !!(p && p.english); }
 
+/* ---- the same passage in the other language ----
+
+   A pasted English passage is tied to the book it came from, so you can put
+   the two side by side in time rather than in space: the same chapter and
+   verse, the same diagram headings, one tap apart.
+
+   Which book it belongs to is CHOSEN rather than guessed. "Romans 8 (ESV)"
+   could be guessed at, and "Mark" could not be told from "Mark’s notes"; a
+   switch that silently took you to the wrong book would be worse than no
+   switch at all. The guess is only ever the default in the menu. */
+function originalBooks(){
+  return Object.keys(PASSAGES)
+    .filter(k => k.indexOf("en:") !== 0 && Array.isArray(PASSAGES[k].verses))
+    .map(k => PASSAGES[k])
+    .sort((a, b) => (a.order || 0) - (b.order || 0));
+}
+
+/* The longest installed book title the name begins with: "2 Corinthians 4
+   (ESV)" finds 2 Corinthians rather than Corinthians. */
+function guessTwin(name){
+  const t = String(name || "").trim().toLowerCase();
+  let best = null;
+  originalBooks().forEach(p2=>{
+    const title = String(p2.title || "").toLowerCase();
+    if(title && t.indexOf(title) === 0 &&
+       (!best || title.length > String(best.title).length)) best = p2;
+  });
+  return best ? best.key : "";
+}
+
+/* The book on the other side of the switch, whichever side you are on. */
+function twinOf(key){
+  const p2 = PASSAGES[key];
+  if(!p2) return "";
+  if(p2.english) return PASSAGES[p2.twin] ? p2.twin : "";
+  const mine = Object.keys(PASSAGES)
+    .filter(k => k.indexOf("en:") === 0 && PASSAGES[k].twin === key);
+  return mine.length ? mine[0] : "";
+}
+
+/* Over to the other one, keeping the passage you are on. Both sides number
+   their verses the same way, so the range carries across unchanged. */
+function switchTwin(){
+  const other = twinOf(S.key);
+  if(!other) return false;
+  const range = focusRange();
+  saveNow();
+  S.key = other;
+  setFocus(range);
+  document.getElementById("passage").value = other;
+  refreshChapterMenu();
+  build(other); syncJoin(); saveNow(); snapToPassage();
+  if(!S.words.length){
+    /* The pasted side may only cover part of what the other side has. */
+    setFocus("all");
+    build(other); snapToPassage();
+    note("Not in " + PASSAGES[other].title,
+         rangeLabel(range).replace("chapter ", "") + " is not in that one, so it is "
+         + "showing all of it");
+  }
+  paintTwinBtn();
+  return true;
+}
+
+function paintTwinBtn(){
+  const b = document.getElementById("twinBtn");
+  if(!b) return;
+  const other = twinOf(S.key);
+  b.style.display = other ? "" : "none";
+  if(!other) return;
+  const p2 = PASSAGES[other];
+  b.textContent = p2.english ? "English" : (p2.lang === "he" ? "Hebrew" : "Greek");
+  b.title = "Show " + p2.title + " at the same place";
+}
+
+/* Which verses have a different number of words in them than before.
+
+   Every mark, note and stroke on a pasted passage is filed under the word’s
+   place in its verse — "8:1#4" is the fifth word of verse 1. Fix a typo and
+   nothing moves. Add or take out a WORD and everything after it in that verse
+   shifts by one, and a highlight that was on "condemnation" is on the word
+   after it. So the count is compared verse by verse and you are told which
+   ones have changed, before anything is written. */
+function versesMoved(before, after){
+  const n = {};
+  (before || []).forEach(([ref, toks]) => { n[ref] = toks.length; });
+  const moved = [];
+  (after || []).forEach(([ref, toks])=>{
+    if(n[ref] !== undefined && n[ref] !== toks.length) moved.push(ref);
+  });
+  return moved;
+}
+
 /* ---- the sheet ---- */
-function openEngSheet(){
-  document.getElementById("engName").value = "";
-  document.getElementById("engRef").value = "";
-  document.getElementById("engText").value = "";
-  document.getElementById("engState").textContent = "";
+let engEditing = null;          // the key being edited, or null for a new one
+
+function engTwinMenu(chosen){
+  const sel = document.getElementById("engTwin");
+  if(!sel) return;
+  sel.innerHTML = "";
+  const none = document.createElement("option");
+  none.value = ""; none.textContent = "— nothing; it stands on its own —";
+  sel.appendChild(none);
+  originalBooks().forEach(p2=>{
+    const o = document.createElement("option");
+    o.value = p2.key; o.textContent = p2.title;
+    sel.appendChild(o);
+  });
+  sel.value = chosen || "";
+}
+
+/* A passage written back out as the text it came from, for anything stored
+   before the text itself was kept. */
+function engAsText(p2){
+  return (p2.verses || [])
+    .map(([ref, toks]) => String(ref).split(":")[1] + " " + toks.map(t => t[0]).join(" "))
+    .join(" ");
+}
+
+function openEngSheet(key){
+  const p2 = key ? PASSAGES[key] : null;
+  engEditing = p2 ? p2.key : null;
+  const nm = p2 ? p2.title : "";
+  document.getElementById("engName").value = nm;
+  document.getElementById("engRef").value =
+    p2 && p2.verses.length ? String(p2.verses[0][0]) : "";
+  document.getElementById("engText").value = p2 ? (p2.src || engAsText(p2)) : "";
+  engTwinMenu(p2 ? p2.twin : "");
+  document.getElementById("engState").textContent = p2
+    ? "Fixing a typo moves nothing. Adding or removing a WORD shifts everything "
+      + "after it in that verse, and the marks on it with them."
+    : "";
+  document.getElementById("engGo").textContent = p2
+    ? "\u2713 Save the changes" : "\u2713 Add it";
   document.getElementById("engSheet").classList.add("show");
 }
 function closeEngSheet(){
@@ -2560,6 +2714,11 @@ function buildPassage(key){
   });
 
   rebuildLines();
+
+  /* Whether there is another language to go to, and which. Here because this
+     runs on every change of book and of passage, which is exactly when the
+     answer can change. */
+  if(typeof paintTwinBtn === "function") paintTwinBtn();
 
   // measure
   measureWords();
@@ -7212,13 +7371,42 @@ function closeGoSheet(commit){
 
 document.getElementById("engBtn").onclick = ()=>{ closePops(); openEngSheet(); };
 document.getElementById("engCancel").onclick = ()=> closeEngSheet();
+/* The name suggests the book, until you say otherwise. */
+document.getElementById("engName").addEventListener("input", e=>{
+  if(engEditing) return;
+  const sel = document.getElementById("engTwin");
+  if(sel && !sel._touched) sel.value = guessTwin(e.target.value) || "";
+});
+document.getElementById("engTwin").addEventListener("change", e=>{
+  e.target._touched = true;
+});
 document.getElementById("engGo").onclick = ()=>{
   const name = document.getElementById("engName").value;
   const ref  = document.getElementById("engRef").value || "1:1";
   const text = document.getElementById("engText").value;
+  const twin = document.getElementById("engTwin").value;
   const st = document.getElementById("engState");
   if(!String(text).trim()){ st.textContent = "There is nothing to add yet."; return; }
-  const p2 = addEnglishPassage(name, ref, text);
+
+  /* Before anything is written: say which verses are about to move, so the
+     change can be thought about rather than discovered afterwards. */
+  if(engEditing && PASSAGES[engEditing]){
+    const bits = /^(\d{1,3})(?::(\d{1,3}))?$/.exec(String(ref).replace(/\s+/g, ""));
+    const moved = versesMoved(PASSAGES[engEditing].verses,
+                              parsePassageText(text, bits ? bits[1] : "1",
+                                               bits && bits[2] ? bits[2] : "1"));
+    if(moved.length && !confirm(
+        "The number of words has changed in " +
+        (moved.length === 1 ? "verse " : moved.length + " verses: ") +
+        moved.slice(0, 6).join(", ") + (moved.length > 6 ? "…" : "") +
+        ".\n\nMarks, notes and ink in those verses are filed by where a word sits, " +
+        "so they will move with it. Everything in the other verses stays where it is." +
+        "\n\nGo ahead?")) return;
+  }
+
+  const edited = !!engEditing;
+  const p2 = addEnglishPassage(name, ref, text, twin, engEditing);
+  engEditing = null;
   if(!p2){ st.textContent = "No words found in that."; return; }
   closeEngSheet();
   saveNow();
@@ -7227,10 +7415,22 @@ document.getElementById("engGo").onclick = ()=>{
   document.getElementById("passage").value = p2.key;
   refreshChapterMenu();
   build(p2.key); syncJoin(); saveNow(); snapToPassage();
-  note("Added " + p2.title,
+  paintTwinBtn();
+  note((edited ? "Saved " : "Added ") + p2.title,
        p2.verses.length + (p2.verses.length === 1 ? " verse" : " verses") + ", " +
-       p2.words + " words");
+       p2.words + " words" +
+       (p2.twin && PASSAGES[p2.twin] ? ", beside " + PASSAGES[p2.twin].title : ""));
 };
+
+document.getElementById("engEdit").onclick = ()=>{
+  closePops();
+  if(!isEnglish()){
+    note("Nothing to edit here", "this is not a passage you pasted in");
+    return;
+  }
+  openEngSheet(S.key);
+};
+document.getElementById("twinBtn").onclick = ()=> switchTwin();
 
 document.getElementById("bHand").onclick = ()=>{
   document.getElementById("handOut").value = boardAsText();
@@ -13064,7 +13264,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-10-19j";
+const BUILD = "2026-10-20a";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file

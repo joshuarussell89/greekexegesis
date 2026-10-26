@@ -356,7 +356,22 @@
   .pop .foot{padding:8px 12px 10px;font-size:11px;color:var(--muted);line-height:1.5;}
 
   /* ---------- board ---------- */
-  #body{flex:1 1 auto;display:flex;min-height:0;}
+  #body{flex:1 1 auto;display:flex;min-height:0;position:relative;}
+  /* ---- the scroll bar you can actually grab ----
+     Two fingers on glass is a fiddly way to move a long passage, and on a page
+     several screens tall it is a lot of gesturing. This sits down the right of
+     the paper: drag the thumb, or tap anywhere on the track to go there. It is
+     only there when there is something to scroll. */
+  #vscroll{position:absolute;right:0;top:0;bottom:0;width:22px;z-index:60;
+    display:none;touch-action:none;cursor:pointer;}
+  #vscroll.on{display:block;}
+  #vscroll:before{content:"";position:absolute;left:9px;top:6px;bottom:6px;width:4px;
+    border-radius:2px;background:var(--rule2);}
+  #vthumb{position:absolute;left:5px;width:12px;border-radius:6px;
+    background:var(--rule);border:1px solid var(--paper);
+    transition:background .12s;}
+  #vscroll:hover #vthumb,#vscroll.drag #vthumb{background:var(--accent);}
+
   #scroll{flex:1 1 auto;overflow:auto;-webkit-overflow-scrolling:touch;padding:20px;}
 
   /* ---------- the palette ----------
@@ -584,7 +599,7 @@
   /* ---------- printing ---------- */
   @media print{
     header,#palette,#marks,.pop,#insp,#conc,.sheet,#noteDrawer,.grow,
-    #toast,#builder{display:none !important;}
+    #toast,#builder,#vscroll{display:none !important;}
     #scroll{overflow:visible !important;padding:0 !important;}
     #board{box-shadow:none !important;border:none !important;}
     html,body,#app{height:auto !important;overflow:visible !important;background:#fff !important;}
@@ -1086,6 +1101,9 @@
     </div>
    </div>
   </div>
+  <!-- Somewhere to put your thumb when two fingers are the wrong tool: on a
+       long passage, scrolling a page at a time is a lot of gesturing. -->
+  <div id="vscroll" aria-hidden="true"><div id="vthumb"></div></div>
   <aside id="marks" aria-label="Symbols"></aside>
 </div>
 
@@ -2719,6 +2737,7 @@ function buildPassage(key){
      runs on every change of book and of passage, which is exactly when the
      answer can change. */
   if(typeof paintTwinBtn === "function") paintTwinBtn();
+  if(typeof paintScrollBar === "function") paintScrollBar();
 
   // measure
   measureWords();
@@ -2948,6 +2967,7 @@ function layout(){
     board.style.height = need + "px";
     applyZoom();
   }
+  if(typeof paintScrollBar === "function") paintScrollBar();
 }
 
 /* ---- your own English, in the margin ----
@@ -3229,6 +3249,7 @@ function applyZoom(){
     pageEl.style.height = Math.round(board.offsetHeight * z) + "px";
   }
   resizeCanvas();                  // the ink is redrawn at the new resolution
+  if(typeof paintScrollBar === "function") paintScrollBar();
 }
 
 function showZoom(){
@@ -4298,25 +4319,108 @@ scroller.addEventListener("dblclick", e => e.preventDefault());
 /* A pinch that begins in the margin BESIDE the paper is still a pinch. #hit
    only covers the sheet, so those two fingers used to reach the browser
    instead; the scroller takes them now and hands them to the app's own zoom. */
+/* ============================================================
+   THE SCROLL BAR
+
+   Two fingers on glass is a fiddly way to move a long passage, and on a page
+   several screens tall it is a lot of gesturing. So there is something to put
+   a thumb on: drag it, or tap anywhere on the track to go there.
+
+   It is NOT the browser’s scrollbar restyled. The page is scaled by the app’s
+   own zoom, so what the reader is moving through is the scaled height, which
+   is the only height the arithmetic here uses.
+   ============================================================ */
+const vscroll = document.getElementById("vscroll");
+const vthumb  = document.getElementById("vthumb");
+const VMIN = 36;                   // the shortest a thumb may be and still be grabbable
+
+function paintScrollBar(){
+  if(!vscroll || !vthumb) return;
+  if(S.view === "builder"){ vscroll.classList.remove("on"); return; }
+  const view = scroller.clientHeight || 0;
+  const all  = scroller.scrollHeight || 0;
+  /* Nothing to scroll, nothing to show: a full-length thumb that cannot move
+     is furniture pretending to be a control. */
+  if(!view || all <= view + 2){ vscroll.classList.remove("on"); return; }
+  vscroll.classList.add("on");
+  const track = Math.max(1, view - 12);
+  const h = Math.max(VMIN, Math.round(track * view / all));
+  const top = Math.round((track - h) * (scroller.scrollTop / (all - view)));
+  vthumb.style.height = h + "px";
+  vthumb.style.top = (6 + Math.max(0, Math.min(track - h, top))) + "px";
+}
+
+/* Where a point down the track puts the page. */
+function vscrollTo(clientY, grab){
+  const r = vscroll.getBoundingClientRect ? vscroll.getBoundingClientRect()
+          : { top:0, height:1 };
+  const view = scroller.clientHeight || 0, all = scroller.scrollHeight || 0;
+  if(all <= view) return;
+  const track = Math.max(1, view - 12);
+  const h = Math.max(VMIN, Math.round(track * view / all));
+  const y = clientY - r.top - 6 - (grab || 0);
+  const k = Math.max(0, Math.min(1, y / Math.max(1, track - h)));
+  scroller.scrollTop = k * (all - view);
+}
+
+let VDRAG = null;
+if(vscroll){
+  vscroll.addEventListener("pointerdown", e=>{
+    e.preventDefault();
+    const tr = vthumb.getBoundingClientRect ? vthumb.getBoundingClientRect() : null;
+    /* Grabbed the thumb: keep the point you took hold of under your thumb.
+       Tapped the track: jump so the thumb centres on where you tapped. */
+    const onThumb = tr && e.clientY >= tr.top && e.clientY <= tr.bottom;
+    VDRAG = { grab: onThumb ? e.clientY - tr.top : null };
+    if(!onThumb) vscrollTo(e.clientY, (vthumb.offsetHeight || VMIN) / 2);
+    else vscrollTo(e.clientY, VDRAG.grab);
+    vscroll.classList.add("drag");
+    if(vscroll.setPointerCapture) try{ vscroll.setPointerCapture(e.pointerId); }catch(_){}
+  });
+  vscroll.addEventListener("pointermove", e=>{
+    if(!VDRAG) return;
+    e.preventDefault();
+    vscrollTo(e.clientY, VDRAG.grab == null ? (vthumb.offsetHeight || VMIN) / 2 : VDRAG.grab);
+  });
+  ["pointerup","pointercancel"].forEach(t =>
+    vscroll.addEventListener(t, ()=>{ VDRAG = null; vscroll.classList.remove("drag"); }));
+}
+scroller.addEventListener("scroll", paintScrollBar, { passive:true });
+window.addEventListener("resize", paintScrollBar);
+
 /* For the tests: whether a pinch is live. */
 function pinchNow(){ return pinch; }
 
 const onPaper = e => e.target === scroller || e.target === pageEl;
+
+/* The fingers this handler is responsible for: the ones that came down on the
+   DESK, beside the sheet, where #hit cannot see them.
+
+   Keeping that list is the whole of it. Without it this ran in the capture
+   phase for EVERY pointer, and wrote each finger’s new position into `active`
+   just before #hit’s own handler read that same entry as the PREVIOUS
+   position. So the two-finger pan worked out "where it is now, less where it is
+   now" on every move, which is nothing at all: you could pinch to zoom, and you
+   could not scroll. A finger on the paper belongs to #hit and is left alone
+   here. */
+const deskPointers = new Set();
+
 scroller.addEventListener("pointerdown", e=>{
   if(!onPaper(e)) return;                       // the board has its own handler
+  deskPointers.add(e.pointerId);
   active.set(e.pointerId, { x:e.clientX, y:e.clientY, t:Date.now(), type:e.pointerType });
   if(twoFingers()) startPinch();
 }, true);
 scroller.addEventListener("pointermove", e=>{
+  if(!deskPointers.has(e.pointerId)) return;
   if(!pinch || !active.has(e.pointerId)) return;
   active.set(e.pointerId, { x:e.clientX, y:e.clientY, t:Date.now(), type:e.pointerType });
-  /* Once a pinch is under way it is stepped from wherever the fingers are —
-     one of them may well have wandered over the paper by now. */
   stepPinch();
 }, true);
 ["pointerup", "pointercancel"].forEach(t =>
   scroller.addEventListener(t, e=>{
-    if(!onPaper(e)) return;
+    if(!deskPointers.has(e.pointerId)) return;
+    deskPointers.delete(e.pointerId);
     active.delete(e.pointerId);
     if(!twoFingers()) pinch = null;
   }, true));
@@ -12925,6 +13029,7 @@ function setView(v){
   /* The big idea has moved to the spine, so the box that used to sit on the
      paper is gone from the exegesis page entirely. */
   if(S.view === "builder") paintBuilder();
+  if(typeof paintScrollBar === "function") paintScrollBar();
   saveSoon();
 }
 const tabExEl = document.getElementById("tabEx");
@@ -13264,7 +13369,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-10-20a";
+const BUILD = "2026-10-26a";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file

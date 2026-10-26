@@ -479,6 +479,15 @@ installed app, so in a browser tab a pinch could magnify the lot. It is now
 turned down outright, and a pinch that starts in the margin beside the paper
 zooms the page like any other.
 
+## Getting about a long passage
+
+Two fingers move the page, as they always did. On a passage several screens
+tall that is a lot of gesturing, so there is also a **bar down the right-hand
+side of the paper**: drag the thumb, or tap anywhere on the track to go there.
+The thumb is as long as the view is of the whole, so it also says where you
+are. It is only there when there is something to scroll, and it stays out of
+the Sermon Builder, which does its own scrolling.
+
 ## Colour
 
 One row of colours, not two. Whether a colour goes down at full strength or

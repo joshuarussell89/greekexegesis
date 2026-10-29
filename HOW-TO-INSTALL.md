@@ -399,11 +399,19 @@ word itself in lower case with its punctuation off.
 
 ## Choosing a passage
 
-The box at the top of the window is a button, not a field. Tap it and choose:
-book, chapter, the verse it starts at, and the verse it ends at. Leave the end
-alone and you get the whole chapter; tap one verse and nothing else and you get
-that verse. It opens on the book and chapter you are already in, so the next
-few verses are two taps away.
+**One box, and one way in.** Tap it and choose, left to right: the language,
+the book, the chapter, the verse it starts at, and the verse it ends at. Leave
+the end alone and you get the whole chapter; tap one verse and nothing else and
+you get that verse. It opens on the language, book and chapter you are already
+in, so the next few verses are two taps away.
+
+**Language comes first** because it changes what the rest of the columns mean.
+*Original* is a book you have installed. *English* is a text you have pasted
+against one — and if you have not pasted it yet, choosing English, the book and
+the chapter is what makes the box ask for it. Choosing the book before you
+paste a word is also what ties the two together, so the button beside the tabs
+can put the original and the English one tap apart at the same chapter and
+verse.
 
 Nothing is typed and nothing is spelled. The whole canon is listed, and the
 books you have not installed are shown greyed out rather than left out — so a
@@ -468,6 +476,10 @@ stroke, and goes in the ten-day bin like everything else.
 
 ## Zooming
 
+**Type a percentage** into the box in the header, or pinch. Pinching gets you
+close; sometimes you want exactly 150%, or exactly back to 100. A number the
+page cannot do is brought inside what it can, and says so.
+
 Pinch to make the **page** bigger: the sheet of paper grows and the header, the
 colour rail and the symbols stay exactly where they are and exactly the size
 they were.
@@ -482,11 +494,17 @@ zooms the page like any other.
 ## Getting about a long passage
 
 Two fingers move the page, as they always did. On a passage several screens
-tall that is a lot of gesturing, so there is also a **bar down the right-hand
-side of the paper**: drag the thumb, or tap anywhere on the track to go there.
-The thumb is as long as the view is of the whole, so it also says where you
-are. It is only there when there is something to scroll, and it stays out of
-the Sermon Builder, which does its own scrolling.
+tall that is a lot of gesturing, so on a tablet there is also a **bar between
+the paper and the symbols**: drag the thumb, or tap anywhere on the track to go
+there. The thumb is as long as the view is of the whole, so it also says where
+you are.
+
+It appears only where it is needed. On a desktop, where the window already has
+a scrollbar you can take hold of with a mouse, Nous adds none — and that is
+measured rather than assumed from the kind of device: a scrollbar that reserves
+space in the layout is a real one, and one that reserves none is an overlay
+that fades away. It also stays out of the Sermon Builder, which does its own
+scrolling, and goes when there is nothing to scroll.
 
 ## Colour
 

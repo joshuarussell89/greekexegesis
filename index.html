@@ -117,6 +117,7 @@
     resize:none;outline:none;}
   .handbox:focus{border-color:var(--accent);}
   #goPick{display:flex;gap:10px;margin:2px 0 8px;}
+  #goPick .pkcol.lang{flex:0 0 118px;}
   #goPick .pklist{height:min(44vh,300px);}
   /* What the app has to say, where it can be seen. Above everything except a
      sheet you have deliberately opened, and never over the Done button of
@@ -362,12 +363,17 @@
      several screens tall it is a lot of gesturing. This sits down the right of
      the paper: drag the thumb, or tap anywhere on the track to go there. It is
      only there when there is something to scroll. */
-  #vscroll{position:absolute;right:0;top:0;bottom:0;width:22px;z-index:60;
+  /* A column of its own between the paper and the symbols, rather than
+     something floating over the right-hand edge: as an overlay it sat on top
+     of the symbol rail and fought with that rail’s own scrollbar. It is in
+     the markup between the two, so taking its own space puts it exactly where
+     it belongs without any arithmetic about how wide the rail happens to be. */
+  #vscroll{flex:0 0 20px;position:relative;align-self:stretch;
     display:none;touch-action:none;cursor:pointer;}
   #vscroll.on{display:block;}
-  #vscroll:before{content:"";position:absolute;left:9px;top:6px;bottom:6px;width:4px;
+  #vscroll:before{content:"";position:absolute;left:8px;top:6px;bottom:6px;width:4px;
     border-radius:2px;background:var(--rule2);}
-  #vthumb{position:absolute;left:5px;width:12px;border-radius:6px;
+  #vthumb{position:absolute;left:4px;width:12px;border-radius:6px;
     background:var(--rule);border:1px solid var(--paper);
     transition:background .12s;}
   #vscroll:hover #vthumb,#vscroll.drag #vthumb{background:var(--accent);}
@@ -377,6 +383,15 @@
   /* ---------- the palette ----------
      A rail beside the page rather than a puck on top of it, so nothing you are
      working on is ever underneath a colour. */
+  /* The zoom, as a thing you can type in. It keeps the quiet look of the
+     labels beside it until you put a cursor in it. */
+  #zoomLbl{font:inherit;font-size:9.5px;text-transform:uppercase;letter-spacing:.1em;
+    color:var(--muted);font-weight:600;width:52px;text-align:center;padding:5px 2px;
+    border:1px solid transparent;border-radius:7px;background:none;}
+  #zoomLbl:hover{border-color:var(--rule);}
+  #zoomLbl:focus{outline:none;border-color:var(--accent);background:var(--paper);
+    color:var(--ink);letter-spacing:.04em;}
+
   #palette{flex:0 0 auto;width:64px;background:var(--paper);
     border-right:1px solid var(--rule);display:flex;flex-direction:column;
     align-items:center;gap:6px;padding:10px 0 14px;overflow-y:auto;
@@ -1004,12 +1019,19 @@
       </div>
       <!-- Only there when this passage has another language to go to. -->
       <button id="twinBtn" class="ghost" style="display:none">Greek</button>
-      <select id="passage"><option value="">No book loaded</option></select>
-      <select id="chapter" title="Which part of the loaded book to lay out"
-              style="display:none"></select>
+      <!-- These two are no longer controls: the one box above does all of it.
+           They are kept because a great deal of the app reads and writes their
+           value as the plain record of which book and which part of it is
+           open, and turning that into something else is a change with nothing
+           to show for it. Hidden, not removed. -->
+      <select id="passage" style="display:none"><option value="">No book loaded</option></select>
+      <select id="chapter" style="display:none"></select>
       <span class="glbl" id="wcount"></span>
       <span class="glbl" id="selcount" style="display:none"></span>
-      <span class="glbl" id="zoomLbl" style="display:none"></span>
+      <!-- Not a label: something you can type into. Pinching gets you close;
+           sometimes you want exactly 150%, or exactly back to 100. -->
+      <input type="text" id="zoomLbl" inputmode="numeric" spellcheck="false"
+             title="How large the page is drawn — type a percentage">
       <div class="grp">
         <button id="undoBtn" disabled title="Undo (⌘Z)"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4.2 9.8h9.4a4 4 0 010 8H8.6"/><path d="M7.6 6.2L4 9.8l3.6 3.6"/></svg><span class="lbl-hide">Undo</span></button>
         <button id="redoBtn" disabled title="Redo (⇧⌘Z)"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M17.8 9.8H8.4a4 4 0 000 8h5"/><path d="M14.4 6.2L18 9.8l-3.6 3.6"/></svg></button>
@@ -1281,9 +1303,12 @@
 
 <div id="goSheet" class="sheet">
   <div class="ws go">
-    <div class="wslbl">Tap a book, then a chapter, then the verse it starts at.
-      Tap a second verse to end it there — or leave it, for the whole chapter.</div>
+    <div class="wslbl">Which language, which book, which chapter, and the verses it
+      runs between. Tap a second verse to end it there — or leave it, for the whole
+      chapter. Choose English for a passage you have not pasted yet and you will be
+      asked for it, which is also what ties it to the book.</div>
     <div id="goPick">
+      <div class="pkcol lang"><div class="pkhd">Language</div><div class="pklist" id="goLang"></div></div>
       <div class="pkcol"><div class="pkhd">Book</div><div class="pklist" id="goBook"></div></div>
       <div class="pkcol"><div class="pkhd">Chapter</div><div class="pklist" id="goCh"></div></div>
       <div class="pkcol"><div class="pkhd">From</div><div class="pklist" id="goFrom"></div></div>
@@ -1617,12 +1642,12 @@
   <div class="foot" id="mgStatus">Nothing loaded — the built-in passage is hand-parsed.</div>
   <button class="rowbtn" id="installNT2">Install the New Testament from GitHub…</button>
   <button class="rowbtn" id="installOT2">Install the Old Testament from GitHub…</button>
-  <button class="rowbtn" id="engBtn">Paste a passage in English…</button>
   <button class="rowbtn" id="engEdit">Edit the pasted passage on screen…</button>
-  <div class="foot" style="padding-top:0">A pasted passage can be tied to the book it
-    came from, and then a button beside the tabs puts the two one tap apart at the same
-    chapter and verse. Which book it belongs to is chosen rather than guessed: a switch
-    that silently took you to the wrong book would be worse than no switch at all.</div>
+  <div class="foot" style="padding-top:0">English is pasted from the passage box at the
+    top of the window: choose <b>English</b>, the book and the chapter, and you will be
+    asked for the text. Choosing the book first is what ties the two together, so the
+    button beside the tabs can put the original and the English one tap apart at the
+    same chapter and verse. This is only for putting right what you pasted.</div>
   <div class="foot" id="installProg2"></div>
   <hr>
   <h4>Drawing</h4>
@@ -2487,15 +2512,21 @@ function engAsText(p2){
     .join(" ");
 }
 
-function openEngSheet(key){
+/* `key` is a passage being edited; `about` is a book and chapter chosen in
+   the passage box, which is how a new one arrives. Coming in that way the
+   name, the starting verse and the book it belongs to are all already known,
+   so the only thing left to do is paste. */
+function openEngSheet(key, about){
   const p2 = key ? PASSAGES[key] : null;
   engEditing = p2 ? p2.key : null;
-  const nm = p2 ? p2.title : "";
+  const nm = p2 ? p2.title
+           : (about ? about.book + " " + about.ch + " (English)" : "");
   document.getElementById("engName").value = nm;
   document.getElementById("engRef").value =
-    p2 && p2.verses.length ? String(p2.verses[0][0]) : "";
+    p2 && p2.verses.length ? String(p2.verses[0][0])
+    : (about ? about.ch + ":1" : "");
   document.getElementById("engText").value = p2 ? (p2.src || engAsText(p2)) : "";
-  engTwinMenu(p2 ? p2.twin : "");
+  engTwinMenu(p2 ? p2.twin : (about ? about.bookKey : ""));
   document.getElementById("engState").textContent = p2
     ? "Fixing a typo moves nothing. Adding or removing a WORD shifts everything "
       + "after it in that verse, and the marks on it with them."
@@ -3255,10 +3286,55 @@ function applyZoom(){
 function showZoom(){
   const el = document.getElementById("zoomLbl");
   if(!el) return;
-  const z = Math.round((S.zoom || 1) * 100);
-  el.textContent = z + "%";
-  el.style.display = z === 100 ? "none" : "";
+  /* Not while you are typing in it: writing "150" a digit at a time would
+     otherwise be rewritten to "1%" the moment the first digit landed.
+
+     A flag set by the box’s own focus and blur rather than a reading of
+     document.activeElement: the flag is set exactly when this box is being
+     typed in, which is the question being asked. */
+  if(el._typing) return;
+  el.value = Math.round((S.zoom || 1) * 100) + "%";
 }
+
+/* What you typed, if it is a number that means anything. The middle of the
+   window is what stays still, which is what you are looking at. */
+function applyTypedZoom(){
+  const el = document.getElementById("zoomLbl");
+  if(!el) return;
+  const n = parseFloat(String(el.value).replace(/[^0-9.]/g, ""));
+  if(!isFinite(n) || n <= 0){ showZoom(); return; }
+  const want = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, n / 100));
+  const r = scroller.getBoundingClientRect
+          ? scroller.getBoundingClientRect() : { left:0, top:0, width:0, height:0 };
+  setZoom(want, r.left + (r.width || 0) / 2, r.top + (r.height || 0) / 2);
+  showZoom();
+  if(Math.abs(want - n / 100) > 0.0001)
+    note("Zoom is between " + Math.round(ZOOM_MIN * 100) + "% and " +
+         Math.round(ZOOM_MAX * 100) + "%", "so it was set to " +
+         Math.round(want * 100) + "%");
+}
+
+(function wireZoomBox(){
+  const el = document.getElementById("zoomLbl");
+  if(!el) return;
+  el.addEventListener("focus", ()=>{
+    el._typing = true;
+    el.value = String(Math.round((S.zoom || 1) * 100));
+    if(el.select) el.select();
+  });
+  el.addEventListener("blur", ()=>{ el._typing = false; applyTypedZoom(); });
+  el.addEventListener("keydown", e=>{
+    if(e.key === "Enter"){
+      e.preventDefault(); el._typing = false; applyTypedZoom();
+      if(el.blur) el.blur();
+    }
+    if(e.key === "Escape"){
+      el._typing = false; showZoom();
+      if(el.blur) el.blur();
+    }
+  });
+  showZoom();
+})();
 
 /* Fit the page to the space left between the two rails. Never larger than its
    own size: the page is set at a width meant for reading, and blowing it up on
@@ -4334,16 +4410,30 @@ const vscroll = document.getElementById("vscroll");
 const vthumb  = document.getElementById("vthumb");
 const VMIN = 36;                   // the shortest a thumb may be and still be grabbable
 
+/* Whether the platform already gives you a scrollbar you can take hold of.
+
+   A scrollbar that reserves space in the layout is a real one, drawn by the
+   desktop and grabbable with a mouse. One that reserves none is an overlay
+   that fades away — which is what a tablet has, and which you cannot aim a
+   thumb at. So: where the platform provides a bar, Nous does not add a second,
+   and that is measured rather than guessed from the kind of device. */
+function platformScrollBar(){
+  return (scroller.offsetWidth || 0) - (scroller.clientWidth || 0) > 0;
+}
+
 function paintScrollBar(){
   if(!vscroll || !vthumb) return;
-  if(S.view === "builder"){ vscroll.classList.remove("on"); return; }
+  if(S.view === "builder" || platformScrollBar()){
+    vscroll.classList.remove("on");
+    return;
+  }
   const view = scroller.clientHeight || 0;
   const all  = scroller.scrollHeight || 0;
   /* Nothing to scroll, nothing to show: a full-length thumb that cannot move
      is furniture pretending to be a control. */
   if(!view || all <= view + 2){ vscroll.classList.remove("on"); return; }
   vscroll.classList.add("on");
-  const track = Math.max(1, view - 12);
+  const track = Math.max(1, (vscroll.clientHeight || view) - 12);
   const h = Math.max(VMIN, Math.round(track * view / all));
   const top = Math.round((track - h) * (scroller.scrollTop / (all - view)));
   vthumb.style.height = h + "px";
@@ -4356,7 +4446,7 @@ function vscrollTo(clientY, grab){
           : { top:0, height:1 };
   const view = scroller.clientHeight || 0, all = scroller.scrollHeight || 0;
   if(all <= view) return;
-  const track = Math.max(1, view - 12);
+  const track = Math.max(1, (vscroll.clientHeight || view) - 12);
   const h = Math.max(VMIN, Math.round(track * view / all));
   const y = clientY - r.top - 6 - (grab || 0);
   const k = Math.max(0, Math.min(1, y / Math.max(1, track - h)));
@@ -7354,15 +7444,49 @@ if(refBoxEl) Object.defineProperty(refBoxEl, "value", {
 
 /* What has been tapped so far. `to` is only set if you want part of a chapter;
    left alone, the whole chapter from `from` onward is what you get. */
-const GO = { book:null, key:null, ch:null, from:null, to:null };
+/* ============================================================
+   CHOOSING A PASSAGE
 
-/* The canon, and anything pasted in. A passage you typed a name for is not in
-   the canon and never will be, so it is listed by the name you gave it. */
-function goBooks(){
-  const mine = Object.keys(PASSAGES).filter(k => k.indexOf("en:") === 0)
-    .map(k => ({ name:PASSAGES[k].title, key:k }));
-  return mine.concat(pickBooks());
+   One box, and one way in. It used to take three controls in the header and a
+   button in the settings panel: a passage button, a book menu, a chapter menu,
+   and somewhere else entirely to paste an English text. Four ways to say the
+   same thing, and the English one did not know what it was a translation OF.
+
+   So: language, book, chapter, and the verses it runs between, left to right.
+   Choose English for a passage you have not pasted yet and the box asks for
+   it there and then — which is also what ties it to the book, because you
+   said which book before you pasted a word.
+   ============================================================ */
+const GO = { lang:"orig", book:null, key:null, ch:null, from:null, to:null };
+
+/* Every book of the canon, with the original installed or not. */
+function goBooks(){ return pickBooks(); }
+
+/* The English for a book and chapter, if it has been pasted. Matched on what
+   it is a translation of rather than on its name, so one pasted before this
+   way of doing it existed is still found. */
+function engFor(bookKey, ch){
+  const keys = Object.keys(PASSAGES).filter(k => k.indexOf("en:") === 0);
+  const want = String(ch);
+  for(const k of keys){
+    const p = PASSAGES[k];
+    if(p.twin !== bookKey) continue;
+    if(!ch || (p.chapters || []).indexOf(want) >= 0) return p;
+  }
+  return null;
 }
+
+/* The chapters this book has. From the original where it is installed; from
+   whatever English has been pasted where it is not, since that is then the
+   only text there is. */
+function goChapters(){
+  if(GO.key) return pickChapters(GO.key);
+  const en = engFor(GO.bookKey || "", null);
+  return en ? en.chapters : [];
+}
+
+/* Which book was chosen, as a key, whether or not its original is installed. */
+function goBookKey(){ return GO.bookKey || ""; }
 
 function goPaint(){
   const col = (id, items, chosen, onPick, empty)=>{
@@ -7386,31 +7510,50 @@ function goPaint(){
     });
   };
 
-  /* The whole canon is listed, but a book you have not installed cannot be
-     laid out, so it is shown and not offered rather than quietly missing —
-     which would read as "Nous has not heard of Habakkuk". */
+  /* Which language you want to work in. First, because it changes what the
+     rest of the columns mean: the original is a book you have installed, and
+     the English is a text you paste against one. */
+  col("goLang", [{ label:"Original", value:"orig" },
+                 { label:"English",  value:"eng" }],
+      GO.lang, v =>{ GO.lang = v; GO.from = null; GO.to = null; goPaint(); });
+
+  /* The whole canon is listed. In the original, a book you have not installed
+     cannot be laid out, so it is shown and not offered rather than quietly
+     missing — which would read as "Nous has not heard of Habakkuk". In
+     English you may paste a text for any of them. */
   const books = goBooks();
-  col("goBook", books.map(b => ({ label:b.name, value:b.name, off:!b.key })),
+  col("goBook", books.map(b => ({ label:b.name, value:b.name,
+                                  off:(GO.lang === "orig" && !b.key) })),
       GO.book, name =>{
         const hit = books.find(x => x.name === name);
-        GO.book = name; GO.key = hit ? hit.key : null;
+        GO.book = name;
+        GO.bookKey = hit ? (hit.key || "canon:" + name) : "";
+        GO.key = hit ? hit.key : null;
         GO.ch = null; GO.from = null; GO.to = null;
-        const chs = GO.key ? pickChapters(GO.key) : [];
+        const chs = goChapters();
         if(chs.length === 1) GO.ch = chs[0];     // a one-chapter book: no choice to make
         goPaint();
       });
 
-  const chs = GO.key ? pickChapters(GO.key) : [];
+  const chs = goChapters();
   col("goCh", chs.map(c => ({ label:c, value:c })), GO.ch, c =>{
         GO.ch = c; GO.from = null; GO.to = null; goPaint();
-      }, GO.book ? "" : "Choose a book.");
+      }, GO.book ? (GO.lang === "eng"
+          ? "Nothing to go on: this book is not installed and nothing has been "
+            + "pasted for it, so the chapter comes from the text you paste."
+          : "") : "Choose a book.");
 
-  const vs = (GO.key && GO.ch) ? pickVerses(GO.key, GO.ch) : [];
+  /* The verses to run between come from whichever text you are choosing: the
+     original, or the English pasted against it. */
+  const text = GO.lang === "eng" ? engFor(goBookKey(), GO.ch) : PASSAGES[GO.key];
+  const vs = (text && GO.ch) ? pickVerses(text.key, GO.ch) : [];
   col("goFrom", vs.map(v => ({ label:v, value:v })), GO.from, v =>{
         GO.from = v;
         if(GO.to !== null && +GO.to < +v) GO.to = null;
         goPaint();
-      }, GO.ch ? "" : "Choose a chapter.");
+      }, GO.ch ? (GO.lang === "eng" && !text
+          ? "Not pasted yet — press Go and you will be asked for it."
+          : "") : "Choose a chapter.");
 
   /* Only the verses at or after the one you started at: an end before a
      beginning is not a passage, so it is never offered. */
@@ -7423,16 +7566,34 @@ function goPaint(){
   const st = document.getElementById("goState");
   if(st) st.textContent = goLabel() || "";
   const ok = document.getElementById("goOk");
-  if(ok) ok.disabled = !GO.key || !GO.ch;
+  if(ok){
+    ok.disabled = !goReady();
+    ok.textContent = (GO.lang === "eng" && GO.ch && !engFor(goBookKey(), GO.ch))
+      ? "✓ Paste the English…" : "✓ Go here";
+  }
+}
+
+/* Enough chosen to do something with. */
+function goReady(){
+  if(!GO.book || !GO.ch) return false;
+  return GO.lang === "eng" ? true : !!GO.key;
+}
+
+/* What is on the other side of Go: the book this will open. */
+function goTarget(){
+  if(GO.lang !== "eng") return GO.key;
+  const en = engFor(goBookKey(), GO.ch);
+  return en ? en.key : "";
 }
 
 /* What has been chosen, written out as a person would say it. */
 function goLabel(){
-  if(!GO.key || !GO.ch) return "";
-  const title = (PASSAGES[GO.key] || {}).title || GO.book;
-  if(!GO.from) return title + " " + GO.ch;
-  if(!GO.to || GO.to === GO.from) return title + " " + GO.ch + ":" + GO.from;
-  return title + " " + GO.ch + ":" + GO.from + "\u2013" + GO.to;
+  if(!GO.book || !GO.ch) return "";
+  const lang = GO.lang === "eng" ? " in English" : "";
+  const base = GO.book + " " + GO.ch;
+  if(!GO.from) return base + lang;
+  if(!GO.to || GO.to === GO.from) return base + ":" + GO.from + lang;
+  return base + ":" + GO.from + "–" + GO.to + lang;
 }
 
 /* And as a range the layout understands. */
@@ -7448,12 +7609,22 @@ function openGoSheet(){
      not a hunt back through the canon for the book you are in. */
   const p = PASSAGES[S.key];
   const books = goBooks();
-  const mine = p ? books.find(b => b.key === S.key) : null;
+  GO.lang = (p && p.english) ? "eng" : "orig";
+  /* For an English passage, the book it is a translation of. */
+  const homeKey = (p && p.english) ? (p.twin || "") : S.key;
+  const mine = books.find(b => b.key === homeKey);
   GO.book = mine ? mine.name : null;
-  GO.key  = mine ? S.key : null;
-  const chs = GO.key ? pickChapters(GO.key) : [];
+  GO.bookKey = mine ? mine.key : (homeKey || "");
+  GO.key = mine ? mine.key : null;
+  const chs = goChapters();
   const here = String(focusRange()).split("-")[0].split(":");
-  GO.ch   = chs.includes(here[0]) ? here[0] : (chs.length === 1 ? chs[0] : null);
+  /* The passage on screen may be laid out whole, in which case the range says
+     "all" and names no chapter — but a passage that only HAS one chapter is
+     unambiguously in it, which is the ordinary case for a pasted English text. */
+  GO.ch = chs.includes(here[0]) ? here[0]
+        : (p && (p.chapters || []).length === 1) ? p.chapters[0]
+        : (chs.length === 1) ? chs[0]
+        : null;
   GO.from = null; GO.to = null;
   goPaint();
   document.getElementById("goSheet").classList.add("show");
@@ -7461,81 +7632,32 @@ function openGoSheet(){
 
 function closeGoSheet(commit){
   const sheet = document.getElementById("goSheet");
-  if(commit && GO.key && GO.ch){
-    saveNow();
-    S.key = GO.key;
-    setFocus(goRange());
-    document.getElementById("passage").value = S.key;
-    refreshChapterMenu();
-    build(S.key); syncJoin(); saveNow();
-    snapToPassage();
+  if(!commit){ sheet.classList.remove("show"); return; }
+  if(!goReady()) return;
+
+  /* English you have not pasted yet: ask for it, here, with the book and the
+     chapter already settled — which is what ties the two together without
+     anyone having to say so. */
+  if(GO.lang === "eng" && !goTarget()){
+    sheet.classList.remove("show");
+    openEngSheet(null, { book:GO.book, bookKey:goBookKey(), ch:GO.ch });
+    return;
   }
+
+  const key = goTarget();
+  if(!key) return;
+  saveNow();
+  S.key = key;
+  setFocus(goRange());
+  document.getElementById("passage").value = key;
+  refreshChapterMenu();
+  build(key); syncJoin(); saveNow();
+  snapToPassage();
   sheet.classList.remove("show");
 }
 
-document.getElementById("engBtn").onclick = ()=>{ closePops(); openEngSheet(); };
-document.getElementById("engCancel").onclick = ()=> closeEngSheet();
-/* The name suggests the book, until you say otherwise. */
-document.getElementById("engName").addEventListener("input", e=>{
-  if(engEditing) return;
-  const sel = document.getElementById("engTwin");
-  if(sel && !sel._touched) sel.value = guessTwin(e.target.value) || "";
-});
-document.getElementById("engTwin").addEventListener("change", e=>{
-  e.target._touched = true;
-});
-document.getElementById("engGo").onclick = ()=>{
-  const name = document.getElementById("engName").value;
-  const ref  = document.getElementById("engRef").value || "1:1";
-  const text = document.getElementById("engText").value;
-  const twin = document.getElementById("engTwin").value;
-  const st = document.getElementById("engState");
-  if(!String(text).trim()){ st.textContent = "There is nothing to add yet."; return; }
 
-  /* Before anything is written: say which verses are about to move, so the
-     change can be thought about rather than discovered afterwards. */
-  if(engEditing && PASSAGES[engEditing]){
-    const bits = /^(\d{1,3})(?::(\d{1,3}))?$/.exec(String(ref).replace(/\s+/g, ""));
-    const moved = versesMoved(PASSAGES[engEditing].verses,
-                              parsePassageText(text, bits ? bits[1] : "1",
-                                               bits && bits[2] ? bits[2] : "1"));
-    if(moved.length && !confirm(
-        "The number of words has changed in " +
-        (moved.length === 1 ? "verse " : moved.length + " verses: ") +
-        moved.slice(0, 6).join(", ") + (moved.length > 6 ? "…" : "") +
-        ".\n\nMarks, notes and ink in those verses are filed by where a word sits, " +
-        "so they will move with it. Everything in the other verses stays where it is." +
-        "\n\nGo ahead?")) return;
-  }
-
-  const edited = !!engEditing;
-  const p2 = addEnglishPassage(name, ref, text, twin, engEditing);
-  engEditing = null;
-  if(!p2){ st.textContent = "No words found in that."; return; }
-  closeEngSheet();
-  saveNow();
-  S.key = p2.key;
-  setFocus(p2.words > MAX_LAYOUT_WORDS && p2.chapters.length ? p2.chapters[0] : "all");
-  document.getElementById("passage").value = p2.key;
-  refreshChapterMenu();
-  build(p2.key); syncJoin(); saveNow(); snapToPassage();
-  paintTwinBtn();
-  note((edited ? "Saved " : "Added ") + p2.title,
-       p2.verses.length + (p2.verses.length === 1 ? " verse" : " verses") + ", " +
-       p2.words + " words" +
-       (p2.twin && PASSAGES[p2.twin] ? ", beside " + PASSAGES[p2.twin].title : ""));
-};
-
-document.getElementById("engEdit").onclick = ()=>{
-  closePops();
-  if(!isEnglish()){
-    note("Nothing to edit here", "this is not a passage you pasted in");
-    return;
-  }
-  openEngSheet(S.key);
-};
-document.getElementById("twinBtn").onclick = ()=> switchTwin();
-
+/* ---- handing the board to Claude ---- */
 document.getElementById("bHand").onclick = ()=>{
   document.getElementById("handOut").value = boardAsText();
   document.getElementById("handIn").value = "";
@@ -7566,6 +7688,72 @@ document.getElementById("handGo").onclick = ()=>{
   note(got.length + (got.length === 1 ? " card" : " cards") + " on the board",
        "loose, until you put them somewhere");
 };
+
+/* ---- the English passage sheet ---- */
+document.getElementById("engCancel").onclick = ()=> closeEngSheet();
+/* The name suggests the book, until you say otherwise. */
+document.getElementById("engName").addEventListener("input", e=>{
+  if(engEditing) return;
+  const sel = document.getElementById("engTwin");
+  if(sel && !sel._touched) sel.value = guessTwin(e.target.value) || "";
+});
+document.getElementById("engTwin").addEventListener("change", e=>{
+  e.target._touched = true;
+});
+
+document.getElementById("engGo").onclick = ()=>{
+  const name = document.getElementById("engName").value;
+  const ref  = document.getElementById("engRef").value || "1:1";
+  const text = document.getElementById("engText").value;
+  const twin = document.getElementById("engTwin").value;
+  const st = document.getElementById("engState");
+  if(!String(text).trim()){ st.textContent = "There is nothing to add yet."; return; }
+
+  /* Before anything is written: say which verses are about to move, so the
+     change can be thought about rather than discovered afterwards. */
+  if(engEditing && PASSAGES[engEditing]){
+    const bits = /^(\d{1,3})(?::(\d{1,3}))?$/.exec(String(ref).replace(/\s+/g, ""));
+    const moved = versesMoved(PASSAGES[engEditing].verses,
+                              parsePassageText(text, bits ? bits[1] : "1",
+                                               bits && bits[2] ? bits[2] : "1"));
+    if(moved.length && !confirm(
+        "The number of words has changed in " +
+        (moved.length === 1 ? "verse " : moved.length + " verses: ") +
+        moved.slice(0, 6).join(", ") + (moved.length > 6 ? "…" : "") +
+        ".\n\nMarks, notes and ink in those verses are filed by where a word sits, " +
+        "so they will move with it. Everything in the other verses stays where it is." +
+        "\n\nGo ahead?")) return;
+  }
+
+  const edited = !!engEditing;
+  const p2 = addEnglishPassage(name, ref, text, twin, engEditing);
+  engEditing = null;
+  if(!p2){ st.textContent = "No words found in that."; return; }
+
+  closeEngSheet();
+  saveNow();
+  S.key = p2.key;
+  setFocus(p2.words > MAX_LAYOUT_WORDS && p2.chapters.length ? p2.chapters[0] : "all");
+  document.getElementById("passage").value = p2.key;
+  refreshChapterMenu();
+  build(p2.key); syncJoin(); saveNow(); snapToPassage();
+  paintTwinBtn();
+  note((edited ? "Saved " : "Added ") + p2.title,
+       p2.verses.length + (p2.verses.length === 1 ? " verse" : " verses") + ", " +
+       p2.words + " words" +
+       (p2.twin && PASSAGES[p2.twin] ? ", beside " + PASSAGES[p2.twin].title : ""));
+};
+
+document.getElementById("engEdit").onclick = ()=>{
+  closePops();
+  if(!isEnglish()){
+    note("Nothing to edit here", "this is not a passage you pasted in");
+    return;
+  }
+  openEngSheet(S.key);
+};
+
+document.getElementById("twinBtn").onclick = ()=> switchTwin();
 
 document.getElementById("refBox").onclick   = ()=> openGoSheet();
 document.getElementById("goOk").onclick     = ()=> closeGoSheet(true);
@@ -13369,7 +13557,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-10-26a";
+const BUILD = "2026-10-26c";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file

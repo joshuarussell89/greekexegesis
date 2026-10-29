@@ -398,7 +398,10 @@ If the pasted side does not cover the verses you are on, it says so and shows
 you all of it.
 
 **Settings → Edit the pasted passage on screen** opens it again with the text as
-you pasted it. Fixing a typo moves nothing. Adding or removing a *word* shifts
+you pasted it, and is also where you **remove** one. Removing takes the text
+and the work on it together, and both go into the bin for ten days — bring it
+back and the passage returns whole, text, marks and all. The button sits apart
+from the one that saves, so the two are never confused under a thumb. Fixing a typo moves nothing. Adding or removing a *word* shifts
 everything after it in that verse, and the marks and notes on those words with
 it, so you are told which verses are about to change and asked before anything
 is written. Renaming it keeps the same passage: the key everything is filed

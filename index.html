@@ -708,6 +708,9 @@
   #noteIn:focus{border-color:var(--accent);}
   .sheet .wsbtns{display:flex;justify-content:flex-end;gap:8px;margin-top:12px;
     flex:0 0 auto;}
+  /* Away from the button that saves, so the two are never confused under a
+     thumb. */
+  #engDel{margin-right:auto;color:var(--sel);}
   .sheet .wsbtns button{font-size:13px;padding:10px 16px;border-radius:9px;
     border:1px solid var(--rule);}
   /* ---- the reference sheet ----
@@ -1312,6 +1315,7 @@
               placeholder="1 There is therefore now no condemnation for those who are in Christ Jesus. 2 For the law of the Spirit of life has set you free…"></textarea>
     <div class="askstate" id="engState"></div>
     <div class="wsbtns">
+      <button id="engDel" style="display:none">Remove it…</button>
       <button id="engCancel">Cancel</button>
       <button id="engGo" class="act">✓ Add it</button>
     </div>
@@ -2653,6 +2657,10 @@ function openEngSheet(key, about){
     : "";
   document.getElementById("engGo").textContent = p2
     ? "\u2713 Save the changes" : "\u2713 Add it";
+  /* Only when there is a passage to remove: on the way IN there is nothing
+     yet, and a Remove button beside Add is a button that can only confuse. */
+  const del = document.getElementById("engDel");
+  if(del) del.style.display = p2 ? "" : "none";
   document.getElementById("engSheet").classList.add("show");
   const ta = document.getElementById(linked ? "engText" : "engName");
   if(ta && ta.focus) ta.focus();
@@ -7924,6 +7932,16 @@ document.getElementById("engGo").onclick = ()=>{
        (p2.twin && PASSAGES[p2.twin] ? ", beside " + PASSAGES[p2.twin].title : ""));
 };
 
+document.getElementById("engDel").onclick = ()=>{
+  const key = engEditing;
+  if(!key) return;
+  if(removeEnglish(key)){
+    engEditing = null;
+    closeEngSheet();
+    paintTwinBtn();
+  }
+};
+
 document.getElementById("engEdit").onclick = ()=>{
   closePops();
   if(!isEnglish()){
@@ -10741,12 +10759,61 @@ function binSave(){
   syncSoon();
 }
 
-function binPut(label, docs){
-  if(!Object.keys(docs).length) return null;
-  const e = { id:newSid(), at:Date.now(), label, docs:JSON.parse(JSON.stringify(docs)) };
+/* `eng` is the corpus file of a pasted passage, when the thing removed was
+   the passage itself and not merely the work on it. Without it the bin could
+   give back a document with nothing to lay it out on — marks and notes
+   belonging to a text that no longer existed. */
+function binPut(label, docs, eng){
+  if(!Object.keys(docs).length && !eng) return null;
+  const e = { id:newSid(), at:Date.now(), label,
+              docs:JSON.parse(JSON.stringify(docs || {})) };
+  if(eng) e.eng = JSON.parse(JSON.stringify(eng));
   binLoad().push(e);
   binSave();
   return e;
+}
+
+/* ---- taking a pasted passage away ----
+
+   Everything else in the bin is work laid ON a text. This is the text, so the
+   file it was kept in goes in with it and the passage is put back whole when
+   you bring it back. */
+function removeEnglish(key){
+  const p = PASSAGES[key];
+  if(!p || !p.english) return false;
+  const file = (S.corpusFiles || []).find(f => f.name === p._file) ||
+               (S.corpusFiles || []).find(f => f.name === key + ".english");
+  if(!confirm("Remove " + p.title + "?\n\nIt is kept for " + BINDAYS +
+              " days \u2014 \u201cWhat I have removed\u2026\u201d brings it back, text and all."))
+    return false;
+
+  saveNow();
+  const doc = (S._loadedBook === key ? currentDoc(key) : S.docs[key]) || null;
+  const docs = {};
+  if(doc && docWeight(doc)) docs[key] = doc;
+  binPut(p.title, docs, file ? { name:file.name, raw:file.raw } : null);
+
+  delete S.docs[key];
+  delete PASSAGES[key];
+  S.corpusFiles = (S.corpusFiles || []).filter(f => f !== file);
+  saveCorpus();
+  refreshBookMenu();
+
+  /* Somewhere to stand: the book it translated, or whatever is first. */
+  if(S.key === key){
+    const home = (p.twin && PASSAGES[p.twin]) ? p.twin : firstBookKey();
+    S.key = home;
+    S._loadedBook = null;
+    setFocus("all");
+    const sel = document.getElementById("passage");
+    if(sel) sel.value = S.key;
+    refreshChapterMenu();
+    if(PASSAGES[S.key]) build(S.key);
+  }
+  saveNow();
+  note("Removed " + p.title, "kept for " + BINDAYS + " days");
+  paintBin();
+  return true;
 }
 
 function binWhen(at){
@@ -10886,6 +10953,15 @@ function binRestore(id){
   const e = binLoad().find(x => x.id === id);
   if(!e) return;
   saveNow();
+  /* The text first, where there is one: a document restored onto a passage
+     that no longer exists is marks belonging to nothing. */
+  if(e.eng){
+    S.corpusFiles = (S.corpusFiles || []).filter(f => f.name !== e.eng.name);
+    S.corpusFiles.push({ name:e.eng.name, raw:e.eng.raw });
+    registerEnglish(e.eng);
+    saveCorpus();
+    refreshBookMenu();
+  }
   Object.keys(e.docs).forEach(k=>{
     const now = (S._loadedBook === k ? currentDoc(k) : S.docs[k]) || blankDoc();
     S.docs[k] = mergeDocs(null, now, e.docs[k]);
@@ -14006,7 +14082,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-10-29d";
+const BUILD = "2026-10-29e";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file

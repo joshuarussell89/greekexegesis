@@ -423,19 +423,18 @@ word itself in lower case with its punctuation off.
 
 ## Choosing a passage
 
-**One box, and one way in.** Tap it and choose, left to right: the language,
-the book, the chapter, the verse it starts at, and the verse it ends at. Leave
-the end alone and you get the whole chapter; tap one verse and nothing else and
-you get that verse. It opens on the language, book and chapter you are already
-in, so the next few verses are two taps away.
+**One box, and one way in.** Tap it and choose, left to right: the book, the
+chapter, the verse it starts at, and the verse it ends at. Leave the end alone
+and you get the whole chapter; tap one verse and nothing else and you get that
+verse. It opens on the book and chapter you are already in, so the next few
+verses are two taps away.
 
-**Language comes first** because it changes what the rest of the columns mean.
-*Original* is a book you have installed. *English* is a text you have pasted
-against one — and if you have not pasted it yet, choosing English, the book and
-the chapter is what makes the box ask for it. Choosing the book before you
-paste a word is also what ties the two together, so the button beside the tabs
-can put the original and the English one tap apart at the same chapter and
-verse.
+**Which language you read it in is the tabs’ business, not the box’s.** Tap
+**English** and, if you have not pasted that chapter yet, you are asked for it
+there and then — already named after the book and chapter, and already tied to
+them, which is what lets the tabs put the original and the English one tap
+apart at the same place. Going somewhere else keeps the language you are
+reading in where it can, and never opens a paste sheet you did not ask for.
 
 Nothing is typed and nothing is spelled. The whole canon is listed, and the
 books you have not installed are shown greyed out rather than left out — so a

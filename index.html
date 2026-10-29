@@ -1332,12 +1332,10 @@
 
 <div id="goSheet" class="sheet">
   <div class="ws go">
-    <div class="wslbl">Which language, which book, which chapter, and the verses it
-      runs between. Tap a second verse to end it there — or leave it, for the whole
-      chapter. Choose English for a passage you have not pasted yet and you will be
-      asked for it, which is also what ties it to the book.</div>
+    <div class="wslbl">Which book, which chapter, and the verses it runs between. Tap a
+      second verse to end it there — or leave it, for the whole chapter. Which
+      language you read it in is the tabs’ business, not this one’s.</div>
     <div id="goPick">
-      <div class="pkcol lang"><div class="pkhd">Language</div><div class="pklist" id="goLang"></div></div>
       <div class="pkcol"><div class="pkhd">Book</div><div class="pklist" id="goBook"></div></div>
       <div class="pkcol"><div class="pkhd">Chapter</div><div class="pklist" id="goCh"></div></div>
       <div class="pkcol"><div class="pkhd">From</div><div class="pklist" id="goFrom"></div></div>
@@ -2482,7 +2480,13 @@ function twinOf(key){
 function switchTwin(){
   const other = twinOf(S.key);
   if(!other) return false;
-  const range = focusRange();
+  const here = PASSAGES[S.key] || {};
+  let range = focusRange();
+  /* "All" of a short pasted chapter is a sensible thing to be looking at;
+     "all" of 2 Corinthians is not, and asking for it lands you in chapter 1.
+     So a range of "all" is carried across as the CHAPTER it amounts to. */
+  if(range === "all" && (here.chapters || []).length === 1)
+    range = here.chapters[0];
   saveNow();
   S.key = other;
   setFocus(range);
@@ -2784,10 +2788,8 @@ function buildPassage(key){
   if(p.byChapter && S.chapter && S.chapter !== "all")
     verses = verses.filter(([ref]) => inRange(ref, String(S.chapter)));
 
-  let capped = 0;
   const count = vs => vs.reduce((n,v)=>n+v[1].length, 0);
   if(count(verses) > MAX_LAYOUT_WORDS && p.chapters && p.chapters.length > 1){
-    capped = count(verses);
     S.chapter = p.chapters[0];
     verses = p.verses.filter(([ref]) => inRange(ref, String(S.chapter)));
     const ch = document.getElementById("chapter");
@@ -2842,10 +2844,11 @@ function buildPassage(key){
     rb.value = PASSAGES[key].title +
       (focusRange() !== "all" ? " " + rangeLabel(focusRange()).replace("chapter ","") : "");
   }
-  if(capped){
-    wc.textContent = "showing chapter " + S.chapter + " — " +
-      capped.toLocaleString() + " words is too many for one page";
-  }
+  /* No note about the cap. Opening a book too long to lay out whole drops you
+     into its first chapter, and the passage box at the top of the window
+     already says which chapter that is — so a line of grey type explaining it
+     said nothing the window was not already saying, and said it in the
+     language of the thing’s internals rather than the reader’s. */
 
   syncUndo();
   layout(); resizeCanvas();
@@ -7587,7 +7590,7 @@ if(refBoxEl) Object.defineProperty(refBoxEl, "value", {
    it there and then — which is also what ties it to the book, because you
    said which book before you pasted a word.
    ============================================================ */
-const GO = { lang:"orig", book:null, key:null, ch:null, from:null, to:null };
+const GO = { book:null, key:null, ch:null, from:null, to:null };
 
 /* Every book of the canon, with the original installed or not. */
 function goBooks(){ return pickBooks(); }
@@ -7640,20 +7643,12 @@ function goPaint(){
     });
   };
 
-  /* Which language you want to work in. First, because it changes what the
-     rest of the columns mean: the original is a book you have installed, and
-     the English is a text you paste against one. */
-  col("goLang", [{ label:"Original", value:"orig" },
-                 { label:"English",  value:"eng" }],
-      GO.lang, v =>{ GO.lang = v; GO.from = null; GO.to = null; goPaint(); });
-
   /* The whole canon is listed. In the original, a book you have not installed
      cannot be laid out, so it is shown and not offered rather than quietly
      missing — which would read as "Nous has not heard of Habakkuk". In
      English you may paste a text for any of them. */
   const books = goBooks();
-  col("goBook", books.map(b => ({ label:b.name, value:b.name,
-                                  off:(GO.lang === "orig" && !b.key) })),
+  col("goBook", books.map(b => ({ label:b.name, value:b.name, off:!b.key })),
       GO.book, name =>{
         const hit = books.find(x => x.name === name);
         GO.book = name;
@@ -7668,22 +7663,16 @@ function goPaint(){
   const chs = goChapters();
   col("goCh", chs.map(c => ({ label:c, value:c })), GO.ch, c =>{
         GO.ch = c; GO.from = null; GO.to = null; goPaint();
-      }, GO.book ? (GO.lang === "eng"
-          ? "Nothing to go on: this book is not installed and nothing has been "
-            + "pasted for it, so the chapter comes from the text you paste."
-          : "") : "Choose a book.");
+      }, GO.book ? "" : "Choose a book.");
 
   /* The verses to run between come from whichever text you are choosing: the
      original, or the English pasted against it. */
-  const text = GO.lang === "eng" ? engFor(goBookKey(), GO.ch) : PASSAGES[GO.key];
-  const vs = (text && GO.ch) ? pickVerses(text.key, GO.ch) : [];
+  const vs = GO.ch ? pickVerses(GO.key, GO.ch) : [];
   col("goFrom", vs.map(v => ({ label:v, value:v })), GO.from, v =>{
         GO.from = v;
         if(GO.to !== null && +GO.to < +v) GO.to = null;
         goPaint();
-      }, GO.ch ? (GO.lang === "eng" && !text
-          ? "Not pasted yet — press Go and you will be asked for it."
-          : "") : "Choose a chapter.");
+      }, GO.ch ? "" : "Choose a chapter.");
 
   /* Only the verses at or after the one you started at: an end before a
      beginning is not a passage, so it is never offered. */
@@ -7696,34 +7685,34 @@ function goPaint(){
   const st = document.getElementById("goState");
   if(st) st.textContent = goLabel() || "";
   const ok = document.getElementById("goOk");
-  if(ok){
-    ok.disabled = !goReady();
-    ok.textContent = (GO.lang === "eng" && GO.ch && !engFor(goBookKey(), GO.ch))
-      ? "✓ Paste the English…" : "✓ Go here";
-  }
+  if(ok) ok.disabled = !goReady();
 }
 
 /* Enough chosen to do something with. */
-function goReady(){
-  if(!GO.book || !GO.ch) return false;
-  return GO.lang === "eng" ? true : !!GO.key;
-}
+function goReady(){ return !!(GO.key && GO.ch); }
 
 /* What is on the other side of Go: the book this will open. */
+/* The passage box chooses the PASSAGE; the tabs choose the language. So
+   going somewhere keeps the language you were reading in where it can: if you
+   were in English and there is an English for where you are going, that is
+   where you land, and otherwise the original, with the English tab there to
+   paste it. It never opens a paste sheet you did not ask for. */
 function goTarget(){
-  if(GO.lang !== "eng") return GO.key;
-  const en = engFor(goBookKey(), GO.ch);
-  return en ? en.key : "";
+  const p = PASSAGES[S.key];
+  if(p && p.english){
+    const en = engFor(GO.key, GO.ch);
+    if(en) return en.key;
+  }
+  return GO.key;
 }
 
 /* What has been chosen, written out as a person would say it. */
 function goLabel(){
   if(!GO.book || !GO.ch) return "";
-  const lang = GO.lang === "eng" ? " in English" : "";
   const base = GO.book + " " + GO.ch;
-  if(!GO.from) return base + lang;
-  if(!GO.to || GO.to === GO.from) return base + ":" + GO.from + lang;
-  return base + ":" + GO.from + "–" + GO.to + lang;
+  if(!GO.from) return base;
+  if(!GO.to || GO.to === GO.from) return base + ":" + GO.from;
+  return base + ":" + GO.from + "–" + GO.to;
 }
 
 /* And as a range the layout understands. */
@@ -7739,7 +7728,6 @@ function openGoSheet(){
      not a hunt back through the canon for the book you are in. */
   const p = PASSAGES[S.key];
   const books = goBooks();
-  GO.lang = (p && p.english) ? "eng" : "orig";
   /* For an English passage, the book it is a translation of. */
   const homeKey = (p && p.english) ? (p.twin || "") : S.key;
   const mine = books.find(b => b.key === homeKey);
@@ -7764,15 +7752,6 @@ function closeGoSheet(commit){
   const sheet = document.getElementById("goSheet");
   if(!commit){ sheet.classList.remove("show"); return; }
   if(!goReady()) return;
-
-  /* English you have not pasted yet: ask for it, here, with the book and the
-     chapter already settled — which is what ties the two together without
-     anyone having to say so. */
-  if(GO.lang === "eng" && !goTarget()){
-    sheet.classList.remove("show");
-    openEngSheet(null, { book:GO.book, bookKey:goBookKey(), ch:GO.ch });
-    return;
-  }
 
   const key = goTarget();
   if(!key) return;
@@ -7863,7 +7842,12 @@ document.getElementById("engGo").onclick = ()=>{
   closeEngSheet();
   saveNow();
   S.key = p2.key;
-  setFocus(p2.words > MAX_LAYOUT_WORDS && p2.chapters.length ? p2.chapters[0] : "all");
+  /* On the chapter it covers, not on "all". "All" of a pasted chapter is the
+     same thing, but it is not the same ANSWER: switching back to the Greek
+     then asks for all of 2 Corinthians, which is too long to lay out, and
+     drops you into chapter 1 — miles from the passage you were working on. */
+  setFocus((p2.chapters || []).length === 1 ? p2.chapters[0]
+           : (p2.chapters || [])[0] || "all");
   document.getElementById("passage").value = p2.key;
   refreshChapterMenu();
   build(p2.key); syncJoin(); saveNow(); snapToPassage();
@@ -13954,7 +13938,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-10-29a";
+const BUILD = "2026-10-29c";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file

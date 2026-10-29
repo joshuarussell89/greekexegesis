@@ -430,11 +430,19 @@ verse. It opens on the book and chapter you are already in, so the next few
 verses are two taps away.
 
 **Which language you read it in is the tabs’ business, not the box’s.** Tap
-**English** and, if you have not pasted that chapter yet, you are asked for it
-there and then — already named after the book and chapter, and already tied to
-them, which is what lets the tabs put the original and the English one tap
-apart at the same place. Going somewhere else keeps the language you are
-reading in where it can, and never opens a paste sheet you did not ask for.
+**English** on a passage you have not pasted yet and you are asked for it there
+and then — and asked for nothing else. Which book, which chapter, which verses
+and what it is a translation of were all settled when you chose the passage, so
+the sheet says *Paste John 1:1–18 in English* and gives you somewhere to paste.
+It opens on the passage you asked it for, and the tabs then put the original
+and the English one tap apart at the same place. Going somewhere else keeps the
+language you are reading in where it can, and never opens a paste sheet you did
+not ask for.
+
+**A text that answers to no book** — a hymn, a creed, a paragraph of a
+commentary — has its own way in at the foot of the passage box. That is the one
+place that asks for a name, because a name is the one thing it cannot work
+out.
 
 Nothing is typed and nothing is spelled. The whole canon is listed, and the
 books you have not installed are shown greyed out rather than left out — so a

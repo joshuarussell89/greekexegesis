@@ -243,13 +243,34 @@ diagram is the working.
 A second tab on every passage. The exegesis tab is the working; this one is the
 sermon.
 
+**Three tabs** across the top: the text in its own language, the text in
+English, and the Sermon Builder — in the order you work in. Tapping a language
+keeps the passage you are on; if there is no English for it yet, you are asked
+for it there and then.
+
 **The spine**, down the left, is the sermon in the order it runs. The **big
 idea** and the **aim** are pinned at its head — the big idea has moved off the
 exegesis page, because it is not exegesis — and under them the **introduction**,
 your **headings**, and the **conclusion**. The headings arrive on their own from
 the section breaks you have already made, in the order they stand in the text,
-and rename themselves when you rename them there. They cannot be edited from
-this tab: the structure of the passage belongs to the passage.
+and rename themselves when you rename them there. **Headings are written in, not read out.** One that came from a section break
+writes back to that break, because it *is* that break — rename it here and it
+is renamed in the text.
+
+**＋ a heading of your own** adds one that belongs only to the sermon: an
+introduction that needs two movements, a turn the preaching makes that the text
+does not. It has nothing to be a section break of, so it lives on the board, is
+set in italic in a different colour so you can see at a glance which headings
+came from the passage, and moves up and down the spine with the arrows beside
+it. It is numbered with the rest, because it is a heading like any other, and
+it goes into the Word document in its place. Remove it and anything attached
+comes back to the board.
+
+**A board you open for the first time is not quite empty.** Two cards are
+waiting — *Big image / illustration* and *Key verse(s)* — the things asked for
+in nearly every sermon and most easily forgotten. They are ordinary cards:
+rename them, move them, throw them away. Once a board has been opened they are
+never laid out again, so one you threw away does not come back.
 
 **Everything else is a card.** Tap ＋ a card, or take one out of the tray at the
 foot. A card holds as much as you write on it and grows to fit. Tap its kind to
@@ -305,6 +326,9 @@ picture can be worked out from the address itself: an address that *is* a
 picture, and YouTube or Vimeo, whose thumbnails have a predictable name.
 Anything else gets the link and no pretence of a preview. Previews come off the
 network, so they are blank offline.
+
+The last turn of the chip is **one you name yourself**: nine names cover most
+of it and none of them covers everything.
 
 **A note card arrives as what it is anchored to**: *Vocabulary* for a note on a
 word, *Phrase* for one on a run of words, *Verse* for one on a whole verse. That
@@ -505,6 +529,22 @@ measured rather than assumed from the kind of device: a scrollbar that reserves
 space in the layout is a real one, and one that reserves none is an overlay
 that fades away. It also stays out of the Sermon Builder, which does its own
 scrolling, and goes when there is nothing to scroll.
+
+## Putting a word right
+
+**Settings → Putting a word right.** Off by default, because a page where every
+word is a text box is a page you cannot draw on.
+
+A pasted passage comes in with the odd thing wrong: a stray bracket, two words
+run together, a footnote letter that came along for the ride. With this on, a
+tap on a word opens it for correction.
+
+It is a **correction, not an edit**. Every mark, note, line and arrow on the
+page is filed under where a word sits in its verse; a correction changes what a
+word *reads* and not where it sits, so nothing on it moves. And it is stored as
+a small list laid over the text rather than written into it — the text
+underneath is never rewritten, and clearing a correction puts the original word
+back.
 
 ## Colour
 

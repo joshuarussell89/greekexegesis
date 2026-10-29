@@ -122,6 +122,15 @@
   /* What the app has to say, where it can be seen. Above everything except a
      sheet you have deliberately opened, and never over the Done button of
      one. */
+  /* The box you put a word right in. Over the word itself, in the word’s own
+     face and size, so what you are typing looks like what will be there. */
+  .wfix{position:absolute;display:none;z-index:40;font-family:Cardo,Georgia,serif;
+    font-size:27px;line-height:1.15;padding:2px 4px;border-radius:6px;
+    border:2px solid var(--accent);background:#fffdf6;color:var(--ink);outline:none;}
+  .wfix.on{display:block;}
+  .wfix.eng{font-size:22px;}
+  .wfix.heb{font-family:"SBL Hebrew","Ezra SIL",Cardo,serif;direction:rtl;}
+
   #toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(14px);
     z-index:190;max-width:min(560px,92vw);background:var(--ink);color:#fffefb;
     border-radius:12px;padding:11px 16px;box-shadow:0 10px 32px rgba(0,0,0,.3);
@@ -186,7 +195,22 @@
   .bslot.fixed{background:var(--paper);}
   .bslot.big{border-color:var(--accent);box-shadow:0 0 0 2px rgba(138,90,43,.14);}
   .bslot.over{border-color:var(--accent);background:#fff8ef;}
+  .bslothead{display:flex;align-items:flex-start;gap:5px;}
+  .bslotnum{font-size:12.5px;font-weight:600;color:var(--muted);flex:0 0 auto;
+    padding-top:2px;}
   .bslotname{font-size:12.5px;font-weight:600;color:var(--ink);line-height:1.35;}
+  textarea.bslotname{flex:1;min-width:0;font-family:inherit;border:0;background:none;
+    resize:none;outline:none;padding:1px 0;overflow:hidden;}
+  textarea.bslotname::placeholder{font-weight:400;font-style:italic;color:var(--dim);}
+  /* A heading of the sermon’s own, which no part of the text is under: set
+     apart so you can see at a glance which headings came from the passage. */
+  textarea.bslotname.mine{font-family:Cardo,Georgia,serif;font-style:italic;
+    font-size:14px;color:#6b4a9c;}
+  .bslot.mine{border-style:dashed;border-color:#b9a4d8;}
+  .bslotadd{display:block;width:100%;font:inherit;font-size:11.5px;color:var(--muted);
+    border:1px dashed var(--rule);border-radius:9px;background:none;padding:7px 8px;
+    margin-bottom:8px;cursor:pointer;}
+  .bslotadd:hover{border-color:var(--accent);color:var(--accent);}
   .bslotsub{font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;
     color:var(--muted);font-weight:700;margin-bottom:3px;}
   .bslotnone{font-size:11px;color:var(--dim);font-style:italic;margin-top:5px;}
@@ -1011,14 +1035,16 @@
       <div class="refwrap">
         <button id="refBox" title="Choose a passage">Choose a passage</button>
       </div>
-      <!-- One passage, two ways of working on it. The exegesis is the working;
-           the Builder is the sermon. -->
+      <!-- The three things you can be looking at, in the order you work in:
+           the text in its own language, the text in English, and the sermon.
+           "Exegesis" was a label for a tab you were already on, and the
+           language switch was a fourth control saying the same kind of
+           thing. -->
       <div class="grp tabs">
-        <button id="tabEx" class="on" data-view="exegesis">Exegesis</button>
-        <button id="tabSb" data-view="builder">Sermon Builder</button>
+        <button id="tabOrig" class="on">Greek</button>
+        <button id="tabEng">English</button>
+        <button id="tabSb">Sermon Builder</button>
       </div>
-      <!-- Only there when this passage has another language to go to. -->
-      <button id="twinBtn" class="ghost" style="display:none">Greek</button>
       <!-- These two are no longer controls: the one box above does all of it.
            They are kept because a great deal of the app reads and writes their
            value as the plain record of which book and which part of it is
@@ -1139,6 +1165,9 @@
 </aside>
 
 
+
+<!-- One box, moved over whichever word is being put right. -->
+<input type="text" id="wordFix" class="wfix" spellcheck="false" autocapitalize="off">
 
 <div id="toast" aria-live="polite"></div>
 
@@ -1660,6 +1689,20 @@
   <div class="foot">Left to itself, Nous watches for an Apple Pencil. Once it has seen one, the
     Pencil draws and your finger scrolls, selects and reaches for the grips beside the lines.
     Before then, your finger does the drawing.</div>
+  <div class="fld"><label for="wordEdit">Putting a word right</label>
+    <select id="wordEdit">
+      <option value="off" selected>Off — the text is not to be touched</option>
+      <option value="on">On — tap a word to correct it</option>
+    </select></div>
+  <div class="foot">A pasted passage comes in with the odd thing wrong: a stray bracket, two
+    words run together, a footnote letter that came along for the ride. With this on, a tap
+    on a word opens it for correction.<br><br>
+    It is a <b>correction, not an edit</b>: the word keeps its place in its verse, so every
+    mark, note, line and arrow on it stays exactly where it was. The text underneath is
+    untouched and nothing is overwritten — clear a correction and the original word is
+    back. Off by default, because a page where every word is a text box is a page you
+    cannot draw on.</div>
+
   <div class="fld"><label for="tidyInk">Tidy up</label>
     <select id="tidyInk">
       <option value="off" selected>Off — leave my hand exactly as it is</option>
@@ -1855,7 +1898,8 @@ const S = {
   /* The Sermon Builder. Cards carry the range they belong to, so one book
      holds a board per passage. The four fixed fields are keyed by range the
      same way the big idea already was. */
-  cards:[], aims:{}, intros:{}, concls:{}, view:"exegesis", bink:[],
+  cards:[], aims:{}, intros:{}, concls:{}, view:"exegesis", bink:[], heads:[],
+  seeded:{}, fixes:{}, wordEdit:false,
   /* A note about a VERSE, as distinct from a note about a word. Kept by verse
      label, exactly as your own English is, so it survives a re-split and the
      three-way merge the same way. */
@@ -2457,15 +2501,29 @@ function switchTwin(){
   return true;
 }
 
+/* The three tabs: the text in its own language, the text in English, and the
+   sermon. Which one is lit is a fact about what is on screen, so it is worked
+   out here rather than remembered. */
 function paintTwinBtn(){
-  const b = document.getElementById("twinBtn");
-  if(!b) return;
-  const other = twinOf(S.key);
-  b.style.display = other ? "" : "none";
-  if(!other) return;
-  const p2 = PASSAGES[other];
-  b.textContent = p2.english ? "English" : (p2.lang === "he" ? "Hebrew" : "Greek");
-  b.title = "Show " + p2.title + " at the same place";
+  const o = document.getElementById("tabOrig");
+  const e = document.getElementById("tabEng");
+  const b = document.getElementById("tabSb");
+  if(!o || !e || !b) return;
+  const p = PASSAGES[S.key] || {};
+  const eng = !!p.english;
+  /* The original of whatever is on screen: itself, or what the English says
+     it is a translation of. */
+  const orig = eng ? (p.twin || "") : S.key;
+  const op = PASSAGES[orig];
+  o.textContent = (op && op.lang === "he") ? "Hebrew" : "Greek";
+  o.title = op ? "Show " + op.title + " at the same place"
+               : "The original of this passage is not installed";
+  o.disabled = !op;
+  e.title = "Show this passage in English";
+  const build = S.view === "builder";
+  o.classList.toggle("on", !build && !eng);
+  e.classList.toggle("on", !build && eng);
+  b.classList.toggle("on", build);
 }
 
 /* Which verses have a different number of words in them than before.
@@ -2601,7 +2659,11 @@ function refreshChapterMenu(){
     o.textContent = rangeLabel(S.chapter);
     ch.insertBefore(o, ch.children[1] || null);
   }
-  ch.style.display = "";
+  /* Kept filled in, never shown: the passage box at the top already says
+     "2 Corinthians 9:1-15", and a second control beside it saying "9:1-15" is
+     the same sentence twice. This is the app’s record of what is laid out,
+     not a control. */
+  ch.style.display = "none";
   ch.value = S.chapter;
 }
 
@@ -2749,14 +2811,15 @@ function buildPassage(key){
       // you come back to it through 2:5-17.
       const uid = label + "#" + i;
       const w = {
-        id:S.words.length, uid, surface:t[0], lemma:t[1], pos:t[2], parse:t[3],
+        id:S.words.length, uid, orig:t[0], surface:wordText(uid, t[0]),
+        lemma:t[1], pos:t[2], parse:t[3],
         strongs:t[4], gloss:t[5], verse:label, line:0,
         lx:0, ly:0, w:0, h:0, el:null
       };
       const el = document.createElement("div");
       el.className = S._wbase;
       if(heb){ el.dir = "rtl"; }
-      el.textContent = t[0]; el.dataset.id = w.id;
+      el.textContent = w.surface; el.dataset.id = w.id;
       board.appendChild(el); w.el = el;
       S.words.push(w); S.byUid[uid] = w;
     });
@@ -5479,7 +5542,74 @@ function tapWasSelection(e){
 
 /* One tap selects a word; a second on the same word means every occurrence of
    its lemma, which is the question you usually ask next. */
+/* ============================================================
+   PUTTING A WORD RIGHT
+
+   The text is not yours to rewrite, and most of the time it should not be
+   touched: a tagged Greek text is what the whole page is anchored to, and an
+   English passage you pasted has its own shape. But a pasted text comes in
+   with the odd thing wrong — a stray bracket, a word run into the next, a
+   footnote letter that came along for the ride — and there has to be a way to
+   put it right without starting again.
+
+   So: a correction, not an edit. The word keeps its place in its verse and
+   therefore its identity, so every mark, note, stroke and arrow on it stays
+   exactly where it was. What is stored is a small list of corrections laid
+   OVER the text; the text underneath is untouched, and clearing a correction
+   puts the original back.
+
+   Off unless you turn it on, because a page where every word is a text box is
+   a page you cannot draw on.
+   ============================================================ */
+function textEditing(){ return !!S.wordEdit; }
+
+/* What a word actually reads, correction and all. */
+function wordText(uid, orig){
+  const fix = (S.fixes || {})[uid];
+  return (fix === undefined) ? orig : fix;
+}
+
+function fixWord(w, v){
+  S.fixes = S.fixes || {};
+  const t = String(v == null ? "" : v).trim();
+  pushUndo();
+  if(!t || t === w.orig) delete S.fixes[w.uid];
+  else S.fixes[w.uid] = t;
+  w.surface = wordText(w.uid, w.orig);
+  if(w.el) w.el.textContent = w.surface;
+  measureWords(); rebuildLines(); layout(); saveSoon();
+}
+
+/* The one word being put right, and the box over it. */
+let FIXING = null;
+function editWord(w){
+  if(!w || !textEditing()) return;
+  FIXING = w;
+  const box = document.getElementById("wordFix");
+  if(!box) return;
+  box.value = w.surface;
+  box.style.left = (px(w) - 4) + "px";
+  box.style.top  = (py(w) - 3) + "px";
+  box.style.width = Math.max(60, (w.w || 60) + 28) + "px";
+  box.className = "wfix on" + (isRTL() ? " heb" : "") + (isEnglish() ? " eng" : "");
+  if(box.focus) box.focus();
+  if(box.select) box.select();
+}
+function closeWordFix(commit){
+  const box = document.getElementById("wordFix");
+  if(!box) return;
+  const w = FIXING;
+  FIXING = null;
+  box.className = "wfix";
+  if(commit && w) fixWord(w, box.value);
+}
+
 function tapWord(w){
+  /* With corrections turned on, a tap on a word is a tap into the word.
+     Selecting it, highlighting its lemma and everything else that a tap used
+     to do are what the tool bar is for; this is a mode you turn on to fix a
+     few things and turn off again. */
+  if(textEditing()){ select(w); editWord(w); return; }
   const now = Date.now();
   const again = S._tap && S._tap.id === w.id && now - S._tap.t < 450;
   // once a double has counted, start again — a third quick tap is the
@@ -7753,7 +7883,6 @@ document.getElementById("engEdit").onclick = ()=>{
   openEngSheet(S.key);
 };
 
-document.getElementById("twinBtn").onclick = ()=> switchTwin();
 
 document.getElementById("refBox").onclick   = ()=> openGoSheet();
 document.getElementById("goOk").onclick     = ()=> closeGoSheet(true);
@@ -9923,6 +10052,17 @@ function exportOutline(){
     b.from = from; b.to = to;
   });
 
+  /* A heading of the sermon's own placed before the first part of the
+     passage, which is where it has to be written out. */
+  if(withCards) spineSlots().filter(sl => sl.mine && !sl.head.after).forEach(sl=>{
+    /* One placed before the first part of the passage. */
+    body += docxHeading((sl.head.t || "").trim() || "(untitled)", "");
+    cardsIn(sl.key).forEach(c=>{
+      const t = String(c.t || "").trim();
+      if(t) body += docxParagraph(cardKindName(c) + " — " + t, null, {bullet:true});
+    });
+  });
+
   let n = 0, sub = 0;
   outline.forEach(b=>{
     const span = withRefs ? refSpan(b.from, b.to) : "";
@@ -9963,12 +10103,26 @@ function exportOutline(){
 
     /* What you attached to this heading in the Sermon Builder. Loose cards do
        not come: that is what loose means — it has not made the cut yet. */
-    if(withCards && b.slot) cardsIn(b.slot).forEach(c=>{
+    const slotCards = key => cardsIn(key).forEach(c=>{
       const t = String(c.t || "").trim();
-      if(!t && !c.src) return;
-      body += docxParagraph((CARDKINDS[c.k] || {}).n + " — " + (t || c.src) +
-                            (t && c.src ? " (" + c.src + ")" : ""), null, {bullet:true});
+      if(!t && !c.src && !c.url) return;
+      const bits = [cardKindName(c) + " — " + (t || c.src)];
+      if(t && c.src) bits.push("(" + c.src + ")");
+      if(c.url) bits.push(c.url);
+      body += docxParagraph(bits.join(" "), null, {bullet:true});
     });
+    if(withCards && b.slot) slotCards(b.slot);
+
+    /* And any heading of the sermon’s own that comes after this part. It has
+       no text of its own and no diagram — that is what makes it the sermon’s
+       rather than the passage’s — so it is the heading and what you hung on
+       it, and nothing else. */
+    if(withCards && b.slot) spineSlots()
+      .filter(sl => sl.mine && sl.head.after === b.slot)
+      .forEach(sl=>{
+        body += docxHeading((sl.head.t || "").trim() || "(untitled)", "");
+        slotCards(sl.key);
+      });
   });
 
   /* The conclusion, after everything the passage had to say. */
@@ -10558,6 +10712,8 @@ function workCount(d){
   add(n("vnotes"), "note on a verse", "notes on verses");
   add(n("cards"), "card on the board", "cards on the board");
   add(n("bink"), "stroke on the board", "strokes on the board");
+  add(n("heads"), "heading of your own", "headings of your own");
+  add(n("fixes"), "word put right", "words put right");
   /* The big idea counts here too: it is one of the four, and the bin's one
      line is the only thing that tells you what you are about to get back. */
   add(n("summaries") + n("aims") + n("intros") + n("concls"),
@@ -10570,7 +10726,8 @@ function workCount(d){
 function blankDoc(){
   return { v:3, at:Date.now(), dev:deviceId(), lineStarts:{}, strokes:[], conns:[],
            sections:[], summaries:{}, trans:{}, vnotes:{}, lem:{}, notes:{}, hits:{}, marks:{},
-           cards:[], aims:{}, intros:{}, concls:{}, bink:[],
+           cards:[], aims:{}, intros:{}, concls:{}, bink:[], heads:[], seeded:{},
+           fixes:{},
            findQ:"" };
 }
 
@@ -10581,7 +10738,7 @@ function docMinusRange(d, uids){
   const out = JSON.parse(JSON.stringify(d || blankDoc()));
   uids.forEach(u => keep[u] = 1);
   const gone = {};
-  ["marks","hits","notes","lem","lineStarts","trans","vnotes"].forEach(k=>{
+  ["marks","hits","notes","lem","lineStarts","trans","vnotes","fixes"].forEach(k=>{
     out[k] = out[k] || {};
     Object.keys(out[k]).forEach(id=>{
       /* trans and vnotes are keyed by verse, a phrase note by the two words
@@ -10614,6 +10771,8 @@ function docMinusRange(d, uids){
   out.cards  = (out.cards || []).filter(c => (c.r || "all") !== viewKey());
   gone.bink  = (out.bink || []).filter(x => (x.r || "all") === viewKey());
   out.bink   = (out.bink || []).filter(x => (x.r || "all") !== viewKey());
+  gone.heads = (out.heads || []).filter(h => (h.r || "all") === viewKey());
+  out.heads  = (out.heads || []).filter(h => (h.r || "all") !== viewKey());
   out.at = Date.now();
   return { left:out, gone:partsToDoc(docParts(gone), Date.now()) };
 }
@@ -10823,7 +10982,7 @@ function docSnapshot(){
                                y:Math.round(c.y || 0), to:c.to || "", r:c.r || "all",
                                w:Math.round(c.w || 0) || undefined,
                                h:Math.round(c.h || 0) || undefined,
-                               nt:c.nt || undefined,
+                               nt:c.nt || undefined, kn:c.kn || undefined,
                                im:c.im || undefined, url:c.url || undefined,
                                ln:c.ln || undefined, src:c.src || undefined })),
     bink: (S.bink || []).map(s2 => ({
@@ -10832,6 +10991,10 @@ function docSnapshot(){
       nb:s2.nib || undefined, gl:s2.glyph || undefined,
       p:s2.pts.map(q => [Math.round(q.x*10)/10, Math.round(q.y*10)/10,
                          Math.round((q.p == null ? .5 : q.p) * 100) / 100]) })),
+    fixes: Object.assign({}, S.fixes),
+    seeded: Object.assign({}, S.seeded),
+    heads: (S.heads || []).map(h => ({ id:h.id, t:h.t || "",
+                                       after:h.after || "", r:h.r || "all" })),
     aims: Object.assign({}, S.aims),
     intros: Object.assign({}, S.intros),
     concls: Object.assign({}, S.concls),
@@ -10895,7 +11058,7 @@ function applyDoc(d, p){
   S.cards = ((d && d.cards) || []).map(c => ({
     id:c.id || newCardId(), k:CARDKINDS[c.k] ? c.k : "idea", t:c.t || "",
     x:+c.x || 0, y:+c.y || 0, w:+c.w || 0, h:+c.h || 0,
-    nt:c.nt || "", im:c.im || "", url:c.url || "",
+    nt:c.nt || "", kn:c.kn || "", im:c.im || "", url:c.url || "",
     to:c.to || "", r:c.r || "all",
     ln:c.ln || "", src:c.src || "" }));
   S.bink = ((d && d.bink) || []).map(x => ({
@@ -10904,6 +11067,10 @@ function applyDoc(d, p){
     nib:x.nb || undefined, glyph:x.gl || undefined,
     pts:(x.p || []).map(q => ({ x:q[0], y:q[1], p:q[2] }))
   })).filter(x => x.pts.length >= 2);
+  S.fixes = Object.assign({}, (d && d.fixes) || {});
+  S.seeded = Object.assign({}, (d && d.seeded) || {});
+  S.heads = ((d && d.heads) || []).map(h => ({ id:h.id || newHeadId(), t:h.t || "",
+                                               after:h.after || "", r:h.r || "all" }));
   S.aims   = Object.assign({}, (d && d.aims) || {});
   S.intros = Object.assign({}, (d && d.intros) || {});
   S.concls = Object.assign({}, (d && d.concls) || {});
@@ -10973,6 +11140,7 @@ function prefsSnapshot(){
     ci:S.ci, ls:S.lineStyle, nib:S.nib, mk:S.markMode,
     tool:S.tool,
     finger:S.fingerMode, sawPen:S.sawPen, tidy:!!S.tidy, view:S.view,
+    wordEdit:!!S.wordEdit,
     mods:[document.getElementById("mText").value, document.getElementById("mLex").value,
           document.getElementById("mEng").value,  document.getElementById("mHeb").value,
           document.getElementById("mHLex").value],
@@ -11011,6 +11179,9 @@ function applyPrefs(p){
   S.fingerMode = ["auto","move","draw"].includes(p.finger) ? p.finger : "auto";
   S.sawPen = !!p.sawPen;
   S.tidy = !!p.tidy;
+  S.wordEdit = !!p.wordEdit;
+  const we = document.getElementById("wordEdit");
+  if(we) we.value = S.wordEdit ? "on" : "off";
   if(typeof setView === "function") setView(p.view === "builder" ? "builder" : "exegesis");
   const fm = document.getElementById("fingerMode");
   if(fm) fm.value = S.fingerMode;
@@ -11267,6 +11438,8 @@ function docParts(d){
     aims: d.aims || {}, intros: d.intros || {}, concls: d.concls || {},
     cards: byId(d.cards, c => c.id),
     bink:  byId(d.bink, x => x.id),
+    heads: byId(d.heads, h => h.id),
+    seeded: d.seeded || {}, fixes: d.fixes || {},
     strokes: byId(d.strokes, s => s.id),
     conns:   byId(d.conns, c => c[0] + ">" + c[1]),
     /* A break is known by the word it sits above AND how heavy it is: a
@@ -11286,6 +11459,8 @@ function partsToDoc(parts, at, dev){
     aims:parts.aims, intros:parts.intros, concls:parts.concls,
     cards: Object.keys(parts.cards).map(k => parts.cards[k]),
     bink:  Object.keys(parts.bink).map(k => parts.bink[k]),
+    heads: Object.keys(parts.heads).map(k => parts.heads[k]),
+    seeded: parts.seeded, fixes: parts.fixes,
     strokes: Object.keys(parts.strokes).map(k => parts.strokes[k]),
     conns:   Object.keys(parts.conns).map(k => parts.conns[k]),
     sections:Object.keys(parts.sections).map(k => parts.sections[k])
@@ -12073,6 +12248,25 @@ document.getElementById("fingerMode").onchange = e =>{
   S.fingerMode = e.target.value;
   saveSoon();
 };
+document.getElementById("wordEdit").onchange = e =>{
+  S.wordEdit = e.target.value === "on";
+  if(!S.wordEdit) closeWordFix(false);
+  note(S.wordEdit ? "Tap a word to put it right"
+                  : "The text is left alone again",
+       S.wordEdit ? "the word keeps its place, so nothing on it moves" : "");
+  saveSoon();
+};
+
+(function wireWordFix(){
+  const box = document.getElementById("wordFix");
+  if(!box) return;
+  box.addEventListener("keydown", e=>{
+    if(e.key === "Enter"){ e.preventDefault(); closeWordFix(true); }
+    if(e.key === "Escape"){ e.preventDefault(); closeWordFix(false); }
+  });
+  box.addEventListener("blur", ()=> closeWordFix(true));
+})();
+
 document.getElementById("tidyInk").onchange = e =>{
   S.tidy = e.target.value === "on";
   saveSoon();
@@ -12109,10 +12303,20 @@ const CARDKINDS = {
      turns out to be the illustration should be able to say so. */
   vocab:  { n:"Vocabulary",   ph:"" },
   phrase: { n:"Phrase",       ph:"" },
-  verse:  { n:"Verse",        ph:"" }
+  verse:  { n:"Verse",        ph:"" },
+  /* Nine names cover most of it and none of it covers everything. The last
+     turn of the chip is one you write yourself. */
+  own:    { n:"Name it…",     ph:"" }
 };
 const KINDORDER = ["idea", "quote", "person", "illus", "ques", "text",
-                   "vocab", "phrase", "verse"];
+                   "vocab", "phrase", "verse", "own"];
+
+/* What a card calls itself. "own" is whatever you typed; everything else is
+   one of the names above. */
+function cardKindName(c){
+  if(c.k === "own") return String(c.kn || "").trim() || "Name it…";
+  return (CARDKINDS[c.k] || CARDKINDS.idea).n;
+}
 function noteKind(key){
   return noteKeyIsVerse(key) ? "verse" : noteKeyIsPhrase(key) ? "phrase" : "vocab";
 }
@@ -12134,19 +12338,84 @@ function myCards(){ return S.cards.filter(c => (c.r || "all") === boardKey()); }
    exegesis, in the order they stand in the text. They cannot be edited here:
    the structure of the passage belongs to the passage. They can be hung
    things off, which is the point. */
+/* ---- the spine ----
+
+   Most headings come from the section breaks in the exegesis: they are the
+   shape of the PASSAGE, and renaming one here renames it there, because it is
+   the same heading.
+
+   Some belong only to the sermon. An introduction that needs two movements, a
+   turn the text does not make but the preaching does — these have nothing to
+   be a section break of. They live on the board, are shown differently so you
+   can see at a glance which is which, and sit wherever you put them.
+   ============================================================ */
+function myHeads(){
+  return (S.heads || []).filter(h => (h.r || "all") === boardKey());
+}
+
 function spineSlots(){
   const secs = S.sections
     .map(sec => ({ sec, w: S.byUid[sec.beforeWord] }))
     .filter(x => x.w && inFocus(x.w.verse))
     .sort((a, b) => a.w.id - b.w.id);
-  let n = 0;
-  return secs.map(({ sec })=>{
+
+  const out = [];
+  const addMine = after =>{
+    myHeads().filter(h => (h.after || "") === after)
+      .forEach(h => out.push({ key:"h:" + h.id, name:(h.t || "").trim() || "(untitled)",
+                               num:null, lvl:1, head:h, mine:true }));
+  };
+
+  addMine("");                     // any that come before the first one
+  secs.forEach(({ sec })=>{
     const lvl = sec.lvl || 1;
-    if(lvl === 1) n++;
-    return { key:"s:" + sec.beforeWord + "|" + lvl,
-             name:(sec.title || "").trim() || "(untitled)",
-             num:lvl === 1 ? n : null, lvl, sec };
+    const key = "s:" + sec.beforeWord + "|" + lvl;
+    out.push({ key, name:(sec.title || "").trim() || "(untitled)",
+               num:null, lvl, sec });
+    addMine(key);
   });
+
+  /* Numbered after they are all in place, so a heading of your own is counted
+     in the sermon exactly as the others are: they are all headings. */
+  let n = 0;
+  out.forEach(s =>{ if(s.lvl === 1){ n++; s.num = n; } });
+  return out;
+}
+
+function newHeadId(){
+  return "h" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
+
+/* A new one goes after whatever is last on the spine, which is where you are
+   working when you reach for it. */
+function addHead(){
+  const slots = spineSlots();
+  const after = slots.length ? slots[slots.length - 1].key : "";
+  const h = { id:newHeadId(), t:"", after, r:boardKey() };
+  S.heads = S.heads || [];
+  S.heads.push(h);
+  return h;
+}
+
+/* Up and down the spine. Moving one means changing what it comes after, which
+   is the only thing its place is made of. */
+function moveHead(h, dir){
+  const slots = spineSlots();
+  const i = slots.findIndex(s => s.head === h);
+  if(i < 0) return;
+  const to = i + (dir < 0 ? -1 : 1);
+  if(to < 0 || to >= slots.length) return;
+  /* Swapping with the slot it is moving past: it takes that slot’s place in
+     the order, and that slot takes its old one. */
+  const other = slots[to];
+  if(dir < 0){
+    h.after = (to === 0) ? "" : slots[to - 1].key;
+    if(other.head) other.head.after = "h:" + h.id;
+  } else {
+    h.after = other.key;
+    if(other.head && other.head.after === "h:" + h.id)
+      other.head.after = slots[i - 1] ? slots[i - 1].key : "";
+  }
 }
 
 /* Every place a card may be attached, the two fixed ones included. */
@@ -12302,15 +12571,30 @@ function cardEl(c){
 
   const head = document.createElement("div");
   head.className = "bchead";
-  const kind = document.createElement("span");
+  /* A BUTTON, not a span. The header is the handle you drag a card by, and
+     its pointerdown stops anything that is not a button from starting a
+     tap — so as a span this chip was pressed and the press was swallowed by
+     the drag before the click could happen. */
+  const kind = document.createElement("button");
   kind.className = "bkind";
-  kind.textContent = (CARDKINDS[c.k] || CARDKINDS.idea).n;
+  kind.textContent = cardKindName(c);
   /* Tapping the kind cycles it. A kind is a hint, not a decision to agonise
      over, so changing it costs one tap and no menu. */
   kind.onclick = e =>{
     e.stopPropagation();
     pushUndo();
-    c.k = KINDORDER[(KINDORDER.indexOf(c.k) + 1) % KINDORDER.length];
+    const next = KINDORDER[(KINDORDER.indexOf(c.k) + 1) % KINDORDER.length];
+    if(next === "own"){
+      const v = prompt("What do you want to call this kind of card?", c.kn || "");
+      if(v === null){ paintBuilder(); return; }      // changed your mind
+      if(!String(v).trim()){
+        /* Nothing typed is not a kind: go round to the start rather than
+           leave a card labelled "Name it...". */
+        c.k = KINDORDER[0]; c.kn = "";
+      } else { c.k = "own"; c.kn = String(v).trim(); }
+    } else {
+      c.k = next;
+    }
     paintBuilder(); saveSoon();
   };
   head.appendChild(kind);
@@ -12661,13 +12945,63 @@ function paintSpine(){
     autoGrow(ta);
   });
 
-  const put = (key, name, extra, field)=>{
+  const put = (key, name, extra, field, sl)=>{
     const slot = document.createElement("div");
     slot.className = "bslot" + (extra || "");
     slot.dataset.slot = key;
-    const nm = document.createElement("div");
-    nm.className = "bslotname"; nm.textContent = name;
-    slot.appendChild(nm);
+
+    /* A heading is written in, not read out. One that came from a section
+       break writes back to that break, because it IS that break; one of the
+       sermon’s own writes to itself. The two look different, so which is
+       which is a glance rather than a guess. */
+    if(sl){
+      const row = document.createElement("div");
+      row.className = "bslothead";
+      const num = document.createElement("span");
+      num.className = "bslotnum";
+      num.textContent = sl.num ? sl.num + "." : "—";
+      row.appendChild(num);
+
+      const nm = document.createElement("textarea");
+      nm.className = "bslotname" + (sl.mine ? " mine" : "");
+      nm.value = sl.mine ? (sl.head.t || "") : (sl.sec.title || "");
+      nm.placeholder = sl.mine ? "a heading of the sermon’s own" : "(untitled)";
+      nm.rows = 1;
+      nm.oninput = ()=>{
+        if(sl.mine) sl.head.t = nm.value;
+        else { sl.sec.title = nm.value; renderSections(); }
+        autoGrow(nm); saveSoon();
+      };
+      row.appendChild(nm);
+
+      if(sl.mine){
+        const up = document.createElement("button");
+        up.className = "bicon"; up.textContent = "\u25b2"; up.title = "Move it up the sermon";
+        up.onclick = e =>{ e.stopPropagation(); pushUndo(); moveHead(sl.head, -1);
+                           paintBuilder(); saveSoon(); };
+        const dn = document.createElement("button");
+        dn.className = "bicon"; dn.textContent = "\u25bc"; dn.title = "Move it down the sermon";
+        dn.onclick = e =>{ e.stopPropagation(); pushUndo(); moveHead(sl.head, 1);
+                           paintBuilder(); saveSoon(); };
+        const x = document.createElement("button");
+        x.className = "bx"; x.textContent = "\u00d7";
+        x.title = "Remove this heading — anything attached comes back to the board";
+        x.onclick = e =>{
+          e.stopPropagation();
+          pushUndo();
+          const i = S.heads.indexOf(sl.head);
+          if(i >= 0) S.heads.splice(i, 1);
+          paintBuilder(); saveSoon();
+        };
+        row.appendChild(up); row.appendChild(dn); row.appendChild(x);
+      }
+      slot.appendChild(row);
+      autoGrow(nm);
+    } else {
+      const nm = document.createElement("div");
+      nm.className = "bslotname"; nm.textContent = name;
+      slot.appendChild(nm);
+    }
     if(field){
       const ta = document.createElement("textarea");
       ta.className = "bfield"; ta.value = bGet(field);
@@ -12697,14 +13031,22 @@ function paintSpine(){
   if(!slots.length){
     const none = document.createElement("div");
     none.className = "bslotnone";
-    none.textContent = "No section breaks yet. Make them in the exegesis and "
-                     + "they will arrive here in order.";
+    none.textContent = "No section breaks yet. Make them in the text and they "
+                     + "will arrive here in order \u2014 or add a heading of the "
+                     + "sermon’s own below.";
     bSlotsEl.appendChild(none);
   }
   slots.forEach(sl=>{
-    put(sl.key, (sl.num ? sl.num + ". " : "— ") + sl.name,
-        sl.lvl > 1 ? " sub" : "");
+    put(sl.key, sl.name, (sl.lvl > 1 ? " sub" : "") + (sl.mine ? " mine" : ""),
+        null, sl);
   });
+
+  /* Somewhere to add one that belongs only to the sermon. */
+  const add = document.createElement("button");
+  add.className = "bslotadd";
+  add.textContent = "\uff0b a heading of your own";
+  add.onclick = ()=>{ pushUndo(); addHead(); paintBuilder(); saveSoon(); };
+  bSlotsEl.appendChild(add);
 
   put("concl", "Conclusion", " fixed", "concl");
 }
@@ -13194,8 +13536,37 @@ function syncNoteCards(){
   });
 }
 
+/* ---- the board you are given ----
+
+   A board with nothing whatever on it is a board you have to decide how to
+   start. Two cards are laid out the first time you open one: the things that
+   are asked for in nearly every sermon and most easily forgotten. They are
+   ordinary cards — rename them, move them, throw them away — and once this
+   board has been opened they are never laid out again, so one you threw away
+   does not come back. */
+const STARTERS = [
+  { k:"illus", t:"", kn:"Big image / illustration" },
+  { k:"verse", t:"", kn:"Key verse(s)" }
+];
+
+function seedBoard(){
+  const r = boardKey();
+  S.seeded = S.seeded || {};
+  if(S.seeded[r]) return;
+  S.seeded[r] = 1;
+  /* Not onto a board that already has something on it: a passage worked on
+     before this existed is not an empty one. */
+  if(myCards().length) return;
+  STARTERS.forEach(st=>{
+    const at = freeSpot();
+    S.cards.push({ id:newCardId(), k:"own", kn:st.kn, t:st.t,
+                   x:at.x, y:at.y, w:0, h:0, to:"", r, ln:"", src:"" });
+  });
+}
+
 function paintBuilder(){
   if(!bSpineEl) return;
+  seedBoard();
   syncNoteCards();
   paintSpine();
   paintLoose();
@@ -13211,19 +13582,45 @@ function setView(v){
   const sc = document.getElementById("scroll");
   if(b) b.classList.toggle("on", S.view === "builder");
   if(sc) sc.style.display = S.view === "builder" ? "none" : "";
-  const ex = document.getElementById("tabEx"), sb = document.getElementById("tabSb");
-  if(ex) ex.classList.toggle("on", S.view === "exegesis");
-  if(sb) sb.classList.toggle("on", S.view === "builder");
+  if(typeof paintTwinBtn === "function") paintTwinBtn();
   /* The big idea has moved to the spine, so the box that used to sit on the
      paper is gone from the exegesis page entirely. */
   if(S.view === "builder") paintBuilder();
   if(typeof paintScrollBar === "function") paintScrollBar();
   saveSoon();
 }
-const tabExEl = document.getElementById("tabEx");
-const tabSbEl = document.getElementById("tabSb");
-if(tabExEl) tabExEl.onclick = ()=> setView("exegesis");
-if(tabSbEl) tabSbEl.onclick = ()=> setView("builder");
+/* Over to the other language, keeping the passage. If there is no English for
+   this chapter yet, the ask-for-it sheet opens with the book and the chapter
+   already settled, exactly as the passage box does — one way in, wherever you
+   came from. */
+function showLang(want){
+  setView("exegesis");
+  const p = PASSAGES[S.key] || {};
+  const eng = !!p.english;
+  if((want === "eng") === eng){ paintTwinBtn(); return; }   // already there
+
+  const other = twinOf(S.key);
+  if(other){ switchTwin(); return; }
+
+  if(want === "eng"){
+    const home = eng ? (p.twin || "") : S.key;
+    const hp = PASSAGES[home];
+    const here = String(focusRange()).split("-")[0].split(":");
+    const ch = (hp && (hp.chapters || []).includes(here[0])) ? here[0]
+             : (hp && (hp.chapters || [])[0]) || "1";
+    openEngSheet(null, { book:(hp && hp.title) || "This passage",
+                         bookKey:home, ch });
+    return;
+  }
+  note("Not installed", "the original of this passage is not on this device");
+}
+
+const tabOrigEl = document.getElementById("tabOrig");
+const tabEngEl  = document.getElementById("tabEng");
+const tabSbEl   = document.getElementById("tabSb");
+if(tabOrigEl) tabOrigEl.onclick = ()=> showLang("orig");
+if(tabEngEl)  tabEngEl.onclick  = ()=> showLang("eng");
+if(tabSbEl)   tabSbEl.onclick   = ()=> setView("builder");
 
 document.getElementById("bNew").onclick = ()=>{ pushUndo(); makeCard("idea", ""); };
 document.getElementById("bAsk").onclick = ()=>{
@@ -13479,7 +13876,7 @@ function boardAsText(){
     L.push("## " + name);
     const mine = cardsIn(key);
     if(!mine.length) L.push("(nothing attached)");
-    mine.forEach(c => L.push("- [" + (CARDKINDS[c.k] || {}).n + "] " +
+    mine.forEach(c => L.push("- [" + cardKindName(c) + "] " +
                              (String(c.t).trim() || "(blank)") +
                              (c.src ? "  — " + c.src : "") +
                              (c.url ? "  <" + c.url + ">" : "") +
@@ -13500,7 +13897,7 @@ function boardAsText(){
     /* What a loose card points at goes too. It is still loose, but a link or
        a picture is part of what the card IS, and leaving it out would hand
        over a quotation with no source. */
-    loose.forEach(c => L.push("- [" + (CARDKINDS[c.k] || {}).n + "] " + String(c.t).trim() +
+    loose.forEach(c => L.push("- [" + cardKindName(c) + "] " + String(c.t).trim() +
                               (c.url ? "  <" + c.url + ">" : "") +
                               (c.im ? "  [picture]" : "")));
     L.push("");
@@ -13557,7 +13954,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-10-26c";
+const BUILD = "2026-10-29a";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file

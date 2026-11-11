@@ -246,7 +246,10 @@ sermon.
 **Three tabs** across the top: the text in its own language, the text in
 English, and the Sermon Builder — in the order you work in. Tapping a language
 keeps the passage you are on; if there is no English for it yet, you are asked
-for it there and then.
+for it there and then. A pasted text is a **chapter**, so the English tab looks
+for the English of the chapter you are standing in: 2 Corinthians 9 pasted does
+not answer for 2 Corinthians 10, and on chapter 10 you are asked for chapter 10
+rather than being moved to chapter 9.
 
 **The spine**, down the left, is the sermon in the order it runs. The **big
 idea** and the **aim** are pinned at its head — the big idea has moved off the
@@ -431,6 +434,15 @@ chapter, the verse it starts at, and the verse it ends at. Leave the end alone
 and you get the whole chapter; tap one verse and nothing else and you get that
 verse. It opens on the book and chapter you are already in, so the next few
 verses are two taps away.
+
+**A passage may run past the end of a chapter.** The *To* column carries on
+into the chapters that follow, so 2 Corinthians 11:5–12:4 is there to be
+chosen: one argument, one sermon, and the chapter break in the middle of it is
+a later addition to the page rather than a seam in the letter. Verses in a
+later chapter are listed with their chapter — *12:4*, not *4* — and the list
+stops where the page does, since a passage too long to lay out would be dropped
+back to the chapter it began in. A single chapter is still laid out whole,
+however long it is.
 
 **Which language you read it in is the tabs’ business, not the box’s.** Tap
 **English** on a passage you have not pasted yet and you are asked for it there

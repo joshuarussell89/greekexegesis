@@ -1347,7 +1347,9 @@
 <div id="goSheet" class="sheet">
   <div class="ws go">
     <div class="wslbl">Which book, which chapter, and the verses it runs between. Tap a
-      second verse to end it there — or leave it, for the whole chapter. Which
+      second verse to end it there — or leave it, for the whole chapter. The
+      second one may be in a later chapter: a passage is not obliged to stop
+      where a chapter does. Which
       language you read it in is the tabs’ business, not this one’s.</div>
     <div id="goPick">
       <div class="pkcol"><div class="pkhd">Book</div><div class="pklist" id="goBook"></div></div>
@@ -2499,13 +2501,32 @@ function guessTwin(name){
 }
 
 /* The book on the other side of the switch, whichever side you are on. */
-function twinOf(key){
+/* Which chapter the passage on screen is in. "4:7-4:12" is chapter 4; a bare
+   "4" is chapter 4; "all" of a one-chapter book is that chapter, and "all" of
+   a longer one is no chapter in particular. */
+function hereChapter(){
+  const p2 = PASSAGES[S.key] || {};
+  const range = String(focusRange());
+  if(range === "all") return (p2.chapters || []).length === 1 ? p2.chapters[0] : "";
+  const first = range.split("-")[0];
+  return first.indexOf(":") >= 0 ? first.split(":")[0] : first;
+}
+
+/* The passage on the other side of the switch.
+
+   A pasted English text is a CHAPTER, not a book. This used to answer with
+   any English belonging to this book at all — so reading 2 Corinthians 10
+   with only chapter 9 pasted, the English tab did not offer to take chapter
+   10: it took you to chapter 9, which is not a switch but a jump. The chapter
+   has to match. */
+function twinOf(key, ch){
   const p2 = PASSAGES[key];
   if(!p2) return "";
   if(p2.english) return PASSAGES[p2.twin] ? p2.twin : "";
-  const mine = Object.keys(PASSAGES)
-    .filter(k => k.indexOf("en:") === 0 && PASSAGES[k].twin === key);
-  return mine.length ? mine[0] : "";
+  const want = (ch === undefined) ? hereChapter() : ch;
+  if(!want) return "";
+  const en = engFor(key, want);
+  return en ? en.key : "";
 }
 
 /* Over to the other one, keeping the passage you are on. Both sides number
@@ -7689,6 +7710,41 @@ function goChapters(){
 /* Which book was chosen, as a key, whether or not its original is installed. */
 function goBookKey(){ return GO.bookKey || ""; }
 
+/* Where a passage may run to.
+
+   Inside the chapter it starts in, any verse at or after the one it starts at.
+   Past that, on into the chapters that follow: 11:5–12:4 is one argument and
+   one sermon, and the chapter break sitting in the middle of it is a
+   thirteenth-century addition to the text, not a seam in it. Choosing a
+   passage used to mean typing the reference, so this was possible; the picker
+   that replaced the typing could only reach the end of one chapter, which took
+   the ability away.
+
+   Verses in a later chapter are labelled with their chapter, since a bare "4"
+   in a list that began at 11:5 would read as a verse of chapter 11.
+
+   It stops where the page stops. A range too long to lay out is dropped back
+   to the chapter it began in, so what cannot be drawn is never offered; the
+   cap only ever applies past the first chapter, which is laid out whole as it
+   always was, however long it is. */
+function goEnds(){
+  if(!GO.from || !GO.key) return [];
+  const p = PASSAGES[GO.key];
+  if(!p || !Array.isArray(p.verses)) return [];
+  const start = verseKey(GO.ch + ":" + GO.from);
+  const out = [];
+  let n = 0;
+  for(const [vn, toks] of p.verses){
+    const ref = fullRef((typeof vn === "number") ? (p.ch || "1") + ":" + vn : String(vn), p);
+    if(verseKey(ref) < start) continue;
+    const far = ref.split(":")[0] !== String(GO.ch);
+    n += toks.length;
+    if(far && n > MAX_LAYOUT_WORDS) break;
+    out.push({ ref, label: far ? ref : ref.split(":")[1] });
+  }
+  return out;
+}
+
 function goPaint(){
   const col = (id, items, chosen, onPick, empty)=>{
     const el = document.getElementById(id);
@@ -7738,14 +7794,17 @@ function goPaint(){
   const vs = GO.ch ? pickVerses(GO.key, GO.ch) : [];
   col("goFrom", vs.map(v => ({ label:v, value:v })), GO.from, v =>{
         GO.from = v;
-        if(GO.to !== null && +GO.to < +v) GO.to = null;
+        /* An end before the new beginning is no longer an end. */
+        if(GO.to && verseKey(GO.to) < verseKey(GO.ch + ":" + v)) GO.to = null;
         goPaint();
       }, GO.ch ? "" : "Choose a chapter.");
 
   /* Only the verses at or after the one you started at: an end before a
-     beginning is not a passage, so it is never offered. */
-  const ends = GO.from ? vs.filter(v => +v >= +GO.from) : [];
-  col("goTo", ends.map(v => ({ label:v, value:v })), GO.to, v =>{
+     beginning is not a passage, so it is never offered. Kept as a full
+     reference, because "4" means one thing in chapter 11 and another in
+     chapter 12. */
+  const ends = goEnds();
+  col("goTo", ends.map(e => ({ label:e.label, value:e.ref })), GO.to, v =>{
         GO.to = (GO.to === v) ? null : v;        // tap it again to let it run on
         goPaint();
       }, GO.from ? "" : "Choose where it starts.");
@@ -7779,16 +7838,21 @@ function goLabel(){
   if(!GO.book || !GO.ch) return "";
   const base = GO.book + " " + GO.ch;
   if(!GO.from) return base;
-  if(!GO.to || GO.to === GO.from) return base + ":" + GO.from;
-  return base + ":" + GO.from + "–" + GO.to;
+  const to = String(GO.to || "");
+  if(!to || verseKey(to) === verseKey(GO.ch + ":" + GO.from))
+    return base + ":" + GO.from;
+  const a = to.split(":");
+  /* "11:5–12" would be read as the twelfth verse of chapter 11, so an end in
+     another chapter is said with its chapter. */
+  return base + ":" + GO.from + "–" + (a[0] === String(GO.ch) ? a[1] : to);
 }
 
 /* And as a range the layout understands. */
 function goRange(){
   if(!GO.ch) return null;
   if(!GO.from) return String(GO.ch);
-  const to = GO.to || GO.from;
-  return GO.ch + ":" + GO.from + "-" + GO.ch + ":" + to;
+  const to = GO.to || (GO.ch + ":" + GO.from);
+  return GO.ch + ":" + GO.from + "-" + to;
 }
 
 function openGoSheet(){
@@ -14082,7 +14146,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-10-29e";
+const BUILD = "2026-11-11a";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file

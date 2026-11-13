@@ -165,7 +165,7 @@ in the header remains the full reference for every feature.
 
 ## The symbols
 
-Ninety-six sit on the rail. Behind **＋ Library**, at the foot of it, are the
+A hundred and two sit on the rail. Behind **＋ Library**, at the foot of it, are the
 other four thousand: scroll or search, tap one to put it on your rail, tap it
 again to take it off. Anything you pick is copied onto the rail and syncs with
 the rest of your work, so it does not depend on the library afterwards.

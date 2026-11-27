@@ -1911,6 +1911,7 @@ const LINESTYLE = {
 
 const S = {
   key:"", chapter:"all", docs:{}, undo:[], redo:[],
+  engGone:{},             // pasted passages taken away here: key -> when
   lineStarts:{}, byUid:{},
   hits:{}, marks:{}, notes:{}, summaries:{}, trans:{}, bin:[],
   /* The Sermon Builder. Cards carry the range they belong to, so one book
@@ -2277,6 +2278,13 @@ async function readZip(buf){
 
 /* The first book in canonical order, or "" when nothing is loaded. */
 const BOOKKEY = /^(nt|ot):/;
+/* Books whose work is kept and synced. BOOKKEY alone is what the book menu
+   lists, and it was also what saving and syncing went by — which left out every
+   English passage you pasted. Work on one was saved only if you happened to go
+   to another book before closing, and was never sent anywhere at all, so the
+   Mac never saw any of it. The worked example's scratch copy is still kept off
+   both: its key starts "demo:". */
+const WORKKEY = /^(nt|ot|en):/;
 function firstBookKey(){
   const ks = Object.keys(PASSAGES).filter(k => BOOKKEY.test(k));
   if(!ks.length) return "";
@@ -2426,12 +2434,17 @@ function addEnglishPassage(name, startRef, text, twin, keepKey){
 
   S.corpusFiles = S.corpusFiles.filter(f => f.name !== key + ".english" &&
                                             f.name !== title + ".english");
+  /* "at" is when this text was last set. Between two devices the later one
+     is the one kept, so putting a typo right on the Mac is not undone by the
+     iPad's copy coming back. */
   S.corpusFiles.push({ name:key + ".english",
                        raw:JSON.stringify({ v:2, key, name:title, ref, verses,
                                             twin:PASSAGES[key].twin,
-                                            text:PASSAGES[key].src }) });
+                                            text:PASSAGES[key].src, at:Date.now() }) });
+  if(S.engGone) delete S.engGone[key];        // pasted again: it is back
   saveCorpus();
   refreshBookMenu();
+  syncSoon(key);
   return PASSAGES[key];
 }
 
@@ -4089,6 +4102,7 @@ function selectStroke(st){
 /* Shift a stroke bodily. Its points are kept relative to the word it is
    anchored to, so moving it is simply moving every point. */
 function moveStroke(st, dx, dy){
+  pinStroke(st);
   st.pts = st.pts.map(q => ({ x:q.x + dx, y:q.y + dy, p:q.p }));
 }
 
@@ -4482,6 +4496,31 @@ function nearestWord(x,y,maxd){
     if(d < bd){ bd = d; best = w.id; }
   });
   return best;
+}
+
+/* The word a new piece of ink belongs to: the nearest one, however far off.
+
+   This used to stop at a distance — 110px for the pen, 200 for a box — and
+   past it the ink belonged to nothing. Ink that belongs to nothing is kept in
+   plain page coordinates, and the page is one sheet for the whole book, so a
+   box drawn out in the margin beside 12:1-10 was drawn at that same spot on
+   11:1-15, on 13, and on every other passage of 2 Corinthians you opened,
+   over whatever words happened to be there. Belonging to the nearest word,
+   it goes where that word goes and is seen only with it. */
+function anchorWord(x, y){ return nearestWord(x, y, Infinity); }
+
+/* Ink drawn by earlier builds may still belong to nothing. The first time
+   one is picked up and moved it is given the nearest word, here, on the
+   passage where it is being moved — which is the passage it belongs to, or
+   you would not be moving it there — and from then on it stays with it. */
+function pinStroke(st){
+  if(!st || st.anchor != null || !st.pts || !st.pts.length) return false;
+  const i = anchorWord(st.pts[0].x, st.pts[0].y);
+  if(i === null) return false;
+  const w = S.words[i], ox = px(w), oy = py(w);
+  st.pts = st.pts.map(q => ({ x:q.x - ox, y:q.y - oy, p:q.p }));
+  st.anchor = w.uid;
+  return true;
 }
 
 /* ============================================================
@@ -5070,7 +5109,7 @@ hit.addEventListener("pointerdown", e=>{
   }
 
   if(t === "xref"){
-    const anchor = nearestWord(p.x, p.y, 200);
+    const anchor = anchorWord(p.x, p.y);
     const aw = anchor !== null ? S.words[anchor] : null;
     const ox = aw ? px(aw) : 0, oy = aw ? py(aw) : 0;
     pushUndo();
@@ -5102,7 +5141,7 @@ hit.addEventListener("pointerdown", e=>{
 
   if(INKTOOLS.has(t)){
     pushUndo();
-    const anchor = nearestWord(p.x, p.y, 110);
+    const anchor = anchorWord(p.x, p.y);
     const aw = anchor !== null ? S.words[anchor] : null;
     const ox = aw ? px(aw) : 0;
     const oy = aw ? py(aw) : 0;
@@ -5302,7 +5341,7 @@ hit.addEventListener("pointermove", e=>{
     // moved off: this was a stroke, not a tap — begin the shape properly
     if(Math.abs(p.x - drag.sx) > 8 || Math.abs(p.y - drag.sy) > 8){
       const t = drag.tool;
-      const anchor = nearestWord(drag.sx, drag.sy, 200);
+      const anchor = anchorWord(drag.sx, drag.sy);
       const aw = anchor !== null ? S.words[anchor] : null;
       const ox = aw ? px(aw) : 0, oy = aw ? py(aw) : 0;
       pushUndo();
@@ -5542,7 +5581,7 @@ hit.addEventListener("pointerup", e=>{
        something belonging to a word — droppable anywhere and resizable. */
     if(anyGlyphId(S.markMode)){
       pushUndo();
-      const anchor = nearestWord(d.sx, d.sy, 260);
+      const anchor = anchorWord(d.sx, d.sy);
       const aw = anchor !== null ? S.words[anchor] : null;
       const ox = aw ? px(aw) : 0, oy = aw ? py(aw) : 0;
       const half = SYMDROP / 2;
@@ -10862,8 +10901,13 @@ function removeEnglish(key){
   delete S.docs[key];
   delete PASSAGES[key];
   S.corpusFiles = (S.corpusFiles || []).filter(f => f !== file);
+  /* Written down, so the other device takes it away too rather than sending
+     it straight back. */
+  S.engGone = S.engGone || {};
+  S.engGone[key] = Date.now();
   saveCorpus();
   refreshBookMenu();
+  syncSoon(key);
 
   /* Somewhere to stand: the book it translated, or whatever is first. */
   if(S.key === key){
@@ -11022,9 +11066,15 @@ function binRestore(id){
   /* The text first, where there is one: a document restored onto a passage
      that no longer exists is marks belonging to nothing. */
   if(e.eng){
+    /* Stamped afresh: brought back now, it is newer than its own removal, and
+       the other device has to be told so or it takes it away again. */
+    let raw = e.eng.raw, k2 = "";
+    try{ const d = JSON.parse(raw); d.at = Date.now(); raw = JSON.stringify(d);
+         k2 = d.key || ("en:" + engSlug(d.name)); }catch(_){}
     S.corpusFiles = (S.corpusFiles || []).filter(f => f.name !== e.eng.name);
-    S.corpusFiles.push({ name:e.eng.name, raw:e.eng.raw });
-    registerEnglish(e.eng);
+    S.corpusFiles.push({ name:e.eng.name, raw });
+    registerEnglish({ name:e.eng.name, raw });
+    if(k2 && S.engGone){ delete S.engGone[k2]; syncSoon(k2); }
     saveCorpus();
     refreshBookMenu();
   }
@@ -11335,7 +11385,13 @@ function restoreScroll(want){
 /* ---- settings ---- */
 function prefsSnapshot(){
   return {
-    key:S.key, chapter:S.focus || S.chapter, view:S.chapter,
+    /* The passage, and separately the window on it. The window was saved as
+       "view", and so was the tab further down; in an object literal the later
+       name wins, so the window was overwritten with "exegesis" on every save.
+       Read back, that is not a range at all, inRange treats anything it cannot
+       parse as "everything", and the app reopened on the whole book rather
+       than the passage you left it on. */
+    key:S.key, chapter:S.focus || S.chapter, win:S.chapter,
     ci:S.ci, ls:S.lineStyle, nib:S.nib, mk:S.markMode,
     tool:S.tool,
     finger:S.fingerMode, sawPen:S.sawPen, tidy:!!S.tidy, view:S.view,
@@ -11388,8 +11444,18 @@ function applyPrefs(p){
   if(ti) ti.value = S.tidy ? "on" : "off";
   document.querySelectorAll("[data-tool]").forEach(x =>
     x.classList.toggle("on", x.dataset.tool === S.tool));
-  if(PASSAGES[p.key]){ S.key = p.key; setFocus(p.chapter || "all");
-                       if(p.view) S.chapter = p.view; }
+  /* Only a real range is taken. Settings saved by earlier builds carry the
+     tab's name where the window should be, and believing it is what made the
+     page open on the whole book. */
+  if(PASSAGES[p.key]){ S.key = p.key; setFocus(isRange(p.chapter) ? p.chapter : "all");
+                       if(isRange(p.win)) S.chapter = p.win; }
+}
+
+/* "all", a bare chapter, or chapter:verse-chapter:verse — the three shapes a
+   passage can have. Anything else is not one. */
+function isRange(v){
+  return typeof v === "string" &&
+         (v === "all" || /^\d+$/.test(v) || /^\d+:\d+-\d+:\d+$/.test(v));
 }
 
 /* ============================================================
@@ -11498,9 +11564,9 @@ function saveSoon(){
 
 function saveNow(){
   if(S._restoring) return Promise.resolve(false);
-  // BOOKKEY keeps the worked example's scratch copy out of storage entirely,
+  // WORKKEY keeps the worked example's scratch copy out of storage entirely,
   // so closing the app in the middle of it leaves nothing behind
-  if(S.key && BOOKKEY.test(S.key)) S.docs[docKey()] = currentDoc(S.key);
+  if(S.key && WORKKEY.test(S.key)) S.docs[docKey()] = currentDoc(S.key);
   mirrorSync();                       // synchronous, so it survives a sudden close
   if(!storageOK) return Promise.resolve(false);
   return Promise.all([kvSet("docs", S.docs), kvSet("prefs", prefsSnapshot())])
@@ -11521,8 +11587,9 @@ function mirrorSync(){
 }
 
 function saveCorpus(){
-  if(!S.corpusFiles.length) return;
-  kvSet("corpus", { files:S.corpusFiles, at:Date.now() });
+  const gone = S.engGone || {};
+  if(!S.corpusFiles.length && !Object.keys(gone).length) return;
+  kvSet("corpus", { files:S.corpusFiles, gone, at:Date.now() });
 }
 
 function stampSaved(t){
@@ -11755,7 +11822,11 @@ const SYNC = {
 };
 
 const ghPath = key => "nous/" + String(key).replace(/[^A-Za-z0-9._-]+/g, "-") + ".json";
-const ghKeyFromPath = name => String(name).replace(/\.json$/, "").replace(/^(nt|lxx|imp)-/, "$1:");
+/* The colon in a key cannot go in a file name, so it goes up as a dash and
+   has to come back as a colon. Only the New Testament prefix was being turned
+   back, so a Hebrew book worked on only on the other device came back under a
+   key that named nothing and was never looked at. */
+const ghKeyFromPath = name => String(name).replace(/\.json$/, "").replace(/^(nt|ot|en|lxx|imp)-/, "$1:");
 
 function b64encode(str){
   const bytes = new TextEncoder().encode(str);
@@ -11952,13 +12023,22 @@ async function syncAll(opts){
   try{
     let keys = Array.from(SYNC.queue);
     SYNC.queue.clear();
+    let remote = null;
     if(opts.full || !keys.length){
-      const remote = await ghList();
+      remote = await ghList();
       keys = Array.from(new Set(Object.keys(S.docs).concat(remote, S.key ? [S.key] : [])));
     }
+    /* The words of a pasted passage before the work on it: work arriving for a
+       passage this device has never seen is marks on nothing, and the page has
+       to have the text to put them on. */
+    try{ await syncTexts(keys, remote); }
+    catch(e){ note("Pasted English did not sync", e.message || String(e)); }
     for(const key of keys){
-      // BOOKKEY keeps scratch books — the worked example's copy — off the wire
-      if(!key || !BOOKKEY.test(key)) continue;
+      // WORKKEY keeps scratch books — the worked example's copy — off the wire
+      if(!key || !WORKKEY.test(key)) continue;
+      /* A passage you took away here is not synced back into being. Its work
+         is in the bin on whichever device removed it. */
+      if(/^en:/.test(key) && !PASSAGES[key] && S.engGone && S.engGone[key]) continue;
       let r = await syncBook(key);
       if(r && r.retry) r = await syncBook(key);    // one retry after a clash
       if(r && r.refused){ refused = true; continue; }
@@ -12011,6 +12091,116 @@ async function syncAll(opts){
   }finally{
     SYNC.busy = false;
   }
+}
+
+/* ---- the words of a pasted passage ----
+
+   A pasted English passage is two things: the text, and your work on it. The
+   work goes up with every other book's. The text was never sent anywhere — it
+   lived only in the device it was pasted on — so the Mac had the Greek, which
+   it had installed for itself, and no English at all.
+
+   Each passage's text has a file of its own beside its work, "entext-…", so
+   no one file grows without end. Whichever copy was set later is kept; taking
+   a passage away is written down as a removal with a time on it, so the other
+   device takes it away too instead of sending it straight back. A copy that
+   cannot be read is never written over. */
+const textKey = key => "entext:" + String(key).slice(3);
+
+/* The key a stored English file belongs to, or "" if it is not one. */
+function engKeyOf(f){
+  if(!f || !/\.english$/.test(f.name)) return "";
+  try{ const d = JSON.parse(f.raw); return d.key || ("en:" + engSlug(d.name)); }
+  catch(e){ return ""; }
+}
+
+function engEntries(){
+  const out = {};
+  (S.corpusFiles || []).forEach(f=>{
+    const key = engKeyOf(f);
+    if(!key) return;
+    let at = 0;
+    try{ at = +JSON.parse(f.raw).at || 0; }catch(e){}
+    out[key] = { key, name:f.name, raw:f.raw, at };
+  });
+  return out;
+}
+
+/* Install a text that came from the other device, or take one away. */
+function engTake(key, raw){
+  S.corpusFiles = (S.corpusFiles || []).filter(f => f.name !== key + ".english" &&
+                                                    engKeyOf(f) !== key);
+  if(raw){
+    const file = { name:key + ".english", raw };
+    S.corpusFiles.push(file);
+    registerEnglish(file);
+    if(S.engGone) delete S.engGone[key];
+  } else {
+    delete PASSAGES[key];
+  }
+  refreshBookMenu();
+  if(S.key !== key) return;
+  if(raw){ build(S.key); layout(); return; }
+  /* It was on the page: stand somewhere that still exists. */
+  S.docs[key] = currentDoc(key) || S.docs[key];
+  S.key = firstBookKey(); S._loadedBook = null; setFocus("all");
+  const sel = document.getElementById("passage"); if(sel) sel.value = S.key;
+  refreshChapterMenu();
+  build(S.key);
+}
+
+async function syncText(key){
+  const mine = engEntries()[key];
+  const gone = (S.engGone || {})[key];
+  const { doc: theirs, sha } = await ghRead(textKey(key));
+  if(sha && !theirs){
+    note("Pasted English not synced", "the repository's copy of " + key +
+         " could not be read, so it was left alone");
+    return 0;
+  }
+  const myAt = mine ? mine.at : (gone || 0);
+  const thAt = theirs ? (+theirs.at || 0) : -1;
+  const iKnow = !!mine || gone !== undefined;
+
+  /* Theirs is newer, or is the only copy there is. */
+  if(theirs && (thAt > myAt || !iKnow)){
+    if(theirs.gone){
+      S.engGone = S.engGone || {};
+      S.engGone[key] = thAt;
+      if(mine){
+        engTake(key, null);
+        note("Sync removed " + ((theirs.name || key)), "taken away on your other device");
+      }
+    } else if(theirs.raw && (!mine || mine.raw !== theirs.raw)){
+      engTake(key, theirs.raw);
+      note("Sync brought in " + (((PASSAGES[key] || {}).title) || key),
+           "pasted on your other device");
+    }
+    saveCorpus();
+    return 1;
+  }
+  /* Ours is newer, or theirs is not there yet. */
+  if(iKnow && myAt > thAt){
+    const body = mine
+      ? { v:1, at:myAt, key, name:(PASSAGES[key] || {}).title || "", raw:mine.raw }
+      : { v:1, at:myAt, key, gone:true };
+    await ghWrite(textKey(key), body, sha);
+  }
+  return 0;
+}
+
+async function syncTexts(keys, remote){
+  const want = new Set();
+  (keys || []).forEach(k =>{ if(/^en:/.test(k)) want.add(k); });
+  if(remote){
+    /* A full sync looks at every one: here, elsewhere, or taken away. */
+    Object.keys(engEntries()).forEach(k => want.add(k));
+    Object.keys(S.engGone || {}).forEach(k => want.add(k));
+    remote.forEach(k =>{ if(/^entext-/.test(k)) want.add("en:" + k.slice(7)); });
+  }
+  let n = 0;
+  for(const key of want) n += await syncText(key);
+  return n;
 }
 
 /* What has been removed travels too, so work thrown away on the iPad can be
@@ -12321,6 +12511,7 @@ async function loadSaved(){
 
   S._restoring = true;
   try{
+    S.engGone = (corpus && corpus.gone) || {};
     if(corpus && Array.isArray(corpus.files) && corpus.files.length){
       S.corpusFiles = corpus.files;
       corpus.files.forEach(f=>{
@@ -12959,7 +13150,9 @@ function cardEl(c){
        happened to be in the text. */
     if(!c.url){
       const found = urlsIn(body.value)[0];
-      if(found) c.url = found;
+      /* And show the preview now. It used to wait until you tapped out of the
+         card, so a video pasted in looked as though it had been ignored. */
+      if(found){ c.url = found; paintPreview(); }
     }
     /* The card is the note, so this is where the note is written — whether it
        belongs to a word or to a verse. */
@@ -13442,7 +13635,7 @@ function urlsIn(t){
 function linkPreview(u){
   const url = String(u || "");
   if(/\.(png|jpe?g|gif|webp|avif|bmp|svg)(\?|#|$)/i.test(url)) return url;
-  let m = /(?:youtube\.com\/(?:watch\?[^#]*\bv=|embed\/|shorts\/)|youtu\.be\/)([A-Za-z0-9_-]{6,})/i.exec(url);
+  let m = /(?:youtube\.com\/(?:watch\?[^#]*\bv=|embed\/|shorts\/|live\/)|youtu\.be\/)([A-Za-z0-9_-]{6,})/i.exec(url);
   if(m) return "https://img.youtube.com/vi/" + m[1] + "/hqdefault.jpg";
   m = /vimeo\.com\/(?:video\/)?(\d{6,})/i.exec(url);
   if(m) return "https://vumbnail.com/" + m[1] + ".jpg";
@@ -13524,6 +13717,70 @@ let imgTarget = null;
     });
   };
 })();
+
+/* ---- pasting ----
+
+   A picture could be dropped on the board or chosen with the button, but not
+   pasted — the Builder had no paste handling at all, so a screenshot pasted
+   into a card simply vanished: a text box has nowhere to put a picture, and
+   nothing else was listening. An address pasted onto the bare board did
+   nothing either, for the same reason.
+
+   Now a picture pasted into a card, or onto a card whose controls are
+   showing, goes on that card; pasted anywhere else on the Builder it arrives
+   as a card of its own. An address pasted onto the board becomes a card with
+   that address and its preview; any other writing becomes an idea card.
+   Writing pasted INTO a box is left to the box, exactly as before. */
+function pastedPicture(cd){
+  const f = cd.files && cd.files[0];
+  if(f && /^image\//.test(f.type || "")) return f;
+  const items = cd.items ? Array.from(cd.items) : [];
+  for(const it of items)
+    if(it && it.kind === "file" && /^image\//.test(it.type || "") && it.getAsFile)
+      return it.getAsFile();
+  return null;
+}
+
+function pasteIntoBuilder(e){
+  if(S.view !== "builder" || !e || !e.clipboardData) return;
+  const t = e.target || null;
+  const inCard = t && t.closest ? t.closest(".bcard") : null;
+  const inField = !!t && (/^(textarea|input|select)$/i.test(t.tagName || "") || !!t.isContentEditable);
+  /* A box that is not a card's — the big idea, the aim — is not ours to
+     second-guess. */
+  if(inField && !inCard) return;
+  const onEl = inCard || (!inField ? LITCARD : null);
+  const card = onEl ? S.cards.find(c => c.id === (onEl.dataset || {}).card) || null : null;
+
+  const pic = pastedPicture(e.clipboardData);
+  if(pic){
+    e.preventDefault();
+    cardImage(pic, (data, w, h)=>{
+      pushUndo();
+      const c2 = card || makeCard("illus", "");
+      c2.im = data;
+      paintBuilder(); saveSoon();
+      note("Picture pasted", w + " \u00d7 " + h);
+    });
+    return;
+  }
+  if(inField) return;                     // writing into a card: the card has it
+
+  const txt = String((e.clipboardData.getData && e.clipboardData.getData("text/plain")) || "").trim();
+  if(!txt) return;
+  e.preventDefault();
+  const u = /\s/.test(txt) ? "" : tidyUrl(txt);
+  pushUndo();
+  if(u && card && !card.url){ card.url = u; paintBuilder(); saveSoon(); return; }
+  if(u){
+    const c2 = makeCard(linkIsVideo(u) ? "illus" : "quote", "");
+    c2.url = u;
+    paintBuilder(); saveSoon();
+    return;
+  }
+  makeCard("idea", txt);
+}
+document.addEventListener("paste", pasteIntoBuilder);
 
 /* Somewhere to put a new card that is not on top of an old one. */
 function freeSpot(){
@@ -14148,7 +14405,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-11-13a";
+const BUILD = "2026-11-27a";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file

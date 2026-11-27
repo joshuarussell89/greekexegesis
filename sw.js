@@ -9,7 +9,7 @@
    having instantly.
 
    Books and diagrams live in IndexedDB and are never touched here. */
-const VERSION = "2026-11-13a";
+const VERSION = "2026-11-27a";
 const CACHE   = "nous-" + VERSION;
 /* The symbol library is five megabytes and never changes, so it is kept in a
    cache of its own that the version sweep below leaves alone. Putting it in
@@ -59,6 +59,13 @@ function isDocument(req){
 self.addEventListener("fetch", e=>{
   const req = e.request;
   if(req.method !== "GET") return;
+
+  /* Only Nous's own files. Everything from elsewhere — a video's thumbnail on
+     a card, GitHub for the sync — is the browser's to fetch. This worker never
+     kept a copy of any of it, so stepping in gained nothing; and when its own
+     fetch failed it answered with nothing at all, which the page sees as a
+     broken picture: a pasted video showed its address and no preview. */
+  if(new URL(req.url).origin !== self.location.origin) return;
 
   if(isDocument(req)){
     // network first, fall back to cache only when offline

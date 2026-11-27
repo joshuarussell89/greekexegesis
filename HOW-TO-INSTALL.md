@@ -296,6 +296,14 @@ buttons in a card's header do each, or **drag a JPEG straight onto the card**.
 Drop one on the bare board and it arrives as a card of its own, where you
 dropped it; drag an address out of a browser's address bar and it does the same.
 
+**Or paste it.** A picture pasted into a card — a screenshot, a photo copied
+from Photos or a web page — goes on that card; pasted anywhere else on the
+Builder it arrives as a card of its own. An address pasted onto the board
+becomes a card carrying it, with its preview; any other writing pasted onto
+the board becomes an idea card. Paste a YouTube or Vimeo address into a card
+and its preview is up at once, not when you tap away. Writing pasted into a
+box is the box's, exactly as before.
+
 **A card that is only a picture looks like a picture.** With nothing written on
 it, the border, the background and the kind chip go, and you are left with the
 image alone — rounded, with a soft shadow under it. The controls come back the
@@ -415,6 +423,18 @@ mark and highlight the words, draw, lay down symbols, run arrows between them,
 make section breaks, write notes on a word or a phrase or a verse, build the
 sermon in the Builder, and export the Word document at the end.
 
+**It syncs, text and all.** Paste a passage on the iPad and it turns up on the
+Mac with everything you have done on it. Each pasted passage's words go to the
+sync repository in a file of their own, `nous/entext-….json`, beside the work
+on it. Put a typo right on one device and the correction is what both keep;
+remove it on one and it goes from the other, and is not sent back.
+
+*Before build 2026-11-27a neither half of this was true.* The text stayed on
+the device it was pasted on, and the work on an English page was never sent —
+nor saved at all unless you went to another book before closing. Open the iPad
+first after updating: that is where the passage is, and the first sync sends
+it up.
+
 **Verse numbers.** Paste the text with its numbers in it and they are read as
 verse markers — but only when the number is the one that comes *next*. "To the
 12 tribes" does not start verse 12. A number that carries its chapter, like
@@ -428,6 +448,10 @@ English those are the useful ones — because a word's "lemma" there is simply t
 word itself in lower case with its punctuation off.
 
 ## Choosing a passage
+
+**It opens where you left it** — the same book, the same passage, the same
+tab. Before 2026-11-27a it remembered the book but opened on the whole of it:
+the passage was being saved under the same name as the tab, and the tab won.
 
 **One box, and one way in.** Tap it and choose, left to right: the book, the
 chapter, the verse it starts at, and the verse it ends at. Leave the end alone
@@ -512,7 +536,12 @@ pick up **Move/Select** and it is a board of cards again.
 
 Ink is anchored the way it is on the page. There, a stroke belongs to a word and
 keeps its points relative to it, which is what lets you re-split the lines
-without the ink sliding off. Here, **a card is the word**: a stroke drawn near
+without the ink sliding off — and every stroke belongs to one, the nearest,
+however far out in the margin you draw it. That is what keeps a box drawn
+beside 12:1–10 on 12:1–10. (Until 2026-11-27a ink drawn far from the words
+belonged to nothing and turned up on every passage of the book. Any still
+doing that settles on its own passage the first time you pick it up and move
+it, even a nudge, while that passage is on screen.) Here, **a card is the word**: a stroke drawn near
 one belongs to it and moves when you move it. Ink drawn well away from
 everything is anchored to nothing and stays where you put it.
 

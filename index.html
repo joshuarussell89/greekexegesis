@@ -7669,7 +7669,6 @@ function snapToPassage(){
   const want = first ? Math.max(0, (first.y - TOP) * z) : 0;
   scroller.scrollTop = want;
   scroller.scrollLeft = 0;
-  S._scrollWant = null;            // and this is the position worth remembering
 }
 
 function goToRef(input){
@@ -9916,7 +9915,27 @@ function renderBand(top, bottom, want, width, opts){
    which remembers the last folder used and lets the file be renamed on the way
    out. Safari has no such panel, so there the download is still the answer,
    and the share sheet from Files is how it gets where it is going. */
-async function saveFile(blob, name, desc, mime, ext){
+async function saveFile(blob, name, desc, mime, ext, opts){
+  /* On an iPad, a file worth opening straight away (the sermon outline) goes
+     to the share sheet rather than quietly into Files: one tap on Word opens
+     it, and Save to Files is still there. A web page cannot open Word itself.
+     The Mac keeps its save panel or download — its share sheet has no "open
+     in". It has to happen while the tap that asked for it still counts, which
+     is why nothing above this in the export waits on anything. */
+  const touch = (navigator.maxTouchPoints || 0) > 1;
+  if(opts && opts.share && touch && navigator.share && navigator.canShare && typeof File === "function"){
+    try{
+      const file = new File([blob], name, { type: mime || blob.type || "" });
+      if(navigator.canShare({ files:[file] })){
+        await navigator.share({ files:[file], title:name.replace(/\.[^.]+$/, "") });
+        return true;
+      }
+    }catch(err){
+      // putting the sheet away is a choice, not a failure: nothing more happens
+      if(err && err.name === "AbortError") return false;
+      // anything else (the tap no longer counting, say) falls back to the download
+    }
+  }
   if(window.showSaveFilePicker){
     try{
       const h = await window.showSaveFilePicker({
@@ -10188,6 +10207,40 @@ function pngBytes(canvas){
   return out;
 }
 
+/* What an exported outline is called: the book and the passage the way a
+   preacher writes it — "2 Corinthians 12vv1-13", "Romans 1v18",
+   "Deuteronomy 4v7-5v2". It used to be "2-corinthians-12:1–13-outline", which
+   has a colon in it that Finder shows as a slash. An English passage is named
+   after the book it translates, so "2 Corinthians 12 (ESV)" does not end up
+   in the name twice. This is what the save panel suggests; it can still be
+   changed there. */
+function outlineFileName(key, range){
+  const p = PASSAGES[key];
+  let book = p ? p.title : "Passage";
+  if(p && p.english && p.twin && PASSAGES[p.twin]) book = PASSAGES[p.twin].title;
+  let where = "";
+  const m = /^(\d+):(\d+)-(\d+):(\d+)$/.exec(range || "");
+  if(m){
+    const [, c1, v1, c2, v2] = m;
+    if(c1 !== c2)      where = c1 + "v" + v1 + "-" + c2 + "v" + v2;
+    else if(v1 === v2) where = c1 + "v" + v1;
+    else               where = c1 + "vv" + v1 + "-" + v2;
+  } else if(/^\d+$/.test(range || "")){
+    where = range;                                   // a whole chapter: "Romans 8"
+  }
+  /* An English passage tied to nothing is named as it was pasted — "Romans 8
+     (ESV)". The translation does not belong in the name of a sermon, and the
+     chapter is already in the passage. */
+  if(p && p.english && book === p.title){
+    book = book.replace(/\s*\([^)]*\)\s*$/, "");
+    const ch = (where.match(/^\d+/) || [""])[0];
+    if(ch) book = book.replace(new RegExp("\\s+" + ch + "$"), "");
+  }
+  const name = (book + (where ? " " + where : "")).replace(/[\/\\:*?"<>|]+/g, " ")
+                                                  .replace(/\s+/g, " ").trim();
+  return (name || "Sermon outline") + ".docx";
+}
+
 function exportOutline(){
   const inc = id => { const el = document.getElementById(id); return el ? el.checked : false; };
   const withPic = inc("outPic"), withNotes = inc("outNotes"), withRefs = inc("outRefs");
@@ -10448,10 +10501,10 @@ function exportOutline(){
   const bytes = zipStored(files);
   const blob = new Blob([bytes],
     {type:"application/vnd.openxmlformats-officedocument.wordprocessingml.document"});
-  saveFile(blob, heading.replace(/\s+/g,"-").toLowerCase() + "-outline.docx",
+  saveFile(blob, outlineFileName(S.key, focusRange()),
            "Word document",
            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-           [".docx"]);
+           [".docx"], { share:true });
   document.getElementById("outlineSheet").classList.remove("show");
 }
 
@@ -11361,26 +11414,13 @@ function loadBookDoc(key, p){
   S._loadedBook = key;
 }
 
-/* ---- where you were on the page ----
-   Leaving for Accordance and coming back should put you back where you were.
-   On an iPad the app is often torn down while it is in the background, so the
-   position has to be written down with the other settings rather than left to
-   the browser to remember. */
-function readScroll(){
-  const sc = document.getElementById("scroll");
-  if(!sc) return null;
-  return { x:sc.scrollLeft || 0, y:sc.scrollTop || 0, key:S.key || "", ch:String(S.chapter || "") };
-}
-
-function restoreScroll(want){
-  const sc = document.getElementById("scroll");
-  if(!sc || !want) return false;
-  // only if it is the same passage; otherwise the top is the right place
-  if(want.key !== (S.key || "") || want.ch !== String(S.chapter || "")) return false;
-  if(!want.x && !want.y) return false;
-  sc.scrollLeft = want.x; sc.scrollTop = want.y;
-  return true;
-}
+/* ---- where the page opens ----
+   At the top of the passage, always. Until 2026-11-27b the scroll position was
+   written down with the settings and put back on opening, so that a trip out
+   to Accordance — on an iPad that often tears the app down — came back to the
+   same spot. In practice it meant opening Nous partway down a passage, or
+   below the end of it. Switching away and back without the app being closed
+   still leaves the page where it was; that is the browser's doing, not ours. */
 
 /* ---- settings ---- */
 function prefsSnapshot(){
@@ -11402,8 +11442,7 @@ function prefsSnapshot(){
     abbr:document.getElementById("mgAbbr").value,
     use:S.glyphUse, hidden:S.glyphHidden,
     tour:!!S.tourSeen, paint:S.paintMode, sw:(S.swatches || []), erase:S.eraseMode,
-    swHide:(S.colourHidden || {}),
-    scroll: readScroll()
+    swHide:(S.colourHidden || {})
   };
 }
 
@@ -11415,7 +11454,6 @@ function applyPrefs(p){
   S.colourHidden = p.swHide || {};
   S.eraseMode = p.erase === "part" ? "part" : "object";
   rebuildSwatches();
-  S._scrollWant = p.scroll || null;
   if(p.mods){
     document.getElementById("mText").value = p.mods[0] || "NA28-T";
     document.getElementById("mLex").value  = p.mods[1] || "BDAG";
@@ -14405,7 +14443,7 @@ document.getElementById("forget").onclick = ()=>{
 
 /* Build stamp — shown next to the name so it is always obvious which version
    is actually running, rather than inferring it from which features appear. */
-const BUILD = "2026-11-27a";
+const BUILD = "2026-11-27b";
 document.getElementById("buildTag").textContent = BUILD;
 
 /* Offline support. Only active when served over http(s); opening the file
@@ -15143,13 +15181,11 @@ async function boot(){
   /* Somebody opening Nous for the first time is looking at an empty page and a
      row of unexplained buttons. Show them round — once. Anyone who has used it
      before has this flag set and will never see it again. */
-  /* After the layout and the zoom, or the scroller has not got its full height
-     yet and the position is clamped to nothing. */
-  const want = S._scrollWant;
-  if(want) requestAnimationFrame(()=>{
-    if(!restoreScroll(want)) return;
-    requestAnimationFrame(()=> restoreScroll(want));   // again once fonts have settled
-  });
+  /* Open at the top of the passage. After the layout and the zoom, or the
+     scroller has not got its full height yet — and once more when the fonts
+     have settled and the lines have moved. */
+  snapToPassage();
+  requestAnimationFrame(()=>{ snapToPassage(); requestAnimationFrame(snapToPassage); });
 
   setTimeout(()=>{ if(!S.tourSeen && !TOUR.on) runTour(); }, 600);
 }
@@ -15168,16 +15204,12 @@ document.fonts.ready.then(()=> booted ? remeasure() : boot());
 }));
 document.addEventListener("visibilitychange", ()=>{
   if(document.visibilityState === "hidden"){
-    S._scrollWant = readScroll();      // so it survives being torn down in the background
     clearTimeout(saveTimer); saveNow();
     if(SYNC.on) syncAll({ quick:true });   // push before the iPad suspends us
   } else if(SYNC.on && Date.now() - SYNC.at > 20000){
     syncAll({ full:true });                // and pull whatever happened elsewhere
   }
 });
-["pagehide","blur"].forEach(t => window.addEventListener(t, ()=>{
-  S._scrollWant = readScroll();
-}));
 window.addEventListener("online",  ()=>{ if(SYNC.on) syncAll({ full:true }); });
 window.addEventListener("offline", ()=>{ if(SYNC.on) setSyncState("offline", "No connection — your work is safe on this device."); });
 window.addEventListener("resize", ()=>{

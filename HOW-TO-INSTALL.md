@@ -423,6 +423,17 @@ mark and highlight the words, draw, lay down symbols, run arrows between them,
 make section breaks, write notes on a word or a phrase or a verse, build the
 sermon in the Builder, and export the Word document at the end.
 
+**The outline is named after the passage**, the way you would write it:
+*2 Corinthians 12vv1-13*, *Romans 1v18*, *Deuteronomy 4v7-5v2*, *Romans 8* for
+a whole chapter. An English passage is named after the book it translates, and
+one tied to no book loses its "(ESV)". It is only a suggestion — the save panel
+on a Mac lets you change it on the way out.
+
+**On the iPad it opens the share sheet**, so one tap on **Word** opens the
+outline there and then (*Save to Files* is in the same sheet). A web app cannot
+open Word on its own, on either device; on the Mac the file is saved or
+downloaded as before, and you open it from there.
+
 **It syncs, text and all.** Paste a passage on the iPad and it turns up on the
 Mac with everything you have done on it. Each pasted passage's words go to the
 sync repository in a file of their own, `nous/entext-….json`, beside the work
@@ -450,8 +461,12 @@ word itself in lower case with its punctuation off.
 ## Choosing a passage
 
 **It opens where you left it** — the same book, the same passage, the same
-tab. Before 2026-11-27a it remembered the book but opened on the whole of it:
-the passage was being saved under the same name as the tab, and the tab won.
+tab — **at the top of the passage**. Before 2026-11-27a it remembered the book
+but opened on the whole of it: the passage was being saved under the same name
+as the tab, and the tab won. Before 2026-11-27b it also put back how far down
+you had scrolled, which mostly meant opening partway down a passage; it no
+longer does. Switching to Accordance and back without the app being closed
+still leaves the page where it was.
 
 **One box, and one way in.** Tap it and choose, left to right: the book, the
 chapter, the verse it starts at, and the verse it ends at. Leave the end alone
